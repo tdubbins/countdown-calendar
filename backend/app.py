@@ -1,12 +1,13 @@
 # Basic Flask application for Advent Calendar backend
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_mail import Mail, Message
 from config import config
 import os
 import json
 import bcrypt
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from email_validator import validate_email, EmailNotValidError
 import re
 
@@ -20,8 +21,12 @@ app.config.from_object(config[env])
 # Enable CORS for frontend communication
 CORS(app)
 
-# File path for user data storage
+# Initialize Flask-Mail
+mail = Mail(app)
+
+# File paths for data storage
 USERS_FILE = 'users.json'
+EMAIL_TOKENS_FILE = 'email_tokens.json'
 
 # Helper functions for user management
 def load_users():
@@ -73,6 +78,160 @@ def email_exists(email, users_data):
         if user['email'].lower() == email.lower():
             return True
     return False
+
+# Email verification token management
+def load_email_tokens():
+    """Load email tokens from JSON file, create empty file if it doesn't exist"""
+    try:
+        with open(EMAIL_TOKENS_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        tokens_data = {'tokens': []}
+        save_email_tokens(tokens_data)
+        return tokens_data
+    except json.JSONDecodeError:
+        print(f"Warning: {EMAIL_TOKENS_FILE} is corrupted, creating new file")
+        tokens_data = {'tokens': []}
+        save_email_tokens(tokens_data)
+        return tokens_data
+
+def save_email_tokens(tokens_data):
+    """Save email tokens data to JSON file"""
+    with open(EMAIL_TOKENS_FILE, 'w') as f:
+        json.dump(tokens_data, f, indent=2)
+
+def generate_verification_token(user_id, email):
+    """Generate a unique verification token for email verification"""
+    token = str(uuid.uuid4())
+    expiry_time = datetime.now() + timedelta(hours=24)  # 24-hour expiration
+    
+    tokens_data = load_email_tokens()
+    
+    # Add new token
+    new_token = {
+        'token': token,
+        'user_id': user_id,
+        'email': email,
+        'created_at': datetime.now().isoformat(),
+        'expires_at': expiry_time.isoformat(),
+        'used': False
+    }
+    
+    tokens_data['tokens'].append(new_token)
+    save_email_tokens(tokens_data)
+    
+    return token
+
+def validate_verification_token(token):
+    """Validate verification token and return user info if valid"""
+    tokens_data = load_email_tokens()
+    
+    for token_info in tokens_data['tokens']:
+        if token_info['token'] == token:
+            # Check if token is already used
+            if token_info['used']:
+                return None, "Token has already been used"
+            
+            # Check if token is expired
+            expiry_time = datetime.fromisoformat(token_info['expires_at'])
+            if datetime.now() > expiry_time:
+                return None, "Token has expired"
+            
+            # Token is valid
+            return token_info, None
+    
+    return None, "Invalid token"
+
+def mark_token_as_used(token):
+    """Mark a verification token as used"""
+    tokens_data = load_email_tokens()
+    
+    for token_info in tokens_data['tokens']:
+        if token_info['token'] == token:
+            token_info['used'] = True
+            token_info['used_at'] = datetime.now().isoformat()
+            save_email_tokens(tokens_data)
+            return True
+    
+    return False
+
+def cleanup_expired_tokens():
+    """Remove expired tokens from storage (optional cleanup function)"""
+    tokens_data = load_email_tokens()
+    current_time = datetime.now()
+    
+    # Keep only non-expired tokens
+    tokens_data['tokens'] = [
+        token for token in tokens_data['tokens']
+        if datetime.fromisoformat(token['expires_at']) > current_time
+    ]
+    
+    save_email_tokens(tokens_data)
+
+def send_verification_email(email, token):
+    """Send verification email to user"""
+    try:
+        # Create verification URL (you'll need to adjust this for your frontend URL)
+        verification_url = f"http://localhost:8100/verify-email/{token}"
+        
+        # Create email message
+        msg = Message(
+            subject="Verify Your Email - Countdown Calendar",
+            sender=app.config['MAIL_DEFAULT_SENDER'],
+            recipients=[email]
+        )
+        
+        # Email body (HTML)
+        msg.html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #667eea;">📅 Countdown Calendar</h1>
+                </div>
+                
+                <h2>Welcome! Please verify your email address</h2>
+                
+                <p>Thank you for registering with Countdown Calendar! To complete your registration and activate your account, please click the button below to verify your email address.</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{verification_url}" 
+                       style="display: inline-block; padding: 15px 30px; background-color: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                        Verify Email Address
+                    </a>
+                </div>
+                
+                <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; color: #667eea;">{verification_url}</p>
+                
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666;">
+                    <p><strong>Important:</strong> This verification link will expire in 24 hours.</p>
+                    <p>If you didn't create this account, please ignore this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version (fallback)
+        msg.body = f"""
+        Welcome to Countdown Calendar!
+        
+        Please verify your email address by clicking this link:
+        {verification_url}
+        
+        This link will expire in 24 hours.
+        
+        If you didn't create this account, please ignore this email.
+        """
+        
+        # Send email
+        mail.send(msg)
+        return True, "Verification email sent successfully"
+        
+    except Exception as e:
+        print(f"Email sending error: {str(e)}")
+        return False, f"Failed to send email: {str(e)}"
 
 # Route: When someone visits this URL, run this function
 @app.route('/health')
@@ -163,16 +322,84 @@ def register():
         users_data['users'].append(new_user)
         save_users(users_data)
         
-        # Return success response (no password in response)
+        # Generate verification token and send email
+        verification_token = generate_verification_token(user_id, email)
+        email_sent, email_message = send_verification_email(email, verification_token)
+        
+        if not email_sent:
+            print(f"Warning: Failed to send verification email: {email_message}")
+            # Still return success for registration, but note email issue
+            return jsonify({
+                'success': True,
+                'message': 'User registered successfully, but verification email could not be sent. Please contact support.',
+                'user_id': user_id,
+                'email_sent': False
+            }), 201
+        
+        # Return success response
         return jsonify({
             'success': True,
-            'message': 'User registered successfully',
-            'user_id': user_id
+            'message': 'User registered successfully. Please check your email to verify your account.',
+            'user_id': user_id,
+            'email_sent': True
         }), 201
         
     except Exception as e:
         # Log the error (in production, use proper logging)
         print(f"Registration error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+# Route: Email verification endpoint
+@app.route('/api/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Verify user email using verification token"""
+    try:
+        # Validate the token
+        token_info, error_message = validate_verification_token(token)
+        
+        if not token_info:
+            return jsonify({
+                'success': False,
+                'error': error_message
+            }), 400
+        
+        # Load users and find the user
+        users_data = load_users()
+        user_found = False
+        
+        for user in users_data['users']:
+            if user['id'] == token_info['user_id']:
+                # Update user's email verification status
+                user['email_verified'] = True
+                user['email_verified_at'] = datetime.now().isoformat()
+                user_found = True
+                break
+        
+        if not user_found:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        # Save updated user data
+        save_users(users_data)
+        
+        # Mark token as used
+        mark_token_as_used(token)
+        
+        # Clean up expired tokens (optional)
+        cleanup_expired_tokens()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Email verified successfully! Your account is now active.',
+            'user_id': token_info['user_id']
+        }), 200
+        
+    except Exception as e:
+        print(f"Email verification error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500

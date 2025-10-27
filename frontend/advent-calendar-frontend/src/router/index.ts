@@ -12,6 +12,10 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/RegisterPage.vue')
   },
   {
+    path: '/verify-email/:token',
+    component: () => import('@/views/EmailVerificationPage.vue')
+  },
+  {
     path: '/tabs/',
     component: TabsPage,
     children: [
