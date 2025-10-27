@@ -7,8 +7,10 @@ import os
 import json
 import bcrypt
 import uuid
+import jwt
 from datetime import datetime, timedelta
 from email_validator import validate_email, EmailNotValidError
+from functools import wraps
 import re
 
 # Create Flask application instance
@@ -233,6 +235,69 @@ def send_verification_email(email, token):
         print(f"Email sending error: {str(e)}")
         return False, f"Failed to send email: {str(e)}"
 
+# JWT Authentication functions
+def generate_jwt_token(user_id, email):
+    """Generate JWT token for authenticated user"""
+    payload = {
+        'user_id': user_id,
+        'email': email,
+        'exp': datetime.utcnow() + timedelta(hours=24),  # 24-hour expiration
+        'iat': datetime.utcnow()
+    }
+    
+    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    return token
+
+def verify_jwt_token(token):
+    """Verify and decode JWT token"""
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return payload, None
+    except jwt.ExpiredSignatureError:
+        return None, "Token has expired"
+    except jwt.InvalidTokenError:
+        return None, "Invalid token"
+
+def token_required(f):
+    """Decorator to require JWT token for protected routes"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        
+        # Get token from Authorization header
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            try:
+                token = auth_header.split(" ")[1]  # "Bearer TOKEN"
+            except IndexError:
+                return jsonify({'error': 'Invalid authorization header format'}), 401
+        
+        if not token:
+            return jsonify({'error': 'Access token is missing'}), 401
+        
+        # Verify token
+        payload, error = verify_jwt_token(token)
+        if error:
+            return jsonify({'error': error}), 401
+        
+        # Add user info to request context
+        request.current_user = payload
+        return f(*args, **kwargs)
+    
+    return decorated
+
+def verify_password(stored_password_hash, provided_password):
+    """Verify password against stored hash"""
+    return bcrypt.checkpw(provided_password.encode('utf-8'), stored_password_hash.encode('utf-8'))
+
+def find_user_by_email(email):
+    """Find user by email address"""
+    users_data = load_users()
+    for user in users_data['users']:
+        if user['email'].lower() == email.lower():
+            return user
+    return None
+
 # Route: When someone visits this URL, run this function
 @app.route('/health')
 def health_check():
@@ -400,6 +465,132 @@ def verify_email(token):
         
     except Exception as e:
         print(f"Email verification error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+# Route: User login endpoint
+@app.route('/api/login', methods=['POST'])
+def login():
+    """Authenticate user and return JWT token"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        # Check if required fields are present
+        if not data or 'email' not in data or 'password' not in data:
+            return jsonify({
+                'error': 'Missing required fields: email, password'
+            }), 400
+        
+        email = data['email'].strip()
+        password = data['password']
+        
+        # Validate email format
+        try:
+            valid_email = validate_email(email)
+            email = valid_email.email  # Normalized email
+        except EmailNotValidError:
+            return jsonify({
+                'error': 'Invalid email format'
+            }), 400
+        
+        # Find user by email
+        user = find_user_by_email(email)
+        if not user:
+            return jsonify({
+                'error': 'Invalid email or password'
+            }), 401
+        
+        # Check if user's email is verified
+        if not user.get('email_verified', False):
+            return jsonify({
+                'error': 'Please verify your email before logging in'
+            }), 403
+        
+        # Verify password
+        if not verify_password(user['password_hash'], password):
+            return jsonify({
+                'error': 'Invalid email or password'
+            }), 401
+        
+        # Generate JWT token
+        token = generate_jwt_token(user['id'], user['email'])
+        
+        # Return success response with token
+        return jsonify({
+            'success': True,
+            'message': 'Login successful',
+            'token': token,
+            'user': {
+                'id': user['id'],
+                'email': user['email'],
+                'email_verified': user['email_verified'],
+                'created_at': user['created_at']
+            }
+        }), 200
+        
+    except Exception as e:
+        # Log the error (in production, use proper logging)
+        print(f"Login error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+# Route: User logout endpoint
+@app.route('/api/logout', methods=['POST'])
+@token_required
+def logout():
+    """Logout user (token invalidation handled client-side)"""
+    try:
+        # For JWT tokens, logout is typically handled client-side by removing the token
+        # We can add server-side token blacklisting in the future if needed
+        
+        return jsonify({
+            'success': True,
+            'message': 'Logout successful'
+        }), 200
+        
+    except Exception as e:
+        print(f"Logout error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+# Route: Protected user profile endpoint (example of using token_required decorator)
+@app.route('/api/user/profile', methods=['GET'])
+@token_required
+def get_user_profile():
+    """Get current user's profile information"""
+    try:
+        user_id = request.current_user['user_id']
+        
+        # Find user by ID
+        users_data = load_users()
+        user = None
+        for u in users_data['users']:
+            if u['id'] == user_id:
+                user = u
+                break
+        
+        if not user:
+            return jsonify({
+                'error': 'User not found'
+            }), 404
+        
+        # Return user profile (excluding password hash)
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user['id'],
+                'email': user['email'],
+                'email_verified': user['email_verified'],
+                'created_at': user['created_at']
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Profile error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
