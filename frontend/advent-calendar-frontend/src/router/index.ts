@@ -5,7 +5,11 @@ import TabsPage from '../views/TabsPage.vue'
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    redirect: '/tabs/tab1'
+    redirect: '/login'
+  },
+  {
+    path: '/login',
+    component: () => import('@/views/LoginPage.vue')
   },
   {
     path: '/register',
@@ -14,6 +18,11 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/verify-email/:token',
     component: () => import('@/views/EmailVerificationPage.vue')
+  },
+  {
+    path: '/dashboard',
+    component: () => import('@/views/DashboardPage.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/tabs/',
@@ -43,5 +52,22 @@ const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes
 })
+
+// Navigation guards for authentication
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('auth_token');
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  
+  if (requiresAuth && !token) {
+    // Route requires authentication but user is not logged in
+    next('/login');
+  } else if ((to.path === '/login' || to.path === '/register') && token) {
+    // User is logged in but trying to access login/register pages
+    next('/dashboard');
+  } else {
+    // Allow navigation
+    next();
+  }
+});
 
 export default router

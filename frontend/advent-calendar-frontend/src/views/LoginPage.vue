@@ -2,21 +2,21 @@
   <ion-page>
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-title>Create Account</ion-title>
+        <ion-title>Sign In</ion-title>
       </ion-toolbar>
     </ion-header>
     
-    <ion-content :fullscreen="true" class="register-content">
-      <div class="register-container">
-        <div class="register-header">
+    <ion-content :fullscreen="true" class="login-content">
+      <div class="login-container">
+        <div class="login-header">
           <div class="logo-section">
             <div class="logo-icon">📅</div>
             <h1>Countdown Calendar</h1>
           </div>
-          <p class="subtitle">Create your account to start building engaging countdown experiences</p>
+          <p class="subtitle">Welcome back! Sign in to continue building your countdown experiences</p>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="register-form">
+        <form @submit.prevent="handleSubmit" class="login-form">
           <!-- Email Field -->
           <FormField
             v-model="email"
@@ -37,28 +37,9 @@
             placeholder="Enter your password"
             :required="true"
             :error-message="passwordError"
-            autocomplete="new-password"
-            requirements-id="password-requirements"
+            autocomplete="current-password"
             @blur="validatePassword"
             @update:model-value="clearPasswordError"
-          />
-          
-          <!-- Password Requirements -->
-          <PasswordRequirements 
-            ref="passwordRequirementsRef"
-            :password="password"
-          />
-
-          <!-- Confirm Password Field -->
-          <PasswordField
-            v-model="confirmPassword"
-            label="Confirm Password"
-            placeholder="Confirm your password"
-            :required="true"
-            :error-message="confirmPasswordError"
-            autocomplete="new-password"
-            @blur="validateConfirmPassword"
-            @update:model-value="clearConfirmPasswordError"
           />
 
           <!-- Submit Button -->
@@ -74,9 +55,9 @@
             <ion-spinner 
               v-if="isLoading" 
               name="crescent"
-              aria-label="Creating account"
+              aria-label="Signing in"
             ></ion-spinner>
-            <span v-else>✨ Create Account</span>
+            <span v-else>🔑 Sign In</span>
           </ion-button>
 
           <!-- Success/Error Messages -->
@@ -103,11 +84,11 @@
           </div>
         </form>
 
-        <!-- Login Link -->
-        <div class="login-link">
-          <p>Already have an account?</p>
-          <ion-button fill="clear" @click="goToLogin" class="link-button">
-            Sign In →
+        <!-- Register Link -->
+        <div class="register-link">
+          <p>Don't have an account?</p>
+          <ion-button fill="clear" @click="goToRegister" class="link-button">
+            Create Account →
           </ion-button>
         </div>
       </div>
@@ -130,48 +111,30 @@ import {
 } from '@ionic/vue';
 import FormField from '@/components/FormField.vue';
 import PasswordField from '@/components/PasswordField.vue';
-import PasswordRequirements from '@/components/PasswordRequirements.vue';
 import { useAuth } from '@/composables/useAuth';
 
 // Router for navigation
 const router = useRouter();
 
+// Authentication composable
+const { login, isLoading } = useAuth();
+
 // Form data
 const email = ref('');
 const password = ref('');
-const confirmPassword = ref('');
-
-// UI state
-const isLoading = ref(false);
 
 // Error states
 const emailError = ref('');
 const passwordError = ref('');
-const confirmPasswordError = ref('');
 const errorMessage = ref('');
 const successMessage = ref('');
-
-// Component refs
-const passwordRequirementsRef = ref();
-
-// Password validation logic (duplicated from component for consistency)
-const hasMinLength = computed(() => password.value.length >= 8);
-const hasUppercase = computed(() => /[A-Z]/.test(password.value));
-const hasLowercase = computed(() => /[a-z]/.test(password.value));
-const hasNumber = computed(() => /\d/.test(password.value));
-const isPasswordValid = computed(() => 
-  hasMinLength.value && hasUppercase.value && hasLowercase.value && hasNumber.value
-);
 
 // Form validation
 const isFormValid = computed(() => {
   return email.value && 
-         isPasswordValid.value && 
-         confirmPassword.value && 
-         password.value === confirmPassword.value &&
+         password.value &&
          !emailError.value &&
-         !passwordError.value &&
-         !confirmPasswordError.value;
+         !passwordError.value;
 });
 
 // Validation functions
@@ -189,24 +152,8 @@ const validateEmail = () => {
 const validatePassword = () => {
   if (!password.value) {
     passwordError.value = 'Password is required';
-  } else if (!isPasswordValid.value) {
-    passwordError.value = 'Password does not meet requirements';
   } else {
     passwordError.value = '';
-  }
-  // Re-validate confirm password if it exists
-  if (confirmPassword.value) {
-    validateConfirmPassword();
-  }
-};
-
-const validateConfirmPassword = () => {
-  if (!confirmPassword.value) {
-    confirmPasswordError.value = 'Please confirm your password';
-  } else if (password.value !== confirmPassword.value) {
-    confirmPasswordError.value = 'Passwords do not match';
-  } else {
-    confirmPasswordError.value = '';
   }
 };
 
@@ -219,13 +166,6 @@ const clearPasswordError = () => {
   passwordError.value = '';
 };
 
-const clearConfirmPasswordError = () => {
-  confirmPasswordError.value = '';
-};
-
-// Authentication composable
-const { register } = useAuth();
-
 // Form submission
 const handleSubmit = async () => {
   // Clear previous messages
@@ -235,7 +175,6 @@ const handleSubmit = async () => {
   // Validate all fields
   validateEmail();
   validatePassword();
-  validateConfirmPassword();
   
   // Check if form is valid
   if (!isFormValid.value) {
@@ -243,54 +182,46 @@ const handleSubmit = async () => {
     return;
   }
   
-  isLoading.value = true;
-  
   try {
-    const result = await register(email.value, password.value, confirmPassword.value);
+    const result = await login(email.value, password.value);
     
     if (result.success) {
-      // Clear form first
+      // Show success message
+      successMessage.value = '✅ Login successful! Redirecting to dashboard...';
+      
+      // Clear form
       email.value = '';
       password.value = '';
-      confirmPassword.value = '';
-      
-      // Clear any existing errors
       emailError.value = '';
       passwordError.value = '';
-      confirmPasswordError.value = '';
       
-      // Show success message
-      successMessage.value = '✅ Account created successfully! Please check your email to verify your account.';
-      
-      // Redirect to login page after 3 seconds
+      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
         successMessage.value = '';
-        goToLogin();
-      }, 3000);
+        router.push('/dashboard');
+      }, 2000);
     } else {
       errorMessage.value = result.message;
     }
     
   } catch (error: any) {
     errorMessage.value = 'An unexpected error occurred';
-  } finally {
-    isLoading.value = false;
   }
 };
 
 // Navigation
-const goToLogin = () => {
-  router.push('/login');
+const goToRegister = () => {
+  router.push('/register');
 };
 </script>
 
 <style scoped>
 /* Main container and layout */
-.register-content {
+.login-content {
   --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.register-container {
+.login-container {
   max-width: 420px;
   margin: 0 auto;
   padding: 32px 24px;
@@ -301,7 +232,7 @@ const goToLogin = () => {
 }
 
 /* Header styling */
-.register-header {
+.login-header {
   text-align: center;
   margin-bottom: 40px;
 }
@@ -315,7 +246,7 @@ const goToLogin = () => {
   margin-bottom: 12px;
 }
 
-.register-header h1 {
+.login-header h1 {
   font-size: 2.2rem;
   font-weight: 700;
   margin-bottom: 8px;
@@ -331,7 +262,7 @@ const goToLogin = () => {
 }
 
 /* Form styling */
-.register-form {
+.login-form {
   background: white;
   padding: 32px 24px;
   border-radius: 20px;
@@ -396,13 +327,13 @@ const goToLogin = () => {
   line-height: 1.4;
 }
 
-/* Login link */
-.login-link {
+/* Register link */
+.register-link {
   text-align: center;
   margin-top: 20px;
 }
 
-.login-link p {
+.register-link p {
   color: rgba(255, 255, 255, 0.9);
   font-size: 1rem;
   margin-bottom: 8px;
@@ -422,25 +353,25 @@ const goToLogin = () => {
 
 /* Responsive design */
 @media (max-width: 480px) {
-  .register-container {
+  .login-container {
     padding: 20px 16px;
   }
   
-  .register-form {
+  .login-form {
     padding: 24px 20px;
   }
   
-  .register-header h1 {
+  .login-header h1 {
     font-size: 1.8rem;
   }
 }
 
 @media (max-width: 320px) {
-  .register-container {
+  .login-container {
     padding: 16px 12px;
   }
   
-  .register-header h1 {
+  .login-header h1 {
     font-size: 1.6rem;
   }
   
