@@ -25,6 +25,15 @@ class Config:
     EMAIL_USER = os.environ.get('EMAIL_USER')
     EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
     
+    # Flask-Mail configuration
+    MAIL_SERVER = os.environ.get('SMTP_SERVER') or 'smtp.gmail.com'
+    MAIL_PORT = int(os.environ.get('SMTP_PORT') or 587)
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = os.environ.get('EMAIL_USER')
+    MAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('EMAIL_USER')
+    
     # Application settings
     APP_NAME = 'Advent Calendar API'
     API_VERSION = '1.0.0'
