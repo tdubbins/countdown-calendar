@@ -45,3 +45,48 @@ def validate_passwords_match(password: str, confirm_password: str) -> Tuple[bool
     if password != confirm_password:
         return False, "Passwords do not match"
     return True, ""
+
+def validate_calendar_title(title: str) -> Tuple[bool, str]:
+    """Validate calendar title meets requirements"""
+    if not title or not title.strip():
+        return False, "Title is required"
+    
+    title = title.strip()
+    if len(title) < 1:
+        return False, "Title cannot be empty"
+    
+    if len(title) > 100:
+        return False, "Title must be 100 characters or less"
+    
+    return True, title
+
+def validate_calendar_duration(duration) -> Tuple[bool, int, str]:
+    """Validate calendar duration is between 1-31 days"""
+    try:
+        duration_int = int(duration)
+        if duration_int < 1:
+            return False, 0, "Duration must be at least 1 day"
+        if duration_int > 31:
+            return False, 0, "Duration cannot exceed 31 days"
+        return True, duration_int, ""
+    except (ValueError, TypeError):
+        return False, 0, "Duration must be a valid number"
+
+def validate_calendar_start_date(start_date: str) -> Tuple[bool, str, str]:
+    """Validate start date format and value"""
+    import re
+    from datetime import datetime
+    
+    if not start_date or not start_date.strip():
+        return False, "", "Start date is required"
+    
+    # Validate ISO date format (YYYY-MM-DD)
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', start_date.strip()):
+        return False, "", "Start date must be in YYYY-MM-DD format"
+    
+    try:
+        # Validate date is parseable
+        datetime.strptime(start_date.strip(), '%Y-%m-%d')
+        return True, start_date.strip(), ""
+    except ValueError:
+        return False, "", "Invalid date provided"
