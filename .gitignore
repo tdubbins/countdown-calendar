@@ -173,7 +173,11 @@ instance/
 .webassets-cache
 
 # Database files (keep our data files but ignore temp/cache JSON)
-!backend/data/*.json
+backend/data/*.json
+!backend/data/users.json
+!backend/data/calendars.json
+!backend/data/email_tokens.json
+!backend/data/tasks.json
 !frontend/**/package*.json
 !**/tsconfig*.json
 !**/manifest.json
