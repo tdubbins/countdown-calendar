@@ -97,6 +97,7 @@ import {
 import StatusCard from '@/components/StatusCard.vue';
 import ActionButton from '@/components/ActionButton.vue';
 import ErrorHelp from '@/components/ErrorHelp.vue';
+import { API_ENDPOINTS } from '@/config/api';
 
 // Router and route
 const route = useRoute();
@@ -132,7 +133,7 @@ const token = route.params.token as string;
 // API call to verify email
 const verifyEmail = async (verificationToken: string) => {
   try {
-    const response = await fetch(`http://localhost:5001/api/verify-email/${verificationToken}`, {
+    const response = await fetch(API_ENDPOINTS.VERIFY_EMAIL(verificationToken), {
       method: 'GET',
     });
     
@@ -161,12 +162,11 @@ const verifyEmail = async (verificationToken: string) => {
 
 // Navigation functions
 const goToLogin = () => {
-  // TODO: Navigate to login page when it exists
-  router.push('/tabs/tab1');
+  router.push('/login');
 };
 
 const goToHome = () => {
-  router.push('/tabs/tab1');
+  router.push('/login');
 };
 
 const goToRegister = () => {

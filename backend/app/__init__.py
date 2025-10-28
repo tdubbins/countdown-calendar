@@ -1,12 +1,8 @@
 # Flask Application Factory
 from flask import Flask
 from flask_cors import CORS
-from flask_mail import Mail
 from config import config
 import os
-
-# Global extensions
-mail = Mail()
 
 def create_app(config_name=None):
     """Create and configure Flask application"""
@@ -20,7 +16,6 @@ def create_app(config_name=None):
     
     # Initialize extensions
     CORS(app)
-    mail.init_app(app)
     
     # Register blueprints
     from app.routes.auth import auth_bp
