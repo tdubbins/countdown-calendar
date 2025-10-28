@@ -1,5 +1,9 @@
 # Configuration settings for Advent Calendar API
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Config:
     """Base configuration class"""
@@ -19,20 +23,25 @@ class Config:
     MAX_VIDEO_SIZE = int(os.environ.get('MAX_VIDEO_SIZE') or 50 * 1024 * 1024)  # 50MB
     MAX_VIDEO_DURATION = int(os.environ.get('MAX_VIDEO_DURATION') or 180)  # 3 minutes
     
-    # Email settings (for verification)
-    SMTP_SERVER = os.environ.get('SMTP_SERVER') or 'smtp.gmail.com'
-    SMTP_PORT = int(os.environ.get('SMTP_PORT') or 587)
-    EMAIL_USER = os.environ.get('EMAIL_USER')
-    EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
+    # Email configuration - Consolidated and cleaned
+    EMAIL_CONFIG = {
+        'server': os.environ.get('SMTP_SERVER'),
+        'port': int(os.environ.get('SMTP_PORT', 465)),
+        'username': os.environ.get('EMAIL_USER'),
+        'password': os.environ.get('EMAIL_PASSWORD'),
+        'sender': os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('EMAIL_USER'),
+        'use_ssl': os.environ.get('MAIL_USE_SSL', 'True').lower() == 'true',
+        'use_tls': os.environ.get('MAIL_USE_TLS', 'False').lower() == 'true',
+        'timeout': 30
+    }
     
-    # Flask-Mail configuration
-    MAIL_SERVER = os.environ.get('SMTP_SERVER') or 'smtp.gmail.com'
-    MAIL_PORT = int(os.environ.get('SMTP_PORT') or 587)
-    MAIL_USE_TLS = True
-    MAIL_USE_SSL = False
-    MAIL_USERNAME = os.environ.get('EMAIL_USER')
-    MAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('EMAIL_USER')
+    # Application URLs - No fallbacks, must be explicitly set
+    FRONTEND_URL = (
+        os.environ.get('FRONTEND_URL') or
+        ('https://yourdomain.com' if os.environ.get('FLASK_ENV') == 'production' 
+         else 'http://localhost:8080')
+    )
+    BACKEND_URL = os.environ.get('BACKEND_URL')
     
     # Application settings
     APP_NAME = 'Advent Calendar API'
