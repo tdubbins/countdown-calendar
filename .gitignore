@@ -172,16 +172,26 @@ venv.bak/
 instance/
 .webassets-cache
 
-# Database files (keep our data files but ignore temp/cache JSON)
-backend/data/*.json
+# Database files (specific ignores, keep our core data files)
 !backend/data/users.json
 !backend/data/calendars.json
 !backend/data/email_tokens.json
 !backend/data/tasks.json
+backend/data/temp_*.json
+backend/data/backup_*.json
+
+# Project config files to keep
 !frontend/**/package*.json
 !**/tsconfig*.json
 !**/manifest.json
 !**/.vscode/*.json
+!**/ionic.config.json
+!**/cypress.json
+
+# Python compiled files
+*.pyc
+backend/__pycache__/
+backend/**/__pycache__/
 
 # macOS
 .DS_Store
@@ -192,8 +202,12 @@ backend/data/*.json
 ehthumbs.db
 Thumbs.db
 
-# Development instructions (keep internal)
+# Development instructions (keep internal to project team)
 CLAUDE.md
+
+# Test output and temp files
+backend/test_*.py.log
+backend/temp_test_*
 
 # Backend uploads and temp files
 backend/uploads/temp/*

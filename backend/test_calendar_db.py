@@ -9,10 +9,14 @@ import os
 from datetime import datetime, timedelta
 import uuid
 
-# Add the app directory to Python path
+# Add the app directory to Python path  
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
-from app.utils.json_db import calendars_db
+# Import JSONDatabase class directly (avoid Flask dependencies)
+from app.utils.json_db import JSONDatabase
+
+# Create calendars_db instance directly
+calendars_db = JSONDatabase('data/calendars.json')
 
 def test_calendar_database():
     """Test all calendar database operations"""
