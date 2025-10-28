@@ -1,0 +1,24 @@
+{
+  "name": "Advent Calendar App",
+  "short_name": "AdventCal",
+  "description": "Create custom countdown calendars with video content",
+  "theme_color": "#3880ff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "assets/icon/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icon/favicon.png", 
+      "sizes": "16x16",
+      "type": "image/png"
+    }
+  ]
+}
