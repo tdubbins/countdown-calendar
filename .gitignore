@@ -172,7 +172,29 @@ venv.bak/
 instance/
 .webassets-cache
 
-# Database files
-*.json
-!package.json
-!package-lock.json
+# Database files (keep our data files but ignore temp/cache JSON)
+!backend/data/*.json
+!frontend/**/package*.json
+!**/tsconfig*.json
+!**/manifest.json
+!**/.vscode/*.json
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Development instructions (keep internal)
+CLAUDE.md
+
+# Backend uploads and temp files
+backend/uploads/temp/*
+backend/uploads/videos/*
+backend/uploads/thumbnails/*
+!backend/uploads/temp/.gitkeep
+!backend/uploads/videos/.gitkeep
+!backend/uploads/thumbnails/.gitkeep
