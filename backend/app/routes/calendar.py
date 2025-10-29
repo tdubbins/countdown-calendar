@@ -1,9 +1,8 @@
 # Calendar Routes
-import time
 from flask import Blueprint, request, jsonify
 
 from app.utils.decorators import token_required
-from app.services.calendar_service import create_calendar as create_calendar_service, get_user_calendars, get_calendar_by_id, update_calendar as update_calendar_service
+from app.services.calendar_service import create_calendar as create_calendar_service, get_user_calendars, get_calendar_by_id, update_calendar as update_calendar_service, delete_calendar as delete_calendar_service
 
 calendar_bp = Blueprint('calendar', __name__)
 
@@ -11,39 +10,23 @@ calendar_bp = Blueprint('calendar', __name__)
 @token_required
 def get_calendars():
     """Get all calendars for the authenticated user"""
-    # Start timing for NFR [P3]: Calendar rendering under 3 seconds
-    start_time = time.time()
-    
     try:
-        # Get user's calendars using service layer (NFR [SC3]: Modular architecture)
+        # Get user's calendars using service layer
         success, calendars, error_message = get_user_calendars(request.current_user['user_id'])
-        
-        # Calculate response time for NFR [P3] monitoring
-        response_time = time.time() - start_time
-        print(f"Calendar list response time: {response_time:.3f}s for user {request.current_user['user_id']} ({len(calendars) if success else 0} calendars)")
         
         if not success:
             return jsonify({
                 'error': error_message
             }), 500
         
-        # NFR [P3]: Warn if response time exceeds 3 seconds
-        if response_time > 3.0:
-            print(f"WARNING: Calendar list exceeded NFR [P3] limit of 3s: {response_time:.3f}s")
-        
         return jsonify({
             'success': True,
             'message': f'Found {len(calendars)} calendar(s)',
-            'calendars': calendars,
-            'meta': {
-                'responseTime': round(response_time, 3),
-                'count': len(calendars)
-            }
+            'calendars': calendars
         }), 200
         
     except Exception as e:
-        response_time = time.time() - start_time
-        print(f"Get calendars error after {response_time:.3f}s: {str(e)}")
+        print(f"Get calendars error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -53,7 +36,7 @@ def get_calendars():
 def create_calendar():
     """Create a new calendar for the authenticated user"""
     try:
-        # Get JSON data from request (NFR [S4]: Input validation)
+        # Get JSON data from request
         data = request.get_json()
         if not data:
             return jsonify({
@@ -65,7 +48,7 @@ def create_calendar():
         start_date = data.get('startDate', '').strip()
         duration = data.get('duration')
         
-        # Create calendar using service layer (NFR [SC3]: Modular architecture)
+        # Create calendar using service layer
         success, calendar_data, error_message = create_calendar_service(
             user_id=request.current_user['user_id'],
             title=title,
@@ -78,7 +61,7 @@ def create_calendar():
                 'error': error_message
             }), 400
         
-        # Return created calendar data (NFR [P3]: Calendar creation under 3 seconds)
+        # Return created calendar data
         return jsonify({
             'success': True,
             'message': 'Calendar created successfully',
@@ -96,15 +79,34 @@ def create_calendar():
 def get_calendar(calendar_id):
     """Get a specific calendar by ID for the authenticated user"""
     try:
-        # Placeholder response for Issue 1
+        # Validate calendar ID format
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({
+                'error': 'Invalid calendar ID'
+            }), 400
+        
+        # Get calendar using service layer
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            request.current_user['user_id']
+        )
+        
+        if not success:
+            # Determine appropriate HTTP status code based on error
+            if "not found" in error_message.lower():
+                status_code = 404
+            else:
+                status_code = 500
+                
+            return jsonify({
+                'error': error_message
+            }), status_code
+        
+        # Return calendar data
         return jsonify({
             'success': True,
-            'message': f'Calendar {calendar_id} endpoint working',
-            'calendar': {
-                'id': calendar_id,
-                'title': 'Test Calendar',
-                'status': 'active'
-            }
+            'message': 'Calendar retrieved successfully',
+            'calendar': calendar_data
         }), 200
         
     except Exception as e:
@@ -117,11 +119,8 @@ def get_calendar(calendar_id):
 @token_required
 def update_calendar(calendar_id):
     """Update a specific calendar for the authenticated user"""
-    # Start timing for NFR [P3]: Calendar rendering under 3 seconds
-    start_time = time.time()
-    
     try:
-        # Get JSON data from request (NFR [S4]: Input validation)
+        # Get JSON data from request
         data = request.get_json()
         if not data:
             return jsonify({
@@ -139,7 +138,7 @@ def update_calendar(calendar_id):
                 'error': 'Invalid calendar ID'
             }), 400
         
-        # Update calendar using service layer (NFR [SC3]: Modular architecture)
+        # Update calendar using service layer
         success, calendar_data, error_message = update_calendar_service(
             calendar_id=calendar_id.strip(),
             user_id=request.current_user['user_id'],
@@ -147,10 +146,6 @@ def update_calendar(calendar_id):
             start_date=start_date,
             duration=duration
         )
-        
-        # Calculate response time for NFR [P3] monitoring
-        response_time = time.time() - start_time
-        print(f"Calendar update response time: {response_time:.3f}s for calendar {calendar_id}")
         
         if not success:
             # Determine appropriate HTTP status code based on error
@@ -165,23 +160,15 @@ def update_calendar(calendar_id):
                 'error': error_message
             }), status_code
         
-        # NFR [P3]: Warn if response time exceeds 3 seconds
-        if response_time > 3.0:
-            print(f"WARNING: Calendar update exceeded NFR [P3] limit of 3s: {response_time:.3f}s")
-        
-        # Return updated calendar data (NFR [P3]: Calendar update under 3 seconds)
+        # Return updated calendar data
         return jsonify({
             'success': True,
             'message': 'Calendar updated successfully',
-            'calendar': calendar_data,
-            'meta': {
-                'responseTime': round(response_time, 3)
-            }
+            'calendar': calendar_data
         }), 200
         
     except Exception as e:
-        response_time = time.time() - start_time
-        print(f"Update calendar error after {response_time:.3f}s: {str(e)}")
+        print(f"Update calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -191,11 +178,31 @@ def update_calendar(calendar_id):
 def delete_calendar(calendar_id):
     """Delete a specific calendar for the authenticated user"""
     try:
-        # Placeholder response for Issue 1
-        return jsonify({
-            'success': True,
-            'message': f'Calendar {calendar_id} delete endpoint working'
-        }), 200
+        # Validate calendar ID format
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({
+                'error': 'Invalid calendar ID'
+            }), 400
+        
+        # Delete calendar using service layer
+        success, error_message = delete_calendar_service(
+            calendar_id.strip(),
+            request.current_user['user_id']
+        )
+        
+        if not success:
+            # Determine appropriate HTTP status code based on error
+            if "not found" in error_message.lower():
+                status_code = 404
+            else:
+                status_code = 500
+                
+            return jsonify({
+                'error': error_message
+            }), status_code
+        
+        # Return 204 No Content for successful deletion (RESTful convention)
+        return '', 204
         
     except Exception as e:
         print(f"Delete calendar error: {str(e)}")
