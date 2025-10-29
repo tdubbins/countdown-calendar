@@ -19,6 +19,7 @@ def get_calendars():
                 'error': error_message
             }), 500
         
+        # Return calendars list
         return jsonify({
             'success': True,
             'message': f'Found {len(calendars)} calendar(s)',
