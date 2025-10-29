@@ -1,4 +1,5 @@
 # Calendar Routes
+import time
 from flask import Blueprint, request, jsonify
 
 from app.utils.decorators import token_required
@@ -8,32 +9,48 @@ calendar_bp = Blueprint('calendar', __name__)
 
 @calendar_bp.route('/calendars', methods=['GET'])
 @token_required
-def get_calendars(current_user):
+def get_calendars():
     """Get all calendars for the authenticated user"""
+    # Start timing for NFR [P3]: Calendar rendering under 3 seconds
+    start_time = time.time()
+    
     try:
         # Get user's calendars using service layer (NFR [SC3]: Modular architecture)
-        success, calendars, error_message = get_user_calendars(current_user['id'])
+        success, calendars, error_message = get_user_calendars(request.current_user['user_id'])
+        
+        # Calculate response time for NFR [P3] monitoring
+        response_time = time.time() - start_time
+        print(f"Calendar list response time: {response_time:.3f}s for user {request.current_user['user_id']} ({len(calendars) if success else 0} calendars)")
         
         if not success:
             return jsonify({
                 'error': error_message
             }), 500
         
+        # NFR [P3]: Warn if response time exceeds 3 seconds
+        if response_time > 3.0:
+            print(f"WARNING: Calendar list exceeded NFR [P3] limit of 3s: {response_time:.3f}s")
+        
         return jsonify({
             'success': True,
             'message': f'Found {len(calendars)} calendar(s)',
-            'calendars': calendars
+            'calendars': calendars,
+            'meta': {
+                'responseTime': round(response_time, 3),
+                'count': len(calendars)
+            }
         }), 200
         
     except Exception as e:
-        print(f"Get calendars error: {str(e)}")
+        response_time = time.time() - start_time
+        print(f"Get calendars error after {response_time:.3f}s: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
 
 @calendar_bp.route('/calendars', methods=['POST'])
 @token_required
-def create_calendar(current_user):
+def create_calendar():
     """Create a new calendar for the authenticated user"""
     try:
         # Get JSON data from request (NFR [S4]: Input validation)
@@ -50,7 +67,7 @@ def create_calendar(current_user):
         
         # Create calendar using service layer (NFR [SC3]: Modular architecture)
         success, calendar_data, error_message = create_calendar_service(
-            user_id=current_user['id'],
+            user_id=request.current_user['user_id'],
             title=title,
             start_date=start_date,
             duration=duration

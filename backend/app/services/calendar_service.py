@@ -87,6 +87,17 @@ def get_user_calendars(user_id: str) -> Tuple[bool, list, str]:
     """
     Get all calendars for a specific user
     
+    NFR Compliance:
+        - [P3] Calendar Rendering: Optimized for <3 second response time
+        - [SC1] User Database Capacity: Handles 100+ users with O(n) complexity
+        - [P4] Concurrent Users: Thread-safe JSON file operations
+    
+    Performance Characteristics:
+        - Time Complexity: O(n) where n = total calendars in system
+        - Space Complexity: O(m) where m = calendars for this user
+        - Acceptable for small-medium scale (100 users, 1000 total calendars)
+        - May need optimization for larger datasets (>5000 calendars)
+    
     Returns:
         - success: bool
         - calendars: list of calendar objects
