@@ -1,6 +1,6 @@
 # Calendar Service - Business Logic for Calendar Operations
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Tuple, Optional
 
 from app.utils.json_db import calendars_db
@@ -28,9 +28,10 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int) ->
             return False, {}, fields_error
         
         # Validate title
-        title_valid, clean_title, title_error = validate_calendar_title(title)
+        title_valid, title_result = validate_calendar_title(title)
         if not title_valid:
-            return False, {}, title_error
+            return False, {}, title_result  # title_result contains the error message
+        clean_title = title_result  # title_result contains the clean title when valid
         
         # Validate start date
         date_valid, clean_start_date, date_error = validate_calendar_start_date(start_date)
@@ -53,7 +54,7 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int) ->
         date_range = f"{clean_start_date} to {end_date}"
         
         # Create calendar object according to schema
-        now = datetime.utcnow().isoformat() + 'Z'
+        now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         calendar_data = {
             'id': calendar_id,
             'title': clean_title,
@@ -137,3 +138,115 @@ def get_calendar_by_id(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str, 
     except Exception as e:
         print(f"Get calendar by ID error: {str(e)}")
         return False, {}, "Internal server error retrieving calendar"
+
+def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None, 
+                   start_date: Optional[str] = None, duration: Optional[int] = None) -> Tuple[bool, Dict[str, Any], str]:
+    """
+    Update a specific calendar for the authenticated user
+    
+    NFR Compliance:
+        - [S4] Input Validation: All inputs validated using existing validation functions
+        - [SC3] Modular Architecture: Service layer separation of concerns
+        - [P3] Calendar Rendering: Optimized updates for <3 second response time
+    
+    Args:
+        calendar_id: str - The calendar ID to update
+        user_id: str - The authenticated user ID
+        title: Optional[str] - New calendar title
+        start_date: Optional[str] - New start date in YYYY-MM-DD format
+        duration: Optional[int] - New duration in days (1-31)
+    
+    Returns:
+        - success: bool
+        - calendar_data: Dict with updated calendar info or empty dict
+        - error_message: str with error details or empty string
+    """
+    try:
+        # First, get the calendar and verify ownership
+        calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
+        if not calendar_exists:
+            return False, {}, error_msg
+        
+        # Prepare update data - only include provided fields
+        update_data = {}
+        
+        # Validate and process title if provided
+        if title is not None:
+            title_valid, title_result = validate_calendar_title(title)
+            if not title_valid:
+                return False, {}, title_result  # title_result contains the error message
+            update_data['title'] = title_result  # title_result contains the clean title when valid
+        
+        # Validate and process start date if provided
+        if start_date is not None:
+            date_valid, clean_start_date, date_error = validate_calendar_start_date(start_date)
+            if not date_valid:
+                return False, {}, date_error
+            update_data['startDate'] = clean_start_date
+        
+        # Validate and process duration if provided
+        if duration is not None:
+            duration_valid, clean_duration, duration_error = validate_calendar_duration(duration)
+            if not duration_valid:
+                return False, {}, duration_error
+            update_data['duration'] = clean_duration
+        
+        # If no updates provided, return error
+        if not update_data:
+            return False, {}, "No valid update fields provided"
+        
+        # Calculate derived fields if start_date or duration changed
+        final_start_date = update_data.get('startDate', existing_calendar['startDate'])
+        final_duration = update_data.get('duration', existing_calendar['duration'])
+        
+        # Recalculate end date and date range if start date or duration changed
+        if 'startDate' in update_data or 'duration' in update_data:
+            start_datetime = datetime.strptime(final_start_date, '%Y-%m-%d')
+            end_datetime = start_datetime + timedelta(days=final_duration - 1)
+            update_data['endDate'] = end_datetime.strftime('%Y-%m-%d')
+            update_data['dateRange'] = f"{final_start_date} to {update_data['endDate']}"
+        
+        # Update timestamp
+        update_data['updatedAt'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        
+        # Update calendar in database (NFR [SC3]: Modular architecture)
+        updated_calendar = calendars_db.update('calendars', calendar_id, update_data)
+        
+        if updated_calendar:
+            return True, updated_calendar, ""
+        else:
+            return False, {}, "Failed to update calendar in database"
+            
+    except Exception as e:
+        print(f"Calendar update error: {str(e)}")
+        return False, {}, "Internal server error during calendar update"
+
+def delete_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
+    """
+    Delete a specific calendar for the authenticated user
+    
+    Args:
+        calendar_id: str - The calendar ID to delete
+        user_id: str - The authenticated user ID
+    
+    Returns:
+        - success: bool
+        - error_message: str with error details or empty string
+    """
+    try:
+        # First, get the calendar and verify ownership
+        calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
+        if not calendar_exists:
+            return False, error_msg
+        
+        # Delete calendar from database
+        deleted = calendars_db.delete('calendars', calendar_id)
+        
+        if deleted:
+            return True, ""
+        else:
+            return False, "Failed to delete calendar from database"
+            
+    except Exception as e:
+        print(f"Calendar deletion error: {str(e)}")
+        return False, "Internal server error during calendar deletion"

@@ -2,7 +2,7 @@
 import bcrypt
 import jwt
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, Tuple
 from flask import current_app
 
@@ -152,8 +152,8 @@ class AuthService:
         payload = {
             'user_id': user_id,
             'email': email,
-            'exp': datetime.utcnow() + timedelta(hours=24),
-            'iat': datetime.utcnow()
+            'exp': datetime.now(timezone.utc) + timedelta(hours=24),
+            'iat': datetime.now(timezone.utc)
         }
         
         return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
