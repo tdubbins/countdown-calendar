@@ -1,4 +1,4 @@
-# Email Service - Clean Architecture Implementation
+# Email Service
 import uuid
 import smtplib
 import logging
