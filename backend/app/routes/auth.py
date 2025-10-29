@@ -12,11 +12,13 @@ def register():
     """Register a new user with email and password validation"""
     try:
         # Get JSON data from request
-        data = request.get_json()
-        
-        if not data:
+        try:
+            data = request.get_json()
+            if not data:
+                raise ValueError("No JSON data provided")
+        except Exception:
             return jsonify({
-                'error': 'No data provided'
+                'error': 'Request must contain JSON data'
             }), 400
         
         email = data.get('email', '')
@@ -91,11 +93,13 @@ def login():
     """Authenticate user and return JWT token"""
     try:
         # Get JSON data from request
-        data = request.get_json()
-        
-        if not data:
+        try:
+            data = request.get_json()
+            if not data:
+                raise ValueError("No JSON data provided")
+        except Exception:
             return jsonify({
-                'error': 'No data provided'
+                'error': 'Request must contain JSON data'
             }), 400
         
         email = data.get('email', '')
