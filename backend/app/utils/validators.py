@@ -7,7 +7,7 @@ def validate_email_address(email: str) -> Tuple[bool, str, str]:
     """Validate email address format"""
     try:
         valid_email = validate_email(email.strip())
-        return True, valid_email.email, ""
+        return True, valid_email.normalized, ""
     except EmailNotValidError:
         return False, "", "Invalid email format"
 
