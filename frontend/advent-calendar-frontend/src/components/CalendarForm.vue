@@ -151,16 +151,56 @@ defineExpose({
 
 // Helper function to calculate end date from start date and duration
 const calculateEndDate = (startDate: string, duration: number): string => {
-  const start = new Date(startDate);
-  const end = new Date(start);
-  end.setDate(start.getDate() + duration - 1); // -1 because duration includes start day
-  return end.toISOString().split('T')[0];
+  try {
+    // Ensure we have a date string in YYYY-MM-DD format
+    let dateStr = startDate;
+
+    // If the date string contains time (ISO format), extract just the date part
+    if (startDate.includes('T')) {
+      dateStr = startDate.split('T')[0];
+    }
+
+    // Parse the date
+    const start = new Date(dateStr + 'T00:00:00'); // Add time to ensure local timezone
+
+    // Validate the date
+    if (isNaN(start.getTime())) {
+      console.error('Invalid start date:', startDate);
+      return '';
+    }
+
+    // Calculate end date
+    const end = new Date(start);
+    end.setDate(start.getDate() + duration - 1); // -1 because duration includes start day
+
+    // Return in YYYY-MM-DD format
+    const year = end.getFullYear();
+    const month = String(end.getMonth() + 1).padStart(2, '0');
+    const day = String(end.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('Error calculating end date:', error, { startDate, duration });
+    return '';
+  }
+};
+
+// Helper function to normalize date string to YYYY-MM-DD format
+const normalizeDateString = (dateStr: string): string => {
+  if (!dateStr) return '';
+
+  // If it contains time, extract just the date part
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[0];
+  }
+
+  return dateStr;
 };
 
 // Reactive form data (we'll calculate duration from dates)
 const formData = ref({
   title: props.calendar?.title || props.initialData.title || '',
-  startDate: props.calendar?.startDate || props.initialData.startDate || '',
+  startDate: props.calendar?.startDate ? normalizeDateString(props.calendar.startDate) : (props.initialData.startDate || ''),
   endDate: props.calendar ? calculateEndDate(props.calendar.startDate, props.calendar.duration) : ''
 });
 
