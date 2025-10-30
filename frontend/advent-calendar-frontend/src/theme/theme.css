@@ -114,6 +114,28 @@
   }
 }
 
+/* Accessibility Improvements */
+/* Fix for Ionic aria-hidden focus warnings */
+.ion-page[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.ion-page[aria-hidden="true"] * {
+  pointer-events: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Ensure hidden pages can't receive focus */
+.ion-page[aria-hidden="true"] button,
+.ion-page[aria-hidden="true"] input,
+.ion-page[aria-hidden="true"] select,
+.ion-page[aria-hidden="true"] textarea,
+.ion-page[aria-hidden="true"] [tabindex] {
+  visibility: hidden;
+}
+
 /* Utility Classes */
 .gradient-bg {
   background: var(--gradient-primary);

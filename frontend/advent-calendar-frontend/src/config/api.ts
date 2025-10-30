@@ -36,9 +36,12 @@ export const API_ENDPOINTS = {
   PROFILE: () => buildApiUrl(API_CONFIG.AUTH.PROFILE),
   VERIFY_EMAIL: (token: string) => buildApiUrl(`${API_CONFIG.AUTH.VERIFY_EMAIL}/${token}`),
   
-  // Calendars (for future use)
+  // Calendars
   CALENDARS_LIST: () => buildApiUrl(API_CONFIG.CALENDARS.LIST),
-  CALENDAR_BY_ID: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}`)
+  CALENDARS_CREATE: () => buildApiUrl(API_CONFIG.CALENDARS.CREATE),
+  CALENDAR_BY_ID: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}`),
+  CALENDAR_UPDATE: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.UPDATE}/${id}`),
+  CALENDAR_DELETE: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.DELETE}/${id}`)
 };
 
 export default API_CONFIG;

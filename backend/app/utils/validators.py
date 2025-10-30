@@ -60,6 +60,71 @@ def validate_calendar_title(title: str) -> Tuple[bool, str]:
     
     return True, title
 
+def validate_uniqueness_in_collection(
+    collection: list, 
+    field_name: str, 
+    value: str, 
+    exclude_id: str = None,
+    id_field: str = 'id',
+    case_sensitive: bool = False
+) -> Tuple[bool, str, str]:
+    """
+    Generic validator for uniqueness within a collection
+    
+    Args:
+        collection: List of items to check against
+        field_name: Name of the field to check for uniqueness
+        value: The value to validate
+        exclude_id: Optional ID to exclude from check (for updates)
+        id_field: Field name that contains the ID (default: 'id')
+        case_sensitive: Whether comparison should be case sensitive
+    
+    Returns:
+        Tuple of (is_valid, clean_value, error_message)
+    """
+    if not collection:
+        return True, value.strip(), ""
+    
+    clean_value = value.strip()
+    compare_value = clean_value if case_sensitive else clean_value.lower()
+    
+    for item in collection:
+        existing_value = item.get(field_name, '')
+        existing_compare = existing_value if case_sensitive else existing_value.lower().strip()
+        existing_id = item.get(id_field, '')
+        
+        # Check if value conflicts with existing item (but allow updating same item)
+        if (existing_compare == compare_value and existing_id != exclude_id):
+            return False, "", f"A {field_name} with this name already exists. Please choose a different name."
+    
+    return True, clean_value, ""
+
+def validate_calendar_title_uniqueness(user_calendars: list, title: str, calendar_id: str = None) -> Tuple[bool, str, str]:
+    """
+    Validate calendar title is unique for this user
+    
+    Args:
+        user_calendars: List of user's existing calendars
+        title: The title to validate
+        calendar_id: Optional calendar ID (for updates - allow same title when editing same calendar)
+    
+    Returns:
+        Tuple of (is_valid, clean_title, error_message)
+    """
+    is_valid, clean_title, error = validate_uniqueness_in_collection(
+        collection=user_calendars,
+        field_name='title',
+        value=title,
+        exclude_id=calendar_id,
+        case_sensitive=False
+    )
+    
+    if not is_valid:
+        # Customize error message for calendar context
+        return False, "", f"You already have a calendar named '{title}'. Please choose a different name."
+    
+    return True, clean_title, ""
+
 def validate_calendar_duration(duration) -> Tuple[bool, int, str]:
     """Validate calendar duration is between 1-31 days"""
     try:
