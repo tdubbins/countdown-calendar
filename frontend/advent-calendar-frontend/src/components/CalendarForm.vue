@@ -150,57 +150,30 @@ defineExpose({
 });
 
 // Helper function to calculate end date from start date and duration
+// Backend provides dates in YYYY-MM-DD format, we calculate end date for the form
 const calculateEndDate = (startDate: string, duration: number): string => {
-  try {
-    // Ensure we have a date string in YYYY-MM-DD format
-    let dateStr = startDate;
+  if (!startDate || !duration) return '';
 
-    // If the date string contains time (ISO format), extract just the date part
-    if (startDate.includes('T')) {
-      dateStr = startDate.split('T')[0];
-    }
+  // Backend provides YYYY-MM-DD format, parse it directly
+  const [year, month, day] = startDate.split('-').map(Number);
+  const start = new Date(year, month - 1, day); // month is 0-indexed
 
-    // Parse the date
-    const start = new Date(dateStr + 'T00:00:00'); // Add time to ensure local timezone
+  // Calculate end date (duration includes start day, so subtract 1)
+  const end = new Date(start);
+  end.setDate(start.getDate() + duration - 1);
 
-    // Validate the date
-    if (isNaN(start.getTime())) {
-      console.error('Invalid start date:', startDate);
-      return '';
-    }
+  // Return in YYYY-MM-DD format for date input
+  const endYear = end.getFullYear();
+  const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+  const endDay = String(end.getDate()).padStart(2, '0');
 
-    // Calculate end date
-    const end = new Date(start);
-    end.setDate(start.getDate() + duration - 1); // -1 because duration includes start day
-
-    // Return in YYYY-MM-DD format
-    const year = end.getFullYear();
-    const month = String(end.getMonth() + 1).padStart(2, '0');
-    const day = String(end.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  } catch (error) {
-    console.error('Error calculating end date:', error, { startDate, duration });
-    return '';
-  }
-};
-
-// Helper function to normalize date string to YYYY-MM-DD format
-const normalizeDateString = (dateStr: string): string => {
-  if (!dateStr) return '';
-
-  // If it contains time, extract just the date part
-  if (dateStr.includes('T')) {
-    return dateStr.split('T')[0];
-  }
-
-  return dateStr;
+  return `${endYear}-${endMonth}-${endDay}`;
 };
 
 // Reactive form data (we'll calculate duration from dates)
 const formData = ref({
   title: props.calendar?.title || props.initialData.title || '',
-  startDate: props.calendar?.startDate ? normalizeDateString(props.calendar.startDate) : (props.initialData.startDate || ''),
+  startDate: props.calendar?.startDate || props.initialData.startDate || '',
   endDate: props.calendar ? calculateEndDate(props.calendar.startDate, props.calendar.duration) : ''
 });
 
