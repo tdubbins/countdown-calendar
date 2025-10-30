@@ -10,11 +10,21 @@
   >
     <div class="calendar-header">
       <h3 class="calendar-title">{{ calendar.title }}</h3>
-      <StatusChip 
-        :status="calendar.status" 
-        variant="minimal"
-        class="calendar-status-chip"
-      />
+      <div class="calendar-actions">
+        <StatusChip 
+          :status="calendar.status" 
+          variant="minimal"
+          class="calendar-status-chip"
+        />
+        <button
+          @click.stop="showDeleteConfirmation"
+          class="delete-button"
+          aria-label="Delete calendar"
+          title="Delete calendar"
+        >
+          <ion-icon name="trash-outline"></ion-icon>
+        </button>
+      </div>
     </div>
     
     <p class="calendar-dates">{{ calendar.dateRange }}</p>
@@ -23,11 +33,39 @@
       <span class="progress-text">{{ videoProgress }}</span>
     </div>
   </div>
+
+  <!-- Delete Confirmation Dialog -->
+  <ion-alert
+    :is-open="isDeleteDialogOpen"
+    :header="'Delete Calendar'"
+    :subHeader="calendar.title"
+    :message="'Are you sure? This action cannot be undone. All videos and data will be permanently deleted.'"
+    :buttons="[
+      {
+        text: 'Cancel',
+        role: 'cancel',
+        handler: () => {
+          isDeleteDialogOpen = false;
+        }
+      },
+      {
+        text: 'Delete',
+        role: 'destructive',
+        cssClass: 'alert-button-danger',
+        handler: () => {
+          handleDelete();
+        }
+      }
+    ]"
+    @didDismiss="isDeleteDialogOpen = false"
+  ></ion-alert>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { IonIcon, IonAlert } from '@ionic/vue';
 import StatusChip from '@/components/StatusChip.vue';
+import { useCalendar } from '@/composables/useCalendar';
 import type { CalendarCardProps } from '@/types/calendar';
 
 // Props
@@ -36,7 +74,14 @@ const props = defineProps<CalendarCardProps>();
 // Emits
 const emit = defineEmits<{
   'click': [calendarId: string];
+  'delete': [calendarId: string];
 }>();
+
+// Composables
+const { deleteCalendar } = useCalendar();
+
+// Reactive state for delete confirmation dialog
+const isDeleteDialogOpen = ref(false);
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -80,6 +125,31 @@ const handleClick = () => {
   }
   emit('click', props.calendar.id);
 };
+
+// Delete functionality
+const showDeleteConfirmation = () => {
+  isDeleteDialogOpen.value = true;
+};
+
+const handleDelete = async () => {
+  try {
+    isDeleteDialogOpen.value = false;
+    
+    const result = await deleteCalendar(props.calendar.id);
+    
+    if (result.success) {
+      // Emit delete event so parent can handle any additional logic
+      emit('delete', props.calendar.id);
+    } else {
+      // Show error message - could be improved with a toast notification
+      console.error('Delete failed:', result.error);
+      alert(`Failed to delete calendar: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+    alert('An unexpected error occurred while deleting the calendar');
+  }
+};
 </script>
 
 <style scoped>
@@ -119,6 +189,13 @@ const handleClick = () => {
   margin-bottom: var(--spacing-md);
 }
 
+.calendar-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
 .calendar-title {
   font-size: clamp(1rem, 3vw, 1.25rem);
   font-weight: var(--font-weight-semibold);
@@ -137,6 +214,45 @@ const handleClick = () => {
 .calendar-status-chip {
   flex-shrink: 0;
   align-self: flex-start;
+}
+
+/* Delete button styling - NFR [U2]: 44px+ touch-friendly target */
+.delete-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  min-width: 44px;  /* NFR [U2]: Accessible touch target */
+  min-height: 44px; /* NFR [U2]: Accessible touch target */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ion-color-medium);
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.delete-button:hover {
+  background-color: rgba(var(--ion-color-danger-rgb), 0.1);
+  color: var(--ion-color-danger);
+  transform: scale(1.05);
+}
+
+.delete-button:focus {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  background-color: rgba(var(--ion-color-danger-rgb), 0.1);
+  color: var(--ion-color-danger);
+}
+
+.delete-button:active {
+  transform: scale(0.95);
+}
+
+.delete-button ion-icon {
+  font-size: 1.2rem;
+  pointer-events: none;
 }
 
 /* Date range styling */
@@ -173,8 +289,10 @@ const handleClick = () => {
     gap: var(--spacing-xs);
   }
   
-  .calendar-status-chip {
+  .calendar-actions {
     align-self: flex-end;
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
@@ -197,6 +315,15 @@ const handleClick = () => {
   }
   
   .calendar-card:hover {
+    transform: none;
+  }
+  
+  .delete-button {
+    transition: none;
+  }
+  
+  .delete-button:hover,
+  .delete-button:active {
     transform: none;
   }
 }
