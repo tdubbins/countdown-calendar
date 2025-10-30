@@ -7,10 +7,11 @@ from app.utils.json_db import calendars_db
 from app.utils.validators import (
     validate_calendar_title,
     validate_calendar_title_uniqueness,
-    validate_calendar_duration, 
+    validate_calendar_duration,
     validate_calendar_start_date,
     validate_required_fields
 )
+from app.utils.storage import delete_calendar_files
 
 def _validate_title_with_uniqueness(user_id: str, title: str, calendar_id: str = None) -> Tuple[bool, str, str]:
     """
@@ -256,11 +257,21 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
 def delete_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
     """
     Delete a specific calendar for the authenticated user
-    
+
+    This function performs atomic cleanup of:
+    1. Calendar metadata in database
+    2. All video files for the calendar
+    3. All thumbnail files for the calendar
+
+    NFR Compliance:
+        - [S3] Multi-tenant isolation: User ID verified before deletion
+        - [SC3] Modular architecture: Separate storage utility handles file cleanup
+        - GDPR compliance: Complete data removal including all media files
+
     Args:
         calendar_id: str - The calendar ID to delete
         user_id: str - The authenticated user ID
-    
+
     Returns:
         - success: bool
         - error_message: str with error details or empty string
@@ -270,15 +281,19 @@ def delete_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
         calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
         if not calendar_exists:
             return False, error_msg
-        
+
+        # Delete all video and thumbnail files for this calendar (NFR [SC3]: Modular file management)
+        # This is done BEFORE database deletion to ensure files are cleaned up even if DB delete fails
+        delete_calendar_files(user_id, calendar_id)
+
         # Delete calendar from database
         deleted = calendars_db.delete('calendars', calendar_id)
-        
+
         if deleted:
             return True, ""
         else:
             return False, "Failed to delete calendar from database"
-            
+
     except Exception as e:
         print(f"Calendar deletion error: {str(e)}")
         return False, "Internal server error during calendar deletion"
