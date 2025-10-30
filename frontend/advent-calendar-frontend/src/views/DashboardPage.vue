@@ -142,12 +142,13 @@
         </ion-content>
       </ion-modal>
 
-      <!-- Mobile: Floating Action Button -->
+      <!-- Mobile: Floating Action Button (NFR [U2]: 44px+ touch target for mobile) -->
       <ion-fab
         v-if="isMobile()"
         slot="fixed"
         vertical="bottom"
         horizontal="end"
+        edge
         class="fab-create"
       >
         <ion-fab-button
@@ -423,10 +424,40 @@ const closeEditModal = () => {
   margin-top: var(--spacing-2xl);
 }
 
-/* Floating Action Button */
+/* Floating Action Button (NFR [U2]: Mobile-optimized touch target) */
 .fab-create {
   --background: var(--brand-primary);
   --color: white;
+
+  /* Positioning & spacing - safe from screen edges */
+  margin-bottom: 20px;  /* Space from bottom edge */
+  margin-right: 16px;   /* Space from right edge */
+
+  /* Ensure FAB stays on top of all content */
+  z-index: 999;
+
+  /* Enhanced visibility with shadow */
+  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.10);
+}
+
+/* FAB button size optimization for thumb reach */
+.fab-create ion-fab-button {
+  --size: 56px;  /* Standard Material Design FAB size (44px+ for NFR [U2]) */
+
+  /* Smooth interactions */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Active state feedback */
+.fab-create ion-fab-button:active {
+  transform: scale(0.95);
+}
+
+/* Ensure adequate spacing from secondary actions */
+@media (max-width: 480px) {
+  .fab-create {
+    margin-bottom: 80px;  /* Extra space to avoid overlapping secondary actions */
+  }
 }
 
 /* Edit Modal Styling */
