@@ -4,6 +4,7 @@ export interface Calendar {
   id: string;
   title: string;
   startDate: string;
+  endDate: string;
   duration: number;
   dateRange: string;
   videoCount: number;

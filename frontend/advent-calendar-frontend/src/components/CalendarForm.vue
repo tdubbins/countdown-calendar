@@ -149,32 +149,12 @@ defineExpose({
   resetForm
 });
 
-// Helper function to calculate end date from start date and duration
-// Backend provides dates in YYYY-MM-DD format, we calculate end date for the form
-const calculateEndDate = (startDate: string, duration: number): string => {
-  if (!startDate || !duration) return '';
-
-  // Backend provides YYYY-MM-DD format, parse it directly
-  const [year, month, day] = startDate.split('-').map(Number);
-  const start = new Date(year, month - 1, day); // month is 0-indexed
-
-  // Calculate end date (duration includes start day, so subtract 1)
-  const end = new Date(start);
-  end.setDate(start.getDate() + duration - 1);
-
-  // Return in YYYY-MM-DD format for date input
-  const endYear = end.getFullYear();
-  const endMonth = String(end.getMonth() + 1).padStart(2, '0');
-  const endDay = String(end.getDate()).padStart(2, '0');
-
-  return `${endYear}-${endMonth}-${endDay}`;
-};
-
-// Reactive form data (we'll calculate duration from dates)
+// Reactive form data
+// Backend provides dates in YYYY-MM-DD format - use them directly
 const formData = ref({
   title: props.calendar?.title || props.initialData.title || '',
   startDate: props.calendar?.startDate || props.initialData.startDate || '',
-  endDate: props.calendar ? calculateEndDate(props.calendar.startDate, props.calendar.duration) : ''
+  endDate: props.calendar?.endDate || ''
 });
 
 // Form validation errors
