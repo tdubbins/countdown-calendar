@@ -24,9 +24,10 @@ export const useCalendar = () => {
   
   // Helper function to check if response has content
   const hasResponseContent = (response: Response): boolean => {
+    const contentType = response.headers.get('content-type');
     return response.status !== 204 && 
            response.headers.get('content-length') !== '0' &&
-           response.headers.get('content-type')?.includes('application/json');
+           (contentType?.includes('application/json') ?? false);
   };
   
   // Helper function to parse error response
