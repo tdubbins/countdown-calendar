@@ -74,17 +74,17 @@ const handleFormSubmit = async (formData: CalendarCreateData) => {
     // Call the calendar service to create calendar (NFR [S4]: Input validation on API call)
     const result = await createCalendar(formData);
     
-    if (result.success && result.calendar) {
+    if (result.success && result.data) {
       // Show success alert (NFR [U4]: Clear success feedback)
       const alert = await alertController.create({
         header: 'Success! 🎉',
-        message: `Your calendar "${result.calendar.title}" has been created successfully!`,
+        message: `Your calendar "${result.data.title}" has been created successfully!`,
         buttons: [
           {
             text: 'View Calendar',
             handler: () => {
               // TODO: Navigate to the specific calendar view
-              console.log('Navigate to calendar view for ID:', result.calendar?.id);
+              console.log('Navigate to calendar view for ID:', result.data?.id);
               // Use setTimeout to ensure proper focus management
               setTimeout(() => router.push('/dashboard'), 100);
             }
@@ -98,7 +98,7 @@ const handleFormSubmit = async (formData: CalendarCreateData) => {
           }
         ]
       });
-      
+
       await alert.present();
       
     } else {
