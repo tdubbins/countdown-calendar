@@ -192,7 +192,7 @@ import type { Calendar, CalendarCreateData } from '@/types/calendar';
 // Composables
 const router = useRouter();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
-const { calendars, isLoading, hasCalendars, loadCalendars, updateCalendar } = useCalendar();
+const { calendars, isLoading, hasCalendars, loadCalendars, getCalendar, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
 
 // Error state for dashboard
@@ -256,12 +256,30 @@ const goToHelp = () => {
 };
 
 // Edit calendar functionality
-const handleEditCalendar = (calendarId: string) => {
-  // Find the full calendar object from the calendars array
-  const calendar = calendars.value.find(cal => cal.id === calendarId);
-  if (calendar) {
-    selectedCalendar.value = calendar;
-    isEditModalOpen.value = true;
+const handleEditCalendar = async (calendarId: string) => {
+  try {
+    // Fetch the full calendar object with all fields (including endDate)
+    const result = await getCalendar(calendarId);
+
+    if (result.success && result.data) {
+      selectedCalendar.value = result.data;
+      isEditModalOpen.value = true;
+    } else {
+      const alert = await alertController.create({
+        header: 'Error',
+        message: 'Failed to load calendar data',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  } catch (error) {
+    console.error('Failed to load calendar:', error);
+    const alert = await alertController.create({
+      header: 'Error',
+      message: 'An unexpected error occurred',
+      buttons: ['OK']
+    });
+    await alert.present();
   }
 };
 
