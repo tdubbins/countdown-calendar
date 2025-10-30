@@ -1,9 +1,12 @@
 import { mount } from '@vue/test-utils'
-import Tab1Page from '@/views/Tab1Page.vue'
+import CalendarForm from '@/components/CalendarForm.vue'
 
-describe('Tab1Page.vue', () => {
-  it('renders tab 1 Tab1Page', () => {
-    const wrapper = mount(Tab1Page)
-    expect(wrapper.text()).toMatch('Tab 1 page')
+describe('CalendarForm.vue', () => {
+  it('renders calendar creation form', () => {
+    const wrapper = mount(CalendarForm)
+    expect(wrapper.text()).toMatch('Create Your Calendar')
+    expect(wrapper.text()).toMatch('Calendar Title')
+    expect(wrapper.text()).toMatch('Start Date')
+    expect(wrapper.text()).toMatch('End Date')
   })
 })

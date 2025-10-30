@@ -126,6 +126,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   IonPage,
   IonHeader,
@@ -145,6 +146,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import type { CalendarSummary } from '@/types/calendar';
 
 // Composables
+const router = useRouter();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
 const { calendarDisplayLimit, isMobile } = useResponsive();
 
@@ -195,8 +197,7 @@ const handleLogout = async () => {
 
 // Navigation functions
 const goToCreateCalendar = () => {
-  // TODO: Navigate to calendar creation page
-  console.log('Navigate to create calendar');
+  router.push('/dashboard/create-calendar');
 };
 
 const goToMyCalendars = () => {
