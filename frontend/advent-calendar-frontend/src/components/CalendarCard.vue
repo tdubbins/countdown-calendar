@@ -8,6 +8,16 @@
     role="button"
     :aria-label="`Open calendar ${calendar.title}. ${videoProgress}. Status: ${calendar.status}`"
   >
+    <!-- Delete Button - positioned in top-right corner -->
+    <DeleteButton
+      @click="showDeleteConfirmation"
+      variant="card"
+      size="default"
+      :is-loading="isDeleting"
+      aria-label="Delete calendar"
+      :title="`Delete calendar: ${calendar.title}`"
+    />
+    
     <div class="calendar-header">
       <h3 class="calendar-title">{{ calendar.title }}</h3>
       <StatusChip 
@@ -23,11 +33,40 @@
       <span class="progress-text">{{ videoProgress }}</span>
     </div>
   </div>
+
+  <!-- Delete Confirmation Dialog -->
+  <ion-alert
+    :is-open="isDeleteDialogOpen"
+    :header="'Delete Calendar'"
+    :subHeader="calendar.title"
+    :message="'Are you sure? This action cannot be undone. All videos and data will be permanently deleted.'"
+    :buttons="[
+      {
+        text: 'Cancel',
+        role: 'cancel',
+        handler: () => {
+          isDeleteDialogOpen = false;
+        }
+      },
+      {
+        text: 'Delete',
+        role: 'destructive',
+        cssClass: 'alert-button-danger',
+        handler: () => {
+          handleDelete();
+        }
+      }
+    ]"
+    @didDismiss="isDeleteDialogOpen = false"
+  ></ion-alert>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { IonAlert } from '@ionic/vue';
 import StatusChip from '@/components/StatusChip.vue';
+import DeleteButton from '@/components/DeleteButton.vue';
+import { useCalendar } from '@/composables/useCalendar';
 import type { CalendarCardProps } from '@/types/calendar';
 
 // Props
@@ -36,7 +75,15 @@ const props = defineProps<CalendarCardProps>();
 // Emits
 const emit = defineEmits<{
   'click': [calendarId: string];
+  'delete': [calendarId: string];
 }>();
+
+// Composables
+const { deleteCalendar } = useCalendar();
+
+// Reactive state for delete functionality
+const isDeleteDialogOpen = ref(false);
+const isDeleting = ref(false);
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -80,6 +127,34 @@ const handleClick = () => {
   }
   emit('click', props.calendar.id);
 };
+
+// Delete functionality
+const showDeleteConfirmation = () => {
+  isDeleteDialogOpen.value = true;
+};
+
+const handleDelete = async () => {
+  try {
+    isDeleteDialogOpen.value = false;
+    isDeleting.value = true;
+    
+    const result = await deleteCalendar(props.calendar.id);
+    
+    if (result.success) {
+      // Emit delete event so parent can handle any additional logic
+      emit('delete', props.calendar.id);
+    } else {
+      // Show error message - could be improved with a toast notification
+      console.error('Delete failed:', result.error);
+      alert(`Failed to delete calendar: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+    alert('An unexpected error occurred while deleting the calendar');
+  } finally {
+    isDeleting.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -117,6 +192,7 @@ const handleClick = () => {
   align-items: flex-start;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
+  padding-right: var(--spacing-xl); /* Space for delete button */
 }
 
 .calendar-title {
@@ -171,6 +247,7 @@ const handleClick = () => {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-xs);
+    padding-right: var(--spacing-lg); /* Reduced padding for smaller cards */
   }
   
   .calendar-status-chip {

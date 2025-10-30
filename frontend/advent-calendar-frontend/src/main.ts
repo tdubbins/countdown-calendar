@@ -10,7 +10,8 @@ import {
   add, 
   sparkles, 
   settingsOutline as settings,
-  helpCircleOutline as helpCircle 
+  helpCircleOutline as helpCircle,
+  trashOutline as trashOutline
 } from 'ionicons/icons';
 
 // Register icons
@@ -18,7 +19,8 @@ addIcons({
   add,
   sparkles,
   settings,
-  'help-circle': helpCircle
+  'help-circle': helpCircle,
+  'trash-outline': trashOutline
 });
 
 /* Core CSS required for Ionic components to work properly */
