@@ -8,6 +8,13 @@ const calendars = ref<CalendarSummary[]>([]);
 const isLoading = ref(false);
 const currentCalendar = ref<Calendar | null>(null);
 
+// Types for API responses following existing patterns
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export const useCalendar = () => {
   const { getAuthHeaders } = useAuth();
   
@@ -15,57 +22,56 @@ export const useCalendar = () => {
   const hasCalendars = computed(() => calendars.value.length > 0);
   const calendarCount = computed(() => calendars.value.length);
   
-  // API call helper with error handling
+  // Helper function to check if response has content
+  const hasResponseContent = (response: Response): boolean => {
+    return response.status !== 204 && 
+           response.headers.get('content-length') !== '0' &&
+           response.headers.get('content-type')?.includes('application/json');
+  };
+  
+  // Helper function to parse error response
+  const parseErrorResponse = async (response: Response): Promise<string> => {
+    try {
+      const errorData = await response.json();
+      return errorData.error || `Request failed with status ${response.status}`;
+    } catch {
+      return `Request failed with status ${response.status}: ${response.statusText}`;
+    }
+  };
+  
+  // Helper function to parse success response
+  const parseSuccessResponse = async <T>(response: Response): Promise<T | undefined> => {
+    if (!hasResponseContent(response)) {
+      return undefined;
+    }
+    
+    try {
+      return await response.json();
+    } catch {
+      return undefined;
+    }
+  };
+  
+  // Clean API call helper with proper error handling
   const makeApiCall = async <T>(
     url: string, 
     options: RequestInit = {}
-  ): Promise<{ success: boolean; data?: T; error?: string }> => {
+  ): Promise<ApiResponse<T>> => {
     try {
       const response = await fetch(url, {
         headers: getAuthHeaders(),
         ...options,
       });
       
+      // Handle error responses
       if (!response.ok) {
-        // Handle error responses that might have JSON error data
-        try {
-          const errorData = await response.json();
-          return {
-            success: false,
-            error: errorData.error || `Request failed with status ${response.status}`
-          };
-        } catch {
-          // If error response doesn't have JSON, use status text
-          return {
-            success: false,
-            error: `Request failed with status ${response.status}: ${response.statusText}`
-          };
-        }
+        const error = await parseErrorResponse(response);
+        return { success: false, error };
       }
       
-      // Handle successful responses - check if there's content to parse
-      if (response.status === 204 || response.headers.get('content-length') === '0') {
-        // No content responses (like DELETE 204)
-        return {
-          success: true,
-          data: undefined
-        };
-      }
-      
-      // Parse JSON for responses with content
-      try {
-        const data = await response.json();
-        return {
-          success: true,
-          data: data
-        };
-      } catch {
-        // If response isn't JSON, treat as success with no data
-        return {
-          success: true,
-          data: undefined
-        };
-      }
+      // Handle successful responses
+      const data = await parseSuccessResponse<T>(response);
+      return { success: true, data };
       
     } catch (error: any) {
       return {
@@ -75,8 +81,8 @@ export const useCalendar = () => {
     }
   };
   
-  // Create a new calendar
-  const createCalendar = async (calendarData: CalendarCreateData): Promise<{ success: boolean; calendar?: Calendar; error?: string }> => {
+  // Calendar operations with consistent return types
+  const createCalendar = async (calendarData: CalendarCreateData): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
     try {
@@ -107,7 +113,7 @@ export const useCalendar = () => {
         
         return {
           success: true,
-          calendar: calendarData
+          data: calendarData
         };
       } else {
         return {
@@ -127,7 +133,7 @@ export const useCalendar = () => {
   };
   
   // Get all calendars for the current user
-  const loadCalendars = async (): Promise<{ success: boolean; error?: string }> => {
+  const loadCalendars = async (): Promise<ApiResponse<CalendarSummary[]>> => {
     isLoading.value = true;
     
     try {
@@ -144,7 +150,7 @@ export const useCalendar = () => {
         }));
         
         calendars.value = calendarSummaries;
-        return { success: true };
+        return { success: true, data: calendarSummaries };
       } else {
         return {
           success: false,
@@ -163,7 +169,7 @@ export const useCalendar = () => {
   };
   
   // Get a specific calendar by ID
-  const getCalendar = async (calendarId: string): Promise<{ success: boolean; calendar?: Calendar; error?: string }> => {
+  const getCalendar = async (calendarId: string): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
     try {
@@ -173,7 +179,7 @@ export const useCalendar = () => {
         currentCalendar.value = result.data.calendar;
         return {
           success: true,
-          calendar: result.data.calendar
+          data: result.data.calendar
         };
       } else {
         return {
@@ -193,7 +199,7 @@ export const useCalendar = () => {
   };
   
   // Update a calendar
-  const updateCalendar = async (calendarId: string, updateData: Partial<CalendarCreateData>): Promise<{ success: boolean; calendar?: Calendar; error?: string }> => {
+  const updateCalendar = async (calendarId: string, updateData: Partial<CalendarCreateData>): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
     try {
@@ -222,7 +228,7 @@ export const useCalendar = () => {
         
         return {
           success: true,
-          calendar: result.data.calendar
+          data: result.data.calendar
         };
       } else {
         return {
@@ -242,7 +248,7 @@ export const useCalendar = () => {
   };
   
   // Delete a calendar
-  const deleteCalendar = async (calendarId: string): Promise<{ success: boolean; error?: string }> => {
+  const deleteCalendar = async (calendarId: string): Promise<ApiResponse<void>> => {
     isLoading.value = true;
     
     try {
