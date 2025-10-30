@@ -17,14 +17,15 @@
       <div class="create-container">
         <!-- Calendar Form -->
         <CalendarForm
+          ref="calendarFormRef"
           :is-submitting="isLoading"
           @submit="handleFormSubmit"
           @cancel="handleCancel"
         />
         
         <!-- Loading State -->
-        <div v-if="isLoading" class="loading-overlay">
-          <ion-spinner name="crescent" color="primary"></ion-spinner>
+        <div v-if="isLoading" class="loading-overlay" aria-live="polite" aria-label="Creating calendar">
+          <ion-spinner name="crescent" color="primary" aria-hidden="true"></ion-spinner>
           <p>Creating your calendar...</p>
         </div>
       </div>
@@ -33,8 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, nextTick, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
   IonHeader,
@@ -47,60 +48,84 @@ import {
   alertController
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
+import { useCalendar } from '@/composables/useCalendar';
 import { useResponsive } from '@/composables/useResponsive';
 import CalendarForm from '@/components/CalendarForm.vue';
 import type { CalendarCreateData } from '@/types/calendar';
 
 // Composables
 const router = useRouter();
+const route = useRoute();
 const { isAuthenticated, redirectToLogin } = useAuth();
+const { createCalendar } = useCalendar();
 const { isMobile } = useResponsive();
 
 // Reactive state
 const isLoading = ref(false);
 
-// Form submission handler
+// Reference to the calendar form component
+const calendarFormRef = ref<any>(null);
+
+// Form submission handler (NFR [P3]: Calendar creation completes under 3 seconds)
 const handleFormSubmit = async (formData: CalendarCreateData) => {
   try {
     isLoading.value = true;
     
-    // TODO: Replace with actual API call to create calendar
-    console.log('Creating calendar with data:', formData);
+    // Call the calendar service to create calendar (NFR [S4]: Input validation on API call)
+    const result = await createCalendar(formData);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Show success alert
-    const alert = await alertController.create({
-      header: 'Success! 🎉',
-      message: `Your calendar "${formData.title}" has been created successfully!`,
-      buttons: [
-        {
-          text: 'View Calendar',
-          handler: () => {
-            // TODO: Navigate to the specific calendar view
-            console.log('Navigate to calendar view');
-            router.push('/dashboard');
+    if (result.success && result.calendar) {
+      // Show success alert (NFR [U4]: Clear success feedback)
+      const alert = await alertController.create({
+        header: 'Success! 🎉',
+        message: `Your calendar "${result.calendar.title}" has been created successfully!`,
+        buttons: [
+          {
+            text: 'View Calendar',
+            handler: () => {
+              // TODO: Navigate to the specific calendar view
+              console.log('Navigate to calendar view for ID:', result.calendar?.id);
+              // Use setTimeout to ensure proper focus management
+              setTimeout(() => router.push('/dashboard'), 100);
+            }
+          },
+          {
+            text: 'Back to Dashboard',
+            handler: () => {
+              // Use setTimeout to ensure proper focus management
+              setTimeout(() => router.push('/dashboard'), 100);
+            }
           }
-        },
-        {
-          text: 'Back to Dashboard',
-          handler: () => {
-            router.push('/dashboard');
+        ]
+      });
+      
+      await alert.present();
+      
+    } else {
+      // Enhanced error handling with specific messaging for uniqueness errors
+      const isUniquenessError = result.error?.toLowerCase().includes('already have a calendar named');
+      
+      const alert = await alertController.create({
+        header: isUniquenessError ? 'Calendar Name Already Used' : 'Creation Failed',
+        message: result.error || 'Sorry, we couldn\'t create your calendar. Please try again.',
+        buttons: [
+          {
+            text: isUniquenessError ? 'Choose Different Name' : 'Try Again',
+            role: 'cancel'
           }
-        }
-      ]
-    });
-    
-    await alert.present();
+        ]
+      });
+      
+      await alert.present();
+    }
     
   } catch (error) {
     console.error('Failed to create calendar:', error);
     
-    // Show error alert
+    // Show generic error alert (NFR [U4]: Clear error feedback)
     const alert = await alertController.create({
       header: 'Creation Failed',
-      message: 'Sorry, we couldn\'t create your calendar. Please try again.',
+      message: 'Sorry, we couldn\'t create your calendar. Please check your connection and try again.',
       buttons: [
         {
           text: 'Try Again',
@@ -117,13 +142,43 @@ const handleFormSubmit = async (formData: CalendarCreateData) => {
 
 // Cancel handler
 const handleCancel = () => {
-  router.push('/dashboard');
+  // Use setTimeout to ensure proper focus management
+  setTimeout(() => router.push('/dashboard'), 100);
 };
 
-// Authentication check
-if (!isAuthenticated.value) {
-  redirectToLogin();
-}
+// Helper function to reset form
+const resetFormData = async () => {
+  // Wait for next tick to ensure component is fully mounted
+  await nextTick();
+  
+  // Reset form to ensure clean state for new calendar creation
+  if (calendarFormRef.value && calendarFormRef.value.resetForm) {
+    calendarFormRef.value.resetForm();
+  }
+};
+
+// Watch for route changes to reset form
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath === '/dashboard/create-calendar') {
+      resetFormData();
+    }
+  },
+  { immediate: false }
+);
+
+// Lifecycle
+onMounted(async () => {
+  // Check authentication
+  if (!isAuthenticated.value) {
+    redirectToLogin();
+    return;
+  }
+  
+  // Reset form on initial mount
+  await resetFormData();
+});
 </script>
 
 <style scoped>

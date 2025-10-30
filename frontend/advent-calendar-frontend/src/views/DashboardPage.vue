@@ -36,30 +36,41 @@
     <ion-content :fullscreen="true" class="dashboard-content">
       <div class="dashboard-container">
 
-        <!-- Calendar Content -->
-        <div v-if="userCalendars.length > 0" class="calendars-section">
-          <h2>Your Calendars</h2>
-          
-          <!-- Calendar Grid -->
-          <div class="calendars-grid">
-            <CalendarCard
-              v-for="calendar in displayedCalendars" 
-              :key="calendar.id"
-              :calendar="calendar"
-              @click="openCalendar"
-            />
+        <!-- Loading State (NFR [P1]: Dashboard loads under 5 seconds) -->
+        <div v-if="isLoading" class="loading-section">
+          <div class="loading-content">
+            <ion-spinner name="crescent" color="primary"></ion-spinner>
+            <p>Loading your calendars...</p>
           </div>
-          
-          <!-- View All Button (if more than displayed) -->
-          <div v-if="hasMoreCalendars" class="view-all-section">
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="loadError" class="error-section">
+          <div class="error-content">
+            <p class="error-message">{{ loadError }}</p>
             <ActionButton 
-              @click="goToMyCalendars"
+              @click="loadUserCalendars"
               fill="outline"
               color="primary"
               variant="secondary"
             >
-              View All Calendars ({{ userCalendars.length }})
+              Try Again
             </ActionButton>
+          </div>
+        </div>
+
+        <!-- Calendar Content (NFR [U1][U2]: Mobile responsive with 44px+ touch targets) -->
+        <div v-else-if="hasCalendars" class="calendars-section">
+          <h2>Your Calendars ({{ calendars.length }})</h2>
+          
+          <!-- Calendar Grid - Display All Calendars -->
+          <div class="calendars-grid">
+            <CalendarCard
+              v-for="calendar in calendars" 
+              :key="calendar.id"
+              :calendar="calendar"
+              @click="openCalendar"
+            />
           </div>
         </div>
 
@@ -125,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   IonPage,
@@ -136,9 +147,11 @@ import {
   IonButtons,
   IonFab,
   IonFabButton,
-  IonIcon
+  IonIcon,
+  IonSpinner
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
+import { useCalendar } from '@/composables/useCalendar';
 import { useResponsive } from '@/composables/useResponsive';
 import ActionButton from '@/components/ActionButton.vue';
 import CalendarCard from '@/components/CalendarCard.vue';
@@ -148,45 +161,36 @@ import type { CalendarSummary } from '@/types/calendar';
 // Composables
 const router = useRouter();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
-const { calendarDisplayLimit, isMobile } = useResponsive();
+const { calendars, isLoading, hasCalendars, loadCalendars } = useCalendar();
+const { isMobile } = useResponsive();
 
-// Calendar data (typed with interface)
-const userCalendars = ref<CalendarSummary[]>([
-  // Empty for now - will be populated from API
-  // Example structure matches CalendarSummary interface
-]);
+// Error state for dashboard
+const loadError = ref<string>('');
 
-// Computed properties
-const displayedCalendars = computed(() => {
-  return userCalendars.value.slice(0, calendarDisplayLimit.value);
-});
-
-const hasMoreCalendars = computed(() => {
-  return userCalendars.value.length > calendarDisplayLimit.value;
-});
-
-// Lifecycle
-onMounted(() => {
+// Lifecycle (NFR [P1]: Dashboard loads under 5 seconds)
+onMounted(async () => {
   if (!isAuthenticated.value) {
     redirectToLogin();
+    return;
   }
   
   // Load user's calendars from API
-  loadUserCalendars();
+  await loadUserCalendars();
 });
 
 // API Functions
 const loadUserCalendars = async () => {
   try {
-    // TODO: Replace with actual API call
-    // For now, showing empty state to demonstrate the design
-    userCalendars.value = [];
+    loadError.value = '';
+    const result = await loadCalendars();
     
-    // Example of how real data would look:
-    // userCalendars.value = await calendarService.getUserCalendars();
+    if (!result.success) {
+      loadError.value = result.error || 'Failed to load calendars';
+      console.error('Failed to load calendars:', result.error);
+    }
   } catch (error) {
+    loadError.value = 'Failed to load calendars';
     console.error('Failed to load calendars:', error);
-    // Handle error state
   }
 };
 
@@ -198,11 +202,6 @@ const handleLogout = async () => {
 // Navigation functions
 const goToCreateCalendar = () => {
   router.push('/dashboard/create-calendar');
-};
-
-const goToMyCalendars = () => {
-  // TODO: Navigate to full calendar list
-  console.log('Navigate to all calendars');
 };
 
 const openCalendar = (calendarId: string) => {
@@ -233,6 +232,55 @@ const goToHelp = () => {
   padding: var(--spacing-md);
 }
 
+/* Loading and Error States */
+.loading-section,
+.error-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  margin: var(--spacing-xl) 0;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.loading-content ion-spinner {
+  --color: var(--ion-color-primary);
+  width: 48px;
+  height: 48px;
+}
+
+.loading-content p {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  text-align: center;
+}
+
+.error-message {
+  font-size: var(--font-size-base);
+  color: var(--ion-color-danger);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+  padding: var(--spacing-md);
+  background-color: rgba(var(--ion-color-danger-rgb), 0.1);
+  border: 1px solid rgba(var(--ion-color-danger-rgb), 0.3);
+  border-radius: var(--radius-md);
+}
+
 /* Calendar sections */
 .calendars-section {
   margin-bottom: var(--spacing-xl);
@@ -251,11 +299,6 @@ const goToHelp = () => {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
-}
-
-/* View all section */
-.view-all-section {
-  text-align: center;
 }
 
 /* Secondary actions */

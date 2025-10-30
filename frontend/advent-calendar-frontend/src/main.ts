@@ -4,6 +4,23 @@ import router from './router';
 
 import { IonicVue } from '@ionic/vue';
 
+/* Import required Ionicons */
+import { addIcons } from 'ionicons';
+import { 
+  add, 
+  sparkles, 
+  settingsOutline as settings,
+  helpCircleOutline as helpCircle 
+} from 'ionicons/icons';
+
+// Register icons
+addIcons({
+  add,
+  sparkles,
+  settings,
+  'help-circle': helpCircle
+});
+
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/vue/css/core.css';
 

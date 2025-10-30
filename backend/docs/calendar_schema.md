@@ -21,7 +21,7 @@ This document defines the calendar data structure for the Advent Calendar App da
       "endDate": "string (calculated: startDate + duration)",
       "dateRange": "string (display: 'YYYY-MM-DD to YYYY-MM-DD')",
       "videoCount": "number (0-duration, count of uploaded videos)",
-      "status": "string (draft|active|completed|archived)",
+      "status": "string (draft|active|completed)",
       "shareToken": "string (UUID for sharing links)",
       "createdAt": "string (ISO datetime)",
       "updatedAt": "string (ISO datetime)",
@@ -55,8 +55,7 @@ This document defines the calendar data structure for the Advent Calendar App da
 - **status**: 
   - `draft` - Being created/edited
   - `active` - Published and shareable
-  - `completed` - Past end date
-  - `archived` - Hidden from active list
+  - `completed` - Past end date (automatically determined)
 
 ### Sharing & Security
 - **shareToken**: Unique UUID for private sharing links

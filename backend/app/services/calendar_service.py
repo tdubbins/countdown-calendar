@@ -6,10 +6,43 @@ from typing import Dict, Any, Tuple, Optional
 from app.utils.json_db import calendars_db
 from app.utils.validators import (
     validate_calendar_title,
+    validate_calendar_title_uniqueness,
     validate_calendar_duration, 
     validate_calendar_start_date,
     validate_required_fields
 )
+
+def _validate_title_with_uniqueness(user_id: str, title: str, calendar_id: str = None) -> Tuple[bool, str, str]:
+    """
+    Helper function to validate calendar title format and uniqueness
+    
+    Args:
+        user_id: The user ID to check uniqueness within
+        title: The title to validate
+        calendar_id: Optional calendar ID for updates (allows same title for same calendar)
+    
+    Returns:
+        Tuple of (is_valid, clean_title, error_message)
+    """
+    # Validate title format first
+    title_valid, title_result = validate_calendar_title(title)
+    if not title_valid:
+        return False, "", title_result
+    
+    clean_title = title_result
+    
+    # Check title uniqueness for this user
+    user_calendars_success, user_calendars_list, user_calendars_error = get_user_calendars(user_id)
+    if not user_calendars_success:
+        return False, "", f"Unable to verify title uniqueness: {user_calendars_error}"
+    
+    uniqueness_valid, clean_title_final, uniqueness_error = validate_calendar_title_uniqueness(
+        user_calendars_list, clean_title, calendar_id
+    )
+    if not uniqueness_valid:
+        return False, "", uniqueness_error
+    
+    return True, clean_title_final, ""
 
 def create_calendar(user_id: str, title: str, start_date: str, duration: int) -> Tuple[bool, Dict[str, Any], str]:
     """
@@ -27,11 +60,10 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int) ->
         if not fields_valid:
             return False, {}, fields_error
         
-        # Validate title
-        title_valid, title_result = validate_calendar_title(title)
+        # Validate title format and uniqueness
+        title_valid, clean_title, title_error = _validate_title_with_uniqueness(user_id, title)
         if not title_valid:
-            return False, {}, title_result  # title_result contains the error message
-        clean_title = title_result  # title_result contains the clean title when valid
+            return False, {}, title_error
         
         # Validate start date
         date_valid, clean_start_date, date_error = validate_calendar_start_date(start_date)
@@ -172,10 +204,10 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
         
         # Validate and process title if provided
         if title is not None:
-            title_valid, title_result = validate_calendar_title(title)
+            title_valid, clean_title, title_error = _validate_title_with_uniqueness(user_id, title, calendar_id)
             if not title_valid:
-                return False, {}, title_result  # title_result contains the error message
-            update_data['title'] = title_result  # title_result contains the clean title when valid
+                return False, {}, title_error
+            update_data['title'] = clean_title
         
         # Validate and process start date if provided
         if start_date is not None:

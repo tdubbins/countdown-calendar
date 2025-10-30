@@ -7,20 +7,14 @@
   >
     <!-- Form Title -->
     <div class="form-header">
-      <h2 class="form-title">Create Your Calendar</h2>
-      <p class="form-description">
-        Set up your custom countdown calendar with video content for each day.
-      </p>
+      <h2 class="form-title">Create Calendar</h2>
     </div>
 
     <!-- Calendar Title Field -->
-    <div class="field-help">
-      📝 Give your calendar a memorable name (3-50 characters)
-    </div>
     <FormField
       v-model="formData.title"
       label="Calendar Title"
-      placeholder="e.g., Christmas Countdown 2025"
+      placeholder="Christmas Countdown 2025"
       :required="true"
       :error-message="errors.title"
       autocomplete="off"
@@ -29,9 +23,6 @@
     />
 
     <!-- Start Date Field -->
-    <div class="field-help">
-      📅 When should your calendar countdown begin?
-    </div>
     <FormField
       v-model="formData.startDate"
       label="Start Date"
@@ -43,9 +34,6 @@
     />
 
     <!-- End Date Field -->
-    <div class="field-help">
-      🏁 When should your calendar countdown end?
-    </div>
     <FormField
       v-model="formData.endDate"
       label="End Date"
@@ -58,13 +46,7 @@
 
     <!-- Calendar Summary Display -->
     <div v-if="calculatedDuration" class="calendar-summary">
-      <ion-item class="summary-item" lines="none">
-        <ion-icon name="sparkles" slot="start" class="summary-icon"></ion-icon>
-        <ion-label>
-          <h3>Calendar Summary</h3>
-          <p>{{ formattedSummary }}</p>
-        </ion-label>
-      </ion-item>
+      <p class="summary-text">{{ calculatedDuration }} days</p>
     </div>
 
     <!-- Form Actions -->
@@ -89,7 +71,7 @@
         :aria-describedby="errorMessage ? 'form-error' : (successMessage ? 'form-success' : undefined)"
       >
         <ion-spinner v-if="isSubmitting" name="crescent" size="small"></ion-spinner>
-        <span v-else>📅 Create Calendar</span>
+        <span v-else>Create Calendar</span>
       </ion-button>
     </div>
 
@@ -106,10 +88,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import {
-  IonItem,
-  IonLabel,
   IonButton,
-  IonIcon,
   IonSpinner
 } from '@ionic/vue';
 import FormField from '@/components/FormField.vue';
@@ -138,6 +117,32 @@ const emit = defineEmits<{
   'submit': [data: CalendarCreateData];
   'cancel': [];
 }>();
+
+// Expose reset function for parent components
+const resetForm = () => {
+  // Reset form data to initial empty state
+  formData.value = {
+    title: '',
+    startDate: '',
+    endDate: ''
+  };
+  
+  // Clear all errors
+  errors.value = {
+    title: '',
+    startDate: '',
+    endDate: ''
+  };
+  
+  // Clear status messages
+  errorMessage.value = '';
+  successMessage.value = '';
+};
+
+// Expose methods to parent component
+defineExpose({
+  resetForm
+});
 
 // Reactive form data (we'll calculate duration from dates)
 const formData = ref({
@@ -288,95 +293,71 @@ watch(() => formData.value.endDate, () => {
 </script>
 
 <style scoped>
-/* Use theme system consistently */
+/* Lightweight responsive calendar form */
 .calendar-form {
-  max-width: 500px;
+  max-width: min(28rem, 90vw);
   margin: 0 auto;
-  padding: var(--spacing-md);
+  padding: clamp(1rem, 4vw, 2rem);
+  container-type: inline-size;
 }
 
-/* Form Header */
+/* Form Header - Intrinsically responsive */
 .form-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: clamp(1.5rem, 6vh, 3rem);
 }
 
 .form-title {
-  font-size: var(--font-size-2xl);
+  font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.form-description {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-normal);
   margin: 0;
 }
 
-/* Field Help Text (improved placement above fields) */
-.field-help {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-xs);
-  margin-top: var(--spacing-lg);
-  line-height: var(--line-height-normal);
-  font-weight: var(--font-weight-medium);
-}
-
-/* First field help has no top margin */
-.field-help:first-of-type {
-  margin-top: 0;
-}
-
-/* Calendar Summary Display */
+/* Calendar Summary - Lightweight */
 .calendar-summary {
-  margin: var(--spacing-lg) 0;
+  margin: clamp(1rem, 3vh, 2rem) 0;
+  text-align: center;
 }
 
-.summary-item {
-  --background: rgba(var(--ion-color-success-rgb), 0.1);
-  --border-radius: var(--radius-md);
-  border: 2px solid rgba(var(--ion-color-success-rgb), 0.2);
-  --padding-start: var(--spacing-md);
-  --padding-end: var(--spacing-md);
-  --padding-top: var(--spacing-md);
-  --padding-bottom: var(--spacing-md);
-  box-shadow: var(--shadow-sm);
-  animation: slideInRight var(--transition-base);
-}
-
-.summary-icon {
-  color: var(--ion-color-success);
-  font-size: var(--font-size-xl);
-}
-
-.summary-item h3 {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-xs) 0;
-}
-
-.summary-item p {
-  font-size: var(--font-size-base);
-  color: var(--ion-color-success);
+.summary-text {
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
   font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
   margin: 0;
+  padding: clamp(0.5rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.25rem);
+  background: var(--color-background);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  display: inline-block;
 }
 
-/* Form Actions (following existing auth form patterns) */
+/* Form Actions - Intrinsically responsive */
 .form-actions {
   display: flex;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
+  flex-wrap: wrap;
+  gap: clamp(0.75rem, 2vw, 1rem);
+  margin-top: clamp(1.5rem, 5vh, 3rem);
+  justify-content: center;
 }
 
 .form-actions ion-button {
-  height: 48px; /* Touch-friendly button height */
+  height: clamp(3rem, 8vh, 3.5rem);
   --border-radius: var(--radius-md);
   font-weight: var(--font-weight-semibold);
+  min-width: clamp(7rem, 25vw, 9rem);
+  flex: 0 1 auto;
+}
+
+/* Container queries for micro-layouts (if supported) */
+@container (max-width: 20rem) {
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions ion-button {
+    min-width: 100%;
+  }
 }
 
 /* Status Messages (following existing auth patterns) */
@@ -402,43 +383,10 @@ watch(() => formData.value.endDate, () => {
   border: 1px solid rgba(var(--ion-color-success-rgb), 0.3);
 }
 
-/* Mobile optimizations */
-@media (max-width: 480px) {
+/* Accessibility and user preference support only */
+@media (prefers-reduced-motion: reduce) {
   .calendar-form {
-    padding: var(--spacing-sm);
-  }
-  
-  .form-title {
-    font-size: var(--font-size-xl);
-  }
-  
-  .form-actions {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
-}
-
-/* Tablet improvements */
-@media (min-width: 768px) {
-  .calendar-form {
-    padding: var(--spacing-lg);
-  }
-  
-  .form-actions {
-    justify-content: flex-end;
-  }
-  
-  .form-actions ion-button {
-    flex: 0 0 auto;
-    min-width: 120px;
-  }
-}
-
-/* Desktop improvements */
-@media (min-width: 1024px) {
-  .calendar-form {
-    max-width: 600px;
-    padding: var(--spacing-xl);
+    animation: none;
   }
 }
 

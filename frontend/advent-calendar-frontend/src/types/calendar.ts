@@ -27,6 +27,31 @@ export interface CalendarCreateData {
   duration: number;
 }
 
+// API Response Types
+export interface CalendarCreateResponse {
+  success: boolean;
+  message: string;
+  calendar: Calendar;
+}
+
+export interface CalendarListResponse {
+  success: boolean;
+  message: string;
+  calendars: Calendar[];
+}
+
+export interface CalendarGetResponse {
+  success: boolean;
+  message: string;
+  calendar: Calendar;
+}
+
+export interface CalendarUpdateResponse {
+  success: boolean;
+  message: string;
+  calendar: Calendar;
+}
+
 export interface CalendarVideo {
   day: number;
   fileName: string;
