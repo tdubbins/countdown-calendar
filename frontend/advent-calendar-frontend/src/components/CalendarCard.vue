@@ -43,7 +43,7 @@
     :is-open="isContextMenuOpen"
     :header="`${calendar.title} Options`"
     :buttons="contextMenuButtons"
-    @didDismiss="isContextMenuOpen = false"
+    @didDismiss="closeContextMenu"
   ></ion-action-sheet>
 
   <!-- Desktop Popover (>= 768px) -->
@@ -52,7 +52,7 @@
     :is-open="isContextMenuOpen"
     :event="popoverEvent"
     :dismiss-on-select="true"
-    @didDismiss="isContextMenuOpen = false"
+    @didDismiss="closeContextMenu"
   >
     <ion-content class="popover-content">
       <ion-list lines="none">
@@ -71,9 +71,9 @@
   <!-- Delete Confirmation Dialog -->
   <ion-alert
     :is-open="isDeleteDialogOpen"
-    :header="'Delete Calendar'"
+    :header="'⚠️ Delete Calendar'"
     :subHeader="calendar.title"
-    :message="'Are you sure? This action cannot be undone. All videos and data will be permanently deleted.'"
+    :message="deleteConfirmationMessage"
     :buttons="[
       {
         text: 'Cancel',
@@ -168,8 +168,15 @@ const videoProgress = computed(() => {
   // For now, we'll extract from dateRange or use videoCount as fallback
   const totalDays = calculateTotalDays();
   const uploadedVideos = props.calendar.videoCount || 0;
-  
+
   return `${uploadedVideos}/${totalDays} videos`;
+});
+
+// Concise delete confirmation message
+const deleteConfirmationMessage = computed(() => {
+  const uploadedVideos = props.calendar.videoCount || 0;
+
+  return `This will permanently delete ${uploadedVideos} video${uploadedVideos !== 1 ? 's' : ''} and all calendar data. This cannot be undone.`;
 });
 
 // Helper function to calculate total days from date range
@@ -207,6 +214,8 @@ const handleClick = () => {
 
 // Context menu functionality
 const openContextMenu = (event: Event) => {
+  event.stopPropagation(); // Prevent card click
+
   // For desktop popover, we need the event to position it
   if (!isMobileView.value) {
     popoverEvent.value = event;
@@ -214,13 +223,24 @@ const openContextMenu = (event: Event) => {
   isContextMenuOpen.value = true;
 };
 
+// Close context menu with proper cleanup
+const closeContextMenu = () => {
+  isContextMenuOpen.value = false;
+
+  // Clear event reference to prevent memory leaks and popover errors
+  if (!isMobileView.value) {
+    popoverEvent.value = undefined;
+  }
+};
+
 const handleEdit = () => {
-  isContextMenuOpen.value = false; // Close the menu
+  closeContextMenu(); // Use cleanup function
   emit('edit', props.calendar.id);
 };
 
 // Delete functionality
 const showDeleteConfirmation = () => {
+  closeContextMenu(); // Close menu before showing dialog
   isDeleteDialogOpen.value = true;
 };
 
@@ -450,6 +470,29 @@ const handleDelete = async () => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+</style>
+
+<style>
+/* Mobile Action Sheet Improvements - Global styles (not scoped) */
+/* Better spacing and visual hierarchy for touch-friendly interaction */
+ion-action-sheet.action-sheet-destructive {
+  --button-background-selected: rgba(var(--ion-color-danger-rgb), 0.1);
+}
+
+/* Increase spacing between action buttons for better touch targets */
+ion-action-sheet button[role="destructive"] {
+  margin-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+}
+
+/* Dark mode support for action sheet divider */
+@media (prefers-color-scheme: dark) {
+  ion-action-sheet button[role="destructive"] {
+    border-top-color: rgba(255, 255, 255, 0.1);
   }
 }
 </style>

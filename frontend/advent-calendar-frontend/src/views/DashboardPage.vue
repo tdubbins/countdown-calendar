@@ -116,18 +116,18 @@
         </div>
       </div>
 
-      <!-- Edit Calendar Modal -->
+      <!-- Edit Calendar Modal - Same for Desktop & Mobile -->
       <ion-modal
         :is-open="isEditModalOpen"
         @didDismiss="closeEditModal"
-        :initial-breakpoint="1"
-        :breakpoints="[0, 1]"
       >
         <ion-header>
-          <ion-toolbar>
+          <ion-toolbar color="primary">
             <ion-title>Edit Calendar</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="closeEditModal">Close</ion-button>
+              <ion-button @click="closeEditModal" color="light">
+                <strong>Close</strong>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
