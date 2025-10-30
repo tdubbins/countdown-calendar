@@ -11,6 +11,7 @@
     <!-- Three Dots Menu Button - positioned in top-right corner -->
     <ion-button
       @click.stop="openContextMenu"
+      ref="contextMenuTrigger"
       class="context-menu-button"
       fill="clear"
       size="small"
@@ -35,13 +36,37 @@
     </div>
   </div>
 
-  <!-- Context Menu Action Sheet -->
+  <!-- Context Menu - Mobile: Action Sheet, Desktop: Popover -->
+  <!-- Mobile Action Sheet (< 768px) -->
   <ion-action-sheet
+    v-if="isMobileView"
     :is-open="isContextMenuOpen"
     :header="`${calendar.title} Options`"
     :buttons="contextMenuButtons"
     @didDismiss="isContextMenuOpen = false"
   ></ion-action-sheet>
+
+  <!-- Desktop Popover (>= 768px) -->
+  <ion-popover
+    v-else
+    :is-open="isContextMenuOpen"
+    :event="popoverEvent"
+    :dismiss-on-select="true"
+    @didDismiss="isContextMenuOpen = false"
+  >
+    <ion-content class="popover-content">
+      <ion-list lines="none">
+        <ion-item button @click="handleEdit" detail="false">
+          <ion-icon :icon="pencilOutline" slot="start" color="primary"></ion-icon>
+          <ion-label>Edit</ion-label>
+        </ion-item>
+        <ion-item button @click="showDeleteConfirmation" detail="false" class="delete-item">
+          <ion-icon :icon="trashOutline" slot="start" color="danger"></ion-icon>
+          <ion-label color="danger">Delete</ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-content>
+  </ion-popover>
 
   <!-- Delete Confirmation Dialog -->
   <ion-alert
@@ -71,8 +96,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { IonAlert, IonActionSheet, IonButton, IonIcon } from '@ionic/vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { IonAlert, IonActionSheet, IonPopover, IonButton, IonIcon, IonContent, IonList, IonItem, IonLabel } from '@ionic/vue';
 import { ellipsisVertical, pencilOutline, trashOutline } from 'ionicons/icons';
 import StatusChip from '@/components/StatusChip.vue';
 import { useCalendar } from '@/composables/useCalendar';
@@ -95,6 +120,24 @@ const { deleteCalendar } = useCalendar();
 const isContextMenuOpen = ref(false);
 const isDeleteDialogOpen = ref(false);
 const isDeleting = ref(false);
+const popoverEvent = ref<Event | undefined>(undefined);
+const contextMenuTrigger = ref<HTMLElement | null>(null);
+
+// Responsive detection for mobile vs desktop
+const isMobileView = ref(window.innerWidth < 768);
+
+// Update mobile view on window resize
+const updateMobileView = () => {
+  isMobileView.value = window.innerWidth < 768;
+};
+
+onMounted(() => {
+  window.addEventListener('resize', updateMobileView);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateMobileView);
+});
 
 // Context menu buttons configuration
 const contextMenuButtons = computed(() => [
@@ -163,11 +206,16 @@ const handleClick = () => {
 };
 
 // Context menu functionality
-const openContextMenu = () => {
+const openContextMenu = (event: Event) => {
+  // For desktop popover, we need the event to position it
+  if (!isMobileView.value) {
+    popoverEvent.value = event;
+  }
   isContextMenuOpen.value = true;
 };
 
 const handleEdit = () => {
+  isContextMenuOpen.value = false; // Close the menu
   emit('edit', props.calendar.id);
 };
 
@@ -236,6 +284,45 @@ const handleDelete = async () => {
 
 .context-menu-button ion-icon {
   font-size: 1.5rem;
+}
+
+/* Popover Content Styling - Desktop only */
+.popover-content {
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.popover-content ion-list {
+  padding: 0.5rem 0;
+  background: transparent;
+}
+
+.popover-content ion-item {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --min-height: 44px; /* NFR [U2]: Touch-friendly */
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+}
+
+.popover-content ion-item:hover {
+  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+}
+
+.popover-content ion-item.delete-item:hover {
+  --background: rgba(var(--ion-color-danger-rgb), 0.1);
+}
+
+.popover-content ion-icon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.popover-content ion-label {
+  font-weight: var(--font-weight-medium);
 }
 
 /* Hover and focus states following theme patterns */
