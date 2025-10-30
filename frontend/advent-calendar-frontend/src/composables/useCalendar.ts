@@ -27,18 +27,45 @@ export const useCalendar = () => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        // Handle error responses that might have JSON error data
+        try {
+          const errorData = await response.json();
+          return {
+            success: false,
+            error: errorData.error || `Request failed with status ${response.status}`
+          };
+        } catch {
+          // If error response doesn't have JSON, use status text
+          return {
+            success: false,
+            error: `Request failed with status ${response.status}: ${response.statusText}`
+          };
+        }
+      }
+      
+      // Handle successful responses - check if there's content to parse
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        // No content responses (like DELETE 204)
         return {
-          success: false,
-          error: errorData.error || `Request failed with status ${response.status}`
+          success: true,
+          data: undefined
         };
       }
       
-      const data = await response.json();
-      return {
-        success: true,
-        data: data
-      };
+      // Parse JSON for responses with content
+      try {
+        const data = await response.json();
+        return {
+          success: true,
+          data: data
+        };
+      } catch {
+        // If response isn't JSON, treat as success with no data
+        return {
+          success: true,
+          data: undefined
+        };
+      }
       
     } catch (error: any) {
       return {
