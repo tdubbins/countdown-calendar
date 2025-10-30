@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { API_ENDPOINTS } from '@/config/api';
+import { useCalendar } from '@/composables/useCalendar';
 
 // Global authentication state
 const authToken = ref<string | null>(null);
@@ -141,6 +142,11 @@ export const useAuth = () => {
     } finally {
       // Always clear local data and redirect
       clearAuthData();
+
+      // Clear all calendar data to prevent data leakage between users
+      const { clearCalendarData } = useCalendar();
+      clearCalendarData();
+
       router.push('/login');
     }
   };

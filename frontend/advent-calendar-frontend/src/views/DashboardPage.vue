@@ -66,10 +66,11 @@
           <!-- Calendar Grid - Display All Calendars -->
           <div class="calendars-grid">
             <CalendarCard
-              v-for="calendar in calendars" 
+              v-for="calendar in calendars"
               :key="calendar.id"
               :calendar="calendar"
               @click="openCalendar"
+              @edit="handleEditCalendar"
             />
           </div>
         </div>
@@ -114,16 +115,43 @@
           </ActionButton>
         </div>
       </div>
-      
-      <!-- Mobile: Floating Action Button -->
-      <ion-fab 
-        v-if="isMobile()" 
-        slot="fixed" 
-        vertical="bottom" 
+
+      <!-- Edit Calendar Modal - Same for Desktop & Mobile -->
+      <ion-modal
+        :is-open="isEditModalOpen"
+        @didDismiss="closeEditModal"
+      >
+        <ion-header>
+          <ion-toolbar color="primary">
+            <ion-title>Edit Calendar</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeEditModal" color="light">
+                <strong>Close</strong>
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="modal-content">
+          <CalendarForm
+            v-if="selectedCalendar"
+            :calendar="selectedCalendar"
+            :is-submitting="isSubmitting"
+            @submit="handleEditSubmit"
+            @cancel="closeEditModal"
+          />
+        </ion-content>
+      </ion-modal>
+
+      <!-- Mobile: Floating Action Button (NFR [U2]: 44px+ touch target for mobile) -->
+      <ion-fab
+        v-if="isMobile()"
+        slot="fixed"
+        vertical="bottom"
         horizontal="end"
+        edge
         class="fab-create"
       >
-        <ion-fab-button 
+        <ion-fab-button
           @click="goToCreateCalendar"
           color="primary"
           aria-label="Create new calendar"
@@ -145,27 +173,36 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
+  IonButton,
+  IonModal,
   IonFab,
   IonFabButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  alertController
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useCalendar } from '@/composables/useCalendar';
 import { useResponsive } from '@/composables/useResponsive';
 import ActionButton from '@/components/ActionButton.vue';
 import CalendarCard from '@/components/CalendarCard.vue';
+import CalendarForm from '@/components/CalendarForm.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import type { CalendarSummary } from '@/types/calendar';
+import type { Calendar, CalendarCreateData } from '@/types/calendar';
 
 // Composables
 const router = useRouter();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
-const { calendars, isLoading, hasCalendars, loadCalendars } = useCalendar();
+const { calendars, isLoading, hasCalendars, loadCalendars, getCalendar, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
 
 // Error state for dashboard
 const loadError = ref<string>('');
+
+// Edit modal state
+const isEditModalOpen = ref(false);
+const selectedCalendar = ref<Calendar | null>(null);
+const isSubmitting = ref(false);
 
 // Lifecycle (NFR [P1]: Dashboard loads under 5 seconds)
 onMounted(async () => {
@@ -217,6 +254,84 @@ const goToProfile = () => {
 const goToHelp = () => {
   // TODO: Implement help section
   console.log('Navigate to help');
+};
+
+// Edit calendar functionality
+const handleEditCalendar = async (calendarId: string) => {
+  try {
+    // Fetch the full calendar object with all fields (including endDate)
+    const result = await getCalendar(calendarId);
+
+    if (result.success && result.data) {
+      selectedCalendar.value = result.data;
+      isEditModalOpen.value = true;
+    } else {
+      const alert = await alertController.create({
+        header: 'Error',
+        message: 'Failed to load calendar data',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  } catch (error) {
+    console.error('Failed to load calendar:', error);
+    const alert = await alertController.create({
+      header: 'Error',
+      message: 'An unexpected error occurred',
+      buttons: ['OK']
+    });
+    await alert.present();
+  }
+};
+
+const handleEditSubmit = async (data: CalendarCreateData, calendarId?: string) => {
+  if (!calendarId) {
+    console.error('No calendar ID provided for update');
+    return;
+  }
+
+  try {
+    isSubmitting.value = true;
+
+    const result = await updateCalendar(calendarId, data);
+
+    if (result.success) {
+      // Show success alert
+      const alert = await alertController.create({
+        header: 'Success',
+        message: 'Calendar updated successfully!',
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      // Close modal and reload calendars
+      closeEditModal();
+      await loadUserCalendars();
+    } else {
+      // Show error alert
+      const alert = await alertController.create({
+        header: 'Error',
+        message: result.error || 'Failed to update calendar',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  } catch (error) {
+    console.error('Failed to update calendar:', error);
+    const alert = await alertController.create({
+      header: 'Error',
+      message: 'An unexpected error occurred',
+      buttons: ['OK']
+    });
+    await alert.present();
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+const closeEditModal = () => {
+  isEditModalOpen.value = false;
+  selectedCalendar.value = null;
 };
 </script>
 
@@ -309,10 +424,48 @@ const goToHelp = () => {
   margin-top: var(--spacing-2xl);
 }
 
-/* Floating Action Button */
+/* Floating Action Button (NFR [U2]: Mobile-optimized touch target) */
 .fab-create {
   --background: var(--brand-primary);
   --color: white;
+
+  /* Positioning & spacing - safe from screen edges */
+  margin-bottom: 20px;  /* Space from bottom edge */
+  margin-right: 16px;   /* Space from right edge */
+
+  /* Ensure FAB stays on top of all content */
+  z-index: 999;
+
+  /* Enhanced visibility with shadow */
+  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.10);
+}
+
+/* FAB button size optimization for thumb reach */
+.fab-create ion-fab-button {
+  --size: 56px;  /* Standard Material Design FAB size (44px+ for NFR [U2]) */
+
+  /* Smooth interactions */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Active state feedback */
+.fab-create ion-fab-button:active {
+  transform: scale(0.95);
+}
+
+/* Ensure adequate spacing from secondary actions */
+@media (max-width: 480px) {
+  .fab-create {
+    margin-bottom: 80px;  /* Extra space to avoid overlapping secondary actions */
+  }
+}
+
+/* Edit Modal Styling */
+.modal-content {
+  --padding-top: var(--spacing-md);
+  --padding-bottom: var(--spacing-md);
+  --padding-start: var(--spacing-md);
+  --padding-end: var(--spacing-md);
 }
 
 /* Responsive design using theme breakpoints */

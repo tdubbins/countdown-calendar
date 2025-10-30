@@ -1,5 +1,5 @@
 <template>
-  <div 
+  <div
     class="calendar-card"
     @click="handleClick"
     @keydown.enter="handleClick"
@@ -8,15 +8,17 @@
     role="button"
     :aria-label="`Open calendar ${calendar.title}. ${videoProgress}. Status: ${calendar.status}`"
   >
-    <!-- Delete Button - positioned in top-right corner -->
-    <DeleteButton
-      @click="showDeleteConfirmation"
-      variant="card"
-      size="default"
-      :is-loading="isDeleting"
-      aria-label="Delete calendar"
-      :title="`Delete calendar: ${calendar.title}`"
-    />
+    <!-- Three Dots Menu Button - positioned in top-right corner -->
+    <ion-button
+      @click.stop="openContextMenu"
+      ref="contextMenuTrigger"
+      class="context-menu-button"
+      fill="clear"
+      size="small"
+      :aria-label="`Options for ${calendar.title}`"
+    >
+      <ion-icon slot="icon-only" :icon="ellipsisVertical"></ion-icon>
+    </ion-button>
     
     <div class="calendar-header">
       <h3 class="calendar-title">{{ calendar.title }}</h3>
@@ -27,19 +29,51 @@
       />
     </div>
     
-    <p class="calendar-dates">{{ calendar.dateRange }}</p>
+    <p class="calendar-dates">{{ formattedDateRange }}</p>
     
     <div class="calendar-progress">
       <span class="progress-text">{{ videoProgress }}</span>
     </div>
   </div>
 
+  <!-- Context Menu - Mobile: Action Sheet, Desktop: Popover -->
+  <!-- Mobile Action Sheet (< 768px) -->
+  <ion-action-sheet
+    v-if="isMobileView"
+    :is-open="isContextMenuOpen"
+    :header="`${calendar.title} Options`"
+    :buttons="contextMenuButtons"
+    @didDismiss="closeContextMenu"
+  ></ion-action-sheet>
+
+  <!-- Desktop Popover (>= 768px) -->
+  <ion-popover
+    v-else
+    :is-open="isContextMenuOpen"
+    :event="popoverEvent"
+    :dismiss-on-select="true"
+    @didDismiss="closeContextMenu"
+  >
+    <ion-content class="popover-content">
+      <ion-list lines="none">
+        <ion-item button @click="handleEdit" detail="false">
+          <ion-icon :icon="pencilOutline" slot="start" color="primary"></ion-icon>
+          <ion-label>Edit</ion-label>
+        </ion-item>
+        <ion-item button @click="showDeleteConfirmation" detail="false" class="delete-item">
+          <ion-icon :icon="trashOutline" slot="start" color="danger"></ion-icon>
+          <ion-label color="danger">Delete</ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-content>
+  </ion-popover>
+
   <!-- Delete Confirmation Dialog -->
   <ion-alert
     :is-open="isDeleteDialogOpen"
-    :header="'Delete Calendar'"
+    :header="'⚠️ Delete Calendar'"
     :subHeader="calendar.title"
-    :message="'Are you sure? This action cannot be undone. All videos and data will be permanently deleted.'"
+    :message="deleteConfirmationMessage"
     :buttons="[
       {
         text: 'Cancel',
@@ -62,10 +96,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { IonAlert } from '@ionic/vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { IonAlert, IonActionSheet, IonPopover, IonButton, IonIcon, IonContent, IonList, IonItem, IonLabel } from '@ionic/vue';
+import { ellipsisVertical, pencilOutline, trashOutline } from 'ionicons/icons';
 import StatusChip from '@/components/StatusChip.vue';
-import DeleteButton from '@/components/DeleteButton.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import type { CalendarCardProps } from '@/types/calendar';
 
@@ -75,15 +109,58 @@ const props = defineProps<CalendarCardProps>();
 // Emits
 const emit = defineEmits<{
   'click': [calendarId: string];
+  'edit': [calendarId: string];
   'delete': [calendarId: string];
 }>();
 
 // Composables
 const { deleteCalendar } = useCalendar();
 
-// Reactive state for delete functionality
+// Reactive state for context menu and delete functionality
+const isContextMenuOpen = ref(false);
 const isDeleteDialogOpen = ref(false);
 const isDeleting = ref(false);
+const popoverEvent = ref<Event | undefined>(undefined);
+const contextMenuTrigger = ref<HTMLElement | null>(null);
+
+// Responsive detection for mobile vs desktop
+const isMobileView = ref(window.innerWidth < 768);
+
+// Update mobile view on window resize
+const updateMobileView = () => {
+  isMobileView.value = window.innerWidth < 768;
+};
+
+onMounted(() => {
+  window.addEventListener('resize', updateMobileView);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateMobileView);
+});
+
+// Context menu buttons configuration
+const contextMenuButtons = computed(() => [
+  {
+    text: 'Edit',
+    icon: pencilOutline,
+    handler: () => {
+      handleEdit();
+    }
+  },
+  {
+    text: 'Delete',
+    icon: trashOutline,
+    role: 'destructive',
+    handler: () => {
+      showDeleteConfirmation();
+    }
+  },
+  {
+    text: 'Cancel',
+    role: 'cancel'
+  }
+]);
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -91,8 +168,20 @@ const videoProgress = computed(() => {
   // For now, we'll extract from dateRange or use videoCount as fallback
   const totalDays = calculateTotalDays();
   const uploadedVideos = props.calendar.videoCount || 0;
-  
+
   return `${uploadedVideos}/${totalDays} videos`;
+});
+
+// Format date range in European style (DD.MM.YYYY – DD.MM.YYYY)
+const formattedDateRange = computed(() => {
+  return props.calendar.dateRange.replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3.$2.$1').replace(' to ', ' – ');
+});
+
+// Concise delete confirmation message
+const deleteConfirmationMessage = computed(() => {
+  const uploadedVideos = props.calendar.videoCount || 0;
+
+  return `This will permanently delete ${uploadedVideos} video${uploadedVideos !== 1 ? 's' : ''} and all calendar data. This cannot be undone.`;
 });
 
 // Helper function to calculate total days from date range
@@ -128,8 +217,35 @@ const handleClick = () => {
   emit('click', props.calendar.id);
 };
 
+// Context menu functionality
+const openContextMenu = (event: Event) => {
+  event.stopPropagation(); // Prevent card click
+
+  // For desktop popover, we need the event to position it
+  if (!isMobileView.value) {
+    popoverEvent.value = event;
+  }
+  isContextMenuOpen.value = true;
+};
+
+// Close context menu with proper cleanup
+const closeContextMenu = () => {
+  isContextMenuOpen.value = false;
+
+  // Clear event reference to prevent memory leaks and popover errors
+  if (!isMobileView.value) {
+    popoverEvent.value = undefined;
+  }
+};
+
+const handleEdit = () => {
+  closeContextMenu(); // Use cleanup function
+  emit('edit', props.calendar.id);
+};
+
 // Delete functionality
 const showDeleteConfirmation = () => {
+  closeContextMenu(); // Close menu before showing dialog
   isDeleteDialogOpen.value = true;
 };
 
@@ -171,6 +287,67 @@ const handleDelete = async () => {
   text-align: left;
   position: relative;
   container-type: inline-size;
+}
+
+/* Context Menu Button - positioned in top-right corner */
+.context-menu-button {
+  position: absolute;
+  top: clamp(0.5rem, 2vw, 0.75rem);
+  right: clamp(0.5rem, 2vw, 0.75rem);
+  z-index: 10;
+  --padding-start: 0.5rem;
+  --padding-end: 0.5rem;
+  min-width: 44px; /* NFR [U2]: Touch-friendly minimum */
+  min-height: 44px; /* NFR [U2]: Touch-friendly minimum */
+  color: var(--color-text-secondary);
+  transition: color var(--transition-base);
+}
+
+.context-menu-button:hover {
+  color: var(--color-text-primary);
+}
+
+.context-menu-button ion-icon {
+  font-size: 1.5rem;
+}
+
+/* Popover Content Styling - Desktop only */
+.popover-content {
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.popover-content ion-list {
+  padding: 0.5rem 0;
+  background: transparent;
+}
+
+.popover-content ion-item {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --min-height: 44px; /* NFR [U2]: Touch-friendly */
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+}
+
+.popover-content ion-item:hover {
+  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+}
+
+.popover-content ion-item.delete-item:hover {
+  --background: rgba(var(--ion-color-danger-rgb), 0.1);
+}
+
+.popover-content ion-icon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.popover-content ion-label {
+  font-weight: var(--font-weight-medium);
 }
 
 /* Hover and focus states following theme patterns */
@@ -298,6 +475,29 @@ const handleDelete = async () => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+</style>
+
+<style>
+/* Mobile Action Sheet Improvements - Global styles (not scoped) */
+/* Better spacing and visual hierarchy for touch-friendly interaction */
+ion-action-sheet.action-sheet-destructive {
+  --button-background-selected: rgba(var(--ion-color-danger-rgb), 0.1);
+}
+
+/* Increase spacing between action buttons for better touch targets */
+ion-action-sheet button[role="destructive"] {
+  margin-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+}
+
+/* Dark mode support for action sheet divider */
+@media (prefers-color-scheme: dark) {
+  ion-action-sheet button[role="destructive"] {
+    border-top-color: rgba(255, 255, 255, 0.1);
   }
 }
 </style>
