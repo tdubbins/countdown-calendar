@@ -8,23 +8,23 @@
     role="button"
     :aria-label="`Open calendar ${calendar.title}. ${videoProgress}. Status: ${calendar.status}`"
   >
+    <!-- Delete Button - positioned in top-right corner -->
+    <DeleteButton
+      @click="showDeleteConfirmation"
+      variant="card"
+      size="default"
+      :is-loading="isDeleting"
+      aria-label="Delete calendar"
+      :title="`Delete calendar: ${calendar.title}`"
+    />
+    
     <div class="calendar-header">
       <h3 class="calendar-title">{{ calendar.title }}</h3>
-      <div class="calendar-actions">
-        <StatusChip 
-          :status="calendar.status" 
-          variant="minimal"
-          class="calendar-status-chip"
-        />
-        <button
-          @click.stop="showDeleteConfirmation"
-          class="delete-button"
-          aria-label="Delete calendar"
-          title="Delete calendar"
-        >
-          <ion-icon name="trash-outline"></ion-icon>
-        </button>
-      </div>
+      <StatusChip 
+        :status="calendar.status" 
+        variant="minimal"
+        class="calendar-status-chip"
+      />
     </div>
     
     <p class="calendar-dates">{{ calendar.dateRange }}</p>
@@ -63,8 +63,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IonIcon, IonAlert } from '@ionic/vue';
+import { IonAlert } from '@ionic/vue';
 import StatusChip from '@/components/StatusChip.vue';
+import DeleteButton from '@/components/DeleteButton.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import type { CalendarCardProps } from '@/types/calendar';
 
@@ -80,8 +81,9 @@ const emit = defineEmits<{
 // Composables
 const { deleteCalendar } = useCalendar();
 
-// Reactive state for delete confirmation dialog
+// Reactive state for delete functionality
 const isDeleteDialogOpen = ref(false);
+const isDeleting = ref(false);
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -134,6 +136,7 @@ const showDeleteConfirmation = () => {
 const handleDelete = async () => {
   try {
     isDeleteDialogOpen.value = false;
+    isDeleting.value = true;
     
     const result = await deleteCalendar(props.calendar.id);
     
@@ -148,6 +151,8 @@ const handleDelete = async () => {
   } catch (error) {
     console.error('Delete error:', error);
     alert('An unexpected error occurred while deleting the calendar');
+  } finally {
+    isDeleting.value = false;
   }
 };
 </script>
@@ -187,13 +192,7 @@ const handleDelete = async () => {
   align-items: flex-start;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
-}
-
-.calendar-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-xs);
-  flex-shrink: 0;
+  padding-right: var(--spacing-xl); /* Space for delete button */
 }
 
 .calendar-title {
@@ -214,45 +213,6 @@ const handleDelete = async () => {
 .calendar-status-chip {
   flex-shrink: 0;
   align-self: flex-start;
-}
-
-/* Delete button styling - NFR [U2]: 44px+ touch-friendly target */
-.delete-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  border-radius: var(--radius-sm);
-  min-width: 44px;  /* NFR [U2]: Accessible touch target */
-  min-height: 44px; /* NFR [U2]: Accessible touch target */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ion-color-medium);
-  transition: all var(--transition-base);
-  flex-shrink: 0;
-}
-
-.delete-button:hover {
-  background-color: rgba(var(--ion-color-danger-rgb), 0.1);
-  color: var(--ion-color-danger);
-  transform: scale(1.05);
-}
-
-.delete-button:focus {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-  background-color: rgba(var(--ion-color-danger-rgb), 0.1);
-  color: var(--ion-color-danger);
-}
-
-.delete-button:active {
-  transform: scale(0.95);
-}
-
-.delete-button ion-icon {
-  font-size: 1.2rem;
-  pointer-events: none;
 }
 
 /* Date range styling */
@@ -287,12 +247,11 @@ const handleDelete = async () => {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-xs);
+    padding-right: var(--spacing-lg); /* Reduced padding for smaller cards */
   }
   
-  .calendar-actions {
+  .calendar-status-chip {
     align-self: flex-end;
-    width: 100%;
-    justify-content: space-between;
   }
 }
 
@@ -315,15 +274,6 @@ const handleDelete = async () => {
   }
   
   .calendar-card:hover {
-    transform: none;
-  }
-  
-  .delete-button {
-    transition: none;
-  }
-  
-  .delete-button:hover,
-  .delete-button:active {
     transform: none;
   }
 }
