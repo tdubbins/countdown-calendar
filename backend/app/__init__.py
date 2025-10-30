@@ -7,15 +7,19 @@ import os
 def create_app(config_name=None):
     """Create and configure Flask application"""
     app = Flask(__name__)
-    
+
     # Load configuration
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
-    
+
     app.config.from_object(config[config_name])
-    
+
     # Initialize extensions
     CORS(app)
+
+    # Initialize upload directories for video storage
+    from app.utils.storage import ensure_upload_directories
+    ensure_upload_directories()
     
     # Register blueprints
     from app.routes.auth import auth_bp
