@@ -1,5 +1,5 @@
 <template>
-  <div 
+  <div
     class="calendar-card"
     @click="handleClick"
     @keydown.enter="handleClick"
@@ -8,15 +8,16 @@
     role="button"
     :aria-label="`Open calendar ${calendar.title}. ${videoProgress}. Status: ${calendar.status}`"
   >
-    <!-- Delete Button - positioned in top-right corner -->
-    <DeleteButton
-      @click="showDeleteConfirmation"
-      variant="card"
-      size="default"
-      :is-loading="isDeleting"
-      aria-label="Delete calendar"
-      :title="`Delete calendar: ${calendar.title}`"
-    />
+    <!-- Three Dots Menu Button - positioned in top-right corner -->
+    <ion-button
+      @click.stop="openContextMenu"
+      class="context-menu-button"
+      fill="clear"
+      size="small"
+      :aria-label="`Options for ${calendar.title}`"
+    >
+      <ion-icon slot="icon-only" :icon="ellipsisVertical"></ion-icon>
+    </ion-button>
     
     <div class="calendar-header">
       <h3 class="calendar-title">{{ calendar.title }}</h3>
@@ -33,6 +34,14 @@
       <span class="progress-text">{{ videoProgress }}</span>
     </div>
   </div>
+
+  <!-- Context Menu Action Sheet -->
+  <ion-action-sheet
+    :is-open="isContextMenuOpen"
+    :header="`${calendar.title} Options`"
+    :buttons="contextMenuButtons"
+    @didDismiss="isContextMenuOpen = false"
+  ></ion-action-sheet>
 
   <!-- Delete Confirmation Dialog -->
   <ion-alert
@@ -63,9 +72,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IonAlert } from '@ionic/vue';
+import { IonAlert, IonActionSheet, IonButton, IonIcon } from '@ionic/vue';
+import { ellipsisVertical, pencilOutline, trashOutline } from 'ionicons/icons';
 import StatusChip from '@/components/StatusChip.vue';
-import DeleteButton from '@/components/DeleteButton.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import type { CalendarCardProps } from '@/types/calendar';
 
@@ -75,15 +84,40 @@ const props = defineProps<CalendarCardProps>();
 // Emits
 const emit = defineEmits<{
   'click': [calendarId: string];
+  'edit': [calendarId: string];
   'delete': [calendarId: string];
 }>();
 
 // Composables
 const { deleteCalendar } = useCalendar();
 
-// Reactive state for delete functionality
+// Reactive state for context menu and delete functionality
+const isContextMenuOpen = ref(false);
 const isDeleteDialogOpen = ref(false);
 const isDeleting = ref(false);
+
+// Context menu buttons configuration
+const contextMenuButtons = computed(() => [
+  {
+    text: 'Edit',
+    icon: pencilOutline,
+    handler: () => {
+      handleEdit();
+    }
+  },
+  {
+    text: 'Delete',
+    icon: trashOutline,
+    role: 'destructive',
+    handler: () => {
+      showDeleteConfirmation();
+    }
+  },
+  {
+    text: 'Cancel',
+    role: 'cancel'
+  }
+]);
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -126,6 +160,15 @@ const handleClick = () => {
     props.onClick(props.calendar.id);
   }
   emit('click', props.calendar.id);
+};
+
+// Context menu functionality
+const openContextMenu = () => {
+  isContextMenuOpen.value = true;
+};
+
+const handleEdit = () => {
+  emit('edit', props.calendar.id);
 };
 
 // Delete functionality
@@ -171,6 +214,28 @@ const handleDelete = async () => {
   text-align: left;
   position: relative;
   container-type: inline-size;
+}
+
+/* Context Menu Button - positioned in top-right corner */
+.context-menu-button {
+  position: absolute;
+  top: clamp(0.5rem, 2vw, 0.75rem);
+  right: clamp(0.5rem, 2vw, 0.75rem);
+  z-index: 10;
+  --padding-start: 0.5rem;
+  --padding-end: 0.5rem;
+  min-width: 44px; /* NFR [U2]: Touch-friendly minimum */
+  min-height: 44px; /* NFR [U2]: Touch-friendly minimum */
+  color: var(--color-text-secondary);
+  transition: color var(--transition-base);
+}
+
+.context-menu-button:hover {
+  color: var(--color-text-primary);
+}
+
+.context-menu-button ion-icon {
+  font-size: 1.5rem;
 }
 
 /* Hover and focus states following theme patterns */

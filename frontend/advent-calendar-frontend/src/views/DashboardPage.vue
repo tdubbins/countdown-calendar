@@ -66,10 +66,11 @@
           <!-- Calendar Grid - Display All Calendars -->
           <div class="calendars-grid">
             <CalendarCard
-              v-for="calendar in calendars" 
+              v-for="calendar in calendars"
               :key="calendar.id"
               :calendar="calendar"
               @click="openCalendar"
+              @edit="handleEditCalendar"
             />
           </div>
         </div>
@@ -114,16 +115,42 @@
           </ActionButton>
         </div>
       </div>
-      
+
+      <!-- Edit Calendar Modal -->
+      <ion-modal
+        :is-open="isEditModalOpen"
+        @didDismiss="closeEditModal"
+        :initial-breakpoint="1"
+        :breakpoints="[0, 1]"
+      >
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Edit Calendar</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeEditModal">Close</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="modal-content">
+          <CalendarForm
+            v-if="selectedCalendar"
+            :calendar="selectedCalendar"
+            :is-submitting="isSubmitting"
+            @submit="handleEditSubmit"
+            @cancel="closeEditModal"
+          />
+        </ion-content>
+      </ion-modal>
+
       <!-- Mobile: Floating Action Button -->
-      <ion-fab 
-        v-if="isMobile()" 
-        slot="fixed" 
-        vertical="bottom" 
+      <ion-fab
+        v-if="isMobile()"
+        slot="fixed"
+        vertical="bottom"
         horizontal="end"
         class="fab-create"
       >
-        <ion-fab-button 
+        <ion-fab-button
           @click="goToCreateCalendar"
           color="primary"
           aria-label="Create new calendar"
@@ -145,27 +172,36 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
+  IonButton,
+  IonModal,
   IonFab,
   IonFabButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  alertController
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useCalendar } from '@/composables/useCalendar';
 import { useResponsive } from '@/composables/useResponsive';
 import ActionButton from '@/components/ActionButton.vue';
 import CalendarCard from '@/components/CalendarCard.vue';
+import CalendarForm from '@/components/CalendarForm.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import type { CalendarSummary } from '@/types/calendar';
+import type { Calendar, CalendarCreateData } from '@/types/calendar';
 
 // Composables
 const router = useRouter();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
-const { calendars, isLoading, hasCalendars, loadCalendars } = useCalendar();
+const { calendars, isLoading, hasCalendars, loadCalendars, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
 
 // Error state for dashboard
 const loadError = ref<string>('');
+
+// Edit modal state
+const isEditModalOpen = ref(false);
+const selectedCalendar = ref<Calendar | null>(null);
+const isSubmitting = ref(false);
 
 // Lifecycle (NFR [P1]: Dashboard loads under 5 seconds)
 onMounted(async () => {
@@ -217,6 +253,66 @@ const goToProfile = () => {
 const goToHelp = () => {
   // TODO: Implement help section
   console.log('Navigate to help');
+};
+
+// Edit calendar functionality
+const handleEditCalendar = (calendarId: string) => {
+  // Find the full calendar object from the calendars array
+  const calendar = calendars.value.find(cal => cal.id === calendarId);
+  if (calendar) {
+    selectedCalendar.value = calendar;
+    isEditModalOpen.value = true;
+  }
+};
+
+const handleEditSubmit = async (data: CalendarCreateData, calendarId?: string) => {
+  if (!calendarId) {
+    console.error('No calendar ID provided for update');
+    return;
+  }
+
+  try {
+    isSubmitting.value = true;
+
+    const result = await updateCalendar(calendarId, data);
+
+    if (result.success) {
+      // Show success alert
+      const alert = await alertController.create({
+        header: 'Success',
+        message: 'Calendar updated successfully!',
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      // Close modal and reload calendars
+      closeEditModal();
+      await loadUserCalendars();
+    } else {
+      // Show error alert
+      const alert = await alertController.create({
+        header: 'Error',
+        message: result.error || 'Failed to update calendar',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  } catch (error) {
+    console.error('Failed to update calendar:', error);
+    const alert = await alertController.create({
+      header: 'Error',
+      message: 'An unexpected error occurred',
+      buttons: ['OK']
+    });
+    await alert.present();
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+const closeEditModal = () => {
+  isEditModalOpen.value = false;
+  selectedCalendar.value = null;
 };
 </script>
 
@@ -313,6 +409,14 @@ const goToHelp = () => {
 .fab-create {
   --background: var(--brand-primary);
   --color: white;
+}
+
+/* Edit Modal Styling */
+.modal-content {
+  --padding-top: var(--spacing-md);
+  --padding-bottom: var(--spacing-md);
+  --padding-start: var(--spacing-md);
+  --padding-end: var(--spacing-md);
 }
 
 /* Responsive design using theme breakpoints */

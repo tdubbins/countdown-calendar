@@ -1,13 +1,13 @@
 <template>
-  <form 
-    @submit.prevent="handleSubmit" 
+  <form
+    @submit.prevent="handleSubmit"
     class="calendar-form"
     novalidate
-    aria-label="Create new calendar form"
+    :aria-label="mode === 'edit' ? 'Edit calendar form' : 'Create new calendar form'"
   >
     <!-- Form Title -->
     <div class="form-header">
-      <h2 class="form-title">Create Calendar</h2>
+      <h2 class="form-title">{{ mode === 'edit' ? 'Edit Calendar' : 'Create Calendar' }}</h2>
     </div>
 
     <!-- Calendar Title Field -->
@@ -71,7 +71,7 @@
         :aria-describedby="errorMessage ? 'form-error' : (successMessage ? 'form-success' : undefined)"
       >
         <ion-spinner v-if="isSubmitting" name="crescent" size="small"></ion-spinner>
-        <span v-else>Create Calendar</span>
+        <span v-else>{{ mode === 'edit' ? 'Save Changes' : 'Create Calendar' }}</span>
       </ion-button>
     </div>
 
@@ -92,7 +92,7 @@ import {
   IonSpinner
 } from '@ionic/vue';
 import FormField from '@/components/FormField.vue';
-import type { CalendarCreateData } from '@/types/calendar';
+import type { CalendarCreateData, Calendar } from '@/types/calendar';
 import {
   calculateDaysBetween,
   formatCalendarSummary,
@@ -103,18 +103,23 @@ import {
 
 // Props
 interface Props {
+  calendar?: Calendar; // Optional calendar prop for edit mode
   initialData?: Partial<CalendarCreateData>;
   isSubmitting?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  calendar: undefined,
   initialData: () => ({}),
   isSubmitting: false
 });
 
+// Computed mode to determine if we're creating or editing
+const mode = computed(() => props.calendar ? 'edit' : 'create');
+
 // Emits
 const emit = defineEmits<{
-  'submit': [data: CalendarCreateData];
+  'submit': [data: CalendarCreateData, calendarId?: string];
   'cancel': [];
 }>();
 
@@ -144,11 +149,19 @@ defineExpose({
   resetForm
 });
 
+// Helper function to calculate end date from start date and duration
+const calculateEndDate = (startDate: string, duration: number): string => {
+  const start = new Date(startDate);
+  const end = new Date(start);
+  end.setDate(start.getDate() + duration - 1); // -1 because duration includes start day
+  return end.toISOString().split('T')[0];
+};
+
 // Reactive form data (we'll calculate duration from dates)
 const formData = ref({
-  title: props.initialData.title || '',
-  startDate: props.initialData.startDate || '',
-  endDate: ''
+  title: props.calendar?.title || props.initialData.title || '',
+  startDate: props.calendar?.startDate || props.initialData.startDate || '',
+  endDate: props.calendar ? calculateEndDate(props.calendar.startDate, props.calendar.duration) : ''
 });
 
 // Form validation errors
@@ -200,10 +213,11 @@ const validateTitle = () => {
 
 const validateStartDate = () => {
   const startDate = formData.value.startDate;
-  
+
   if (!startDate) {
     errors.value.startDate = 'Start date is required';
-  } else if (isDateInPast(startDate)) {
+  } else if (mode.value === 'create' && isDateInPast(startDate)) {
+    // Only check for past dates when creating a new calendar
     errors.value.startDate = 'Start date cannot be in the past';
   } else {
     errors.value.startDate = '';
@@ -251,12 +265,12 @@ const handleSubmit = () => {
   // Clear previous status messages
   errorMessage.value = '';
   successMessage.value = '';
-  
+
   // Validate all fields before submission
   validateTitle();
   validateStartDate();
   validateEndDate();
-  
+
   if (isFormValid.value && calculatedDuration.value) {
     // Create the CalendarCreateData object with calculated duration
     const submitData: CalendarCreateData = {
@@ -264,9 +278,16 @@ const handleSubmit = () => {
       startDate: formData.value.startDate,
       duration: calculatedDuration.value
     };
-    emit('submit', submitData);
+
+    // Emit with calendar ID if in edit mode
+    if (mode.value === 'edit' && props.calendar?.id) {
+      emit('submit', submitData, props.calendar.id);
+    } else {
+      emit('submit', submitData);
+    }
   } else {
-    errorMessage.value = 'Please fix the errors above before creating your calendar.';
+    const action = mode.value === 'edit' ? 'saving' : 'creating';
+    errorMessage.value = `Please fix the errors above before ${action} your calendar.`;
   }
 };
 
