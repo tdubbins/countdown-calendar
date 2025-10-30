@@ -29,7 +29,7 @@
       />
     </div>
     
-    <p class="calendar-dates">{{ calendar.dateRange }}</p>
+    <p class="calendar-dates">{{ formattedDateRange }}</p>
     
     <div class="calendar-progress">
       <span class="progress-text">{{ videoProgress }}</span>
@@ -170,6 +170,11 @@ const videoProgress = computed(() => {
   const uploadedVideos = props.calendar.videoCount || 0;
 
   return `${uploadedVideos}/${totalDays} videos`;
+});
+
+// Format date range in European style (DD.MM.YYYY – DD.MM.YYYY)
+const formattedDateRange = computed(() => {
+  return props.calendar.dateRange.replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3.$2.$1').replace(' to ', ' – ');
 });
 
 // Concise delete confirmation message
