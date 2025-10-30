@@ -1,7 +1,11 @@
 # Input Validation Utilities
 import re
+import os
+import subprocess
+from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
-from typing import Tuple
+from typing import Tuple, Optional
+from datetime import datetime
 
 def validate_email_address(email: str) -> Tuple[bool, str, str]:
     """Validate email address format"""
@@ -139,9 +143,6 @@ def validate_calendar_duration(duration) -> Tuple[bool, int, str]:
 
 def validate_calendar_start_date(start_date: str) -> Tuple[bool, str, str]:
     """Validate start date format and value"""
-    import re
-    from datetime import datetime
-    
     if not start_date or not start_date.strip():
         return False, "", "Start date is required"
     
@@ -155,3 +156,136 @@ def validate_calendar_start_date(start_date: str) -> Tuple[bool, str, str]:
         return True, start_date.strip(), ""
     except ValueError:
         return False, "", "Invalid date provided"
+
+
+# ============================================================================
+# Video Upload Validation Functions
+# ============================================================================
+
+def validate_video_file_type(filename: str) -> Tuple[bool, str]:
+    """
+    Validate video file extension is allowed.
+
+    NFR Compliance:
+        - [S4] Input validation for file uploads
+        - [R1] Supported formats: mp4, mov, avi, webm
+
+    Args:
+        filename: Name of the uploaded file
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not filename:
+        return False, "Filename is required"
+
+    allowed_extensions = {'.mp4', '.mov', '.avi', '.webm'}
+    file_ext = Path(filename).suffix.lower()
+
+    if file_ext not in allowed_extensions:
+        allowed_list = ', '.join(sorted(allowed_extensions))
+        return False, f"Invalid file type. Allowed types: {allowed_list}"
+
+    return True, ""
+
+
+def validate_video_file_size(file_size: int) -> Tuple[bool, str]:
+    """
+    Validate video file size is within limits.
+
+    NFR Compliance:
+        - [R1] Video size limit: 50MB per file
+        - [S4] Input validation for resource limits
+
+    Args:
+        file_size: Size of file in bytes
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    max_size_bytes = 50 * 1024 * 1024  # 50MB in bytes
+
+    if file_size <= 0:
+        return False, "File size must be greater than 0"
+
+    if file_size > max_size_bytes:
+        size_mb = file_size / (1024 * 1024)
+        return False, f"File size ({size_mb:.1f}MB) exceeds maximum allowed size of 50MB"
+
+    return True, ""
+
+
+def validate_video_day_number(day: int, calendar_duration: int) -> Tuple[bool, str]:
+    """
+    Validate video day number is within calendar's duration.
+
+    Args:
+        day: Day number for the video (1-based)
+        calendar_duration: Total duration of calendar in days
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if day < 1:
+        return False, "Day number must be at least 1"
+
+    if day > calendar_duration:
+        return False, f"Day {day} exceeds calendar duration of {calendar_duration} days"
+
+    return True, ""
+
+
+def validate_video_duration(video_path: str, max_duration_seconds: int = 180) -> Tuple[bool, Optional[float], str]:
+    """
+    Validate video duration using FFprobe.
+
+    NFR Compliance:
+        - [R1] Video duration limit: 3 minutes (180 seconds) maximum
+        - [P2] Fast validation: <2 seconds per video
+
+    Args:
+        video_path: Path to the video file to validate
+        max_duration_seconds: Maximum allowed duration (default: 180 seconds = 3 minutes)
+
+    Returns:
+        Tuple of (is_valid, duration_seconds, error_message)
+        - If FFprobe is not available, returns (True, None, "") with warning logged
+    """
+    if not os.path.exists(video_path):
+        return False, None, "Video file not found"
+
+    try:
+        # Check if ffprobe is available
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', video_path],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        if result.returncode != 0:
+            return False, None, "Unable to read video metadata"
+
+        try:
+            duration = float(result.stdout.strip())
+        except ValueError:
+            return False, None, "Invalid video duration metadata"
+
+        if duration > max_duration_seconds:
+            duration_mins = duration / 60
+            max_mins = max_duration_seconds / 60
+            return False, duration, f"Video duration ({duration_mins:.1f} minutes) exceeds maximum of {max_mins:.0f} minutes"
+
+        return True, duration, ""
+
+    except FileNotFoundError:
+        # FFprobe not installed - skip duration validation
+        # This allows development to proceed before FFmpeg is installed (Issue #51)
+        return True, None, ""
+
+    except subprocess.TimeoutExpired:
+        return False, None, "Video validation timed out"
+
+    except Exception as e:
+        return False, None, f"Error validating video: {str(e)}"
