@@ -339,9 +339,41 @@ const handleDrop = async (e: DragEvent) => {
   isDragging.value = false;
 
   console.log('Drop event received');
+  console.log('DataTransfer object:', e.dataTransfer);
 
+  // Try DataTransferItem API first (better for macOS)
+  if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+    console.log('Using DataTransferItem API');
+    const item = e.dataTransfer.items[0];
+
+    if (item.kind === 'file') {
+      const file = item.getAsFile();
+
+      if (file) {
+        console.log('File from DataTransferItem:', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: new Date(file.lastModified)
+        });
+
+        // Check for 0-byte files (common with drag-and-drop on macOS)
+        if (file.size === 0) {
+          console.error('Detected 0-byte file - macOS drag-and-drop limitation');
+          errorMessage.value = 'Unable to read file via drag-and-drop. Please use the "Browse Files" button instead.';
+          return;
+        }
+
+        await processFile(file);
+        return;
+      }
+    }
+  }
+
+  // Fallback to traditional files API
+  console.log('Falling back to traditional FileList API');
   const files = e.dataTransfer?.files;
-  console.log('Files from dataTransfer:', files);
+  console.log('Files from dataTransfer.files:', files);
 
   if (files && files.length > 0) {
     const file = files[0];
@@ -352,10 +384,10 @@ const handleDrop = async (e: DragEvent) => {
       lastModified: new Date(file.lastModified)
     });
 
-    // Check for 0-byte files (common with drag-and-drop on macOS)
+    // Check for 0-byte files
     if (file.size === 0) {
-      console.error('Detected 0-byte file - likely a macOS alias or system file');
-      errorMessage.value = 'Unable to read file. Please use the "Browse Files" button instead, or try a different file.';
+      console.error('Detected 0-byte file - macOS drag-and-drop limitation');
+      errorMessage.value = 'Unable to read file via drag-and-drop. Please use the "Browse Files" button instead.';
       return;
     }
 
