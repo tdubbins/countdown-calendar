@@ -194,8 +194,15 @@ def validate_video_file_size(file_size: int) -> Tuple[bool, str]:
     Validate video file size is within limits.
 
     NFR Compliance:
-        - [R1] Video size limit: 50MB per file
+        - [R1] Video size limit: 1GB per file (updated from 50MB to support modern phone videos)
         - [S4] Input validation for resource limits
+
+    Design Decision:
+        Initial spec: 50MB limit
+        Updated to: 1GB (1024MB) to accommodate modern smartphone videos:
+        - 1080p 30fps: ~150 MB/min = 450MB for 3 minutes
+        - 1080p 60fps: ~375 MB/min = 1125MB for 3 minutes
+        Backend FFmpeg compression reduces uploaded videos by 50-70% for storage optimization.
 
     Args:
         file_size: Size of file in bytes
@@ -203,14 +210,14 @@ def validate_video_file_size(file_size: int) -> Tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    max_size_bytes = 50 * 1024 * 1024  # 50MB in bytes
+    max_size_bytes = 1024 * 1024 * 1024  # 1GB in bytes (1024MB)
 
     if file_size <= 0:
         return False, "File size must be greater than 0"
 
     if file_size > max_size_bytes:
         size_mb = file_size / (1024 * 1024)
-        return False, f"File size ({size_mb:.1f}MB) exceeds maximum allowed size of 50MB"
+        return False, f"File size ({size_mb:.1f}MB) exceeds maximum allowed size of 1024MB (1GB)"
 
     return True, ""
 
