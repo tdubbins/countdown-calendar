@@ -17,7 +17,7 @@ Security:
 import os
 import shutil
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -271,7 +271,7 @@ def get_calendar_storage_size(user_id: str, calendar_id: str) -> int:
     return total_size
 
 
-def list_calendar_videos(user_id: str, calendar_id: str) -> list[int]:
+def list_calendar_videos(user_id: str, calendar_id: str) -> List[int]:
     """
     List all video day numbers for a calendar.
 
