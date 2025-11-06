@@ -27,10 +27,6 @@ const routes: Array<RouteRecordRaw> = [
     path: '/dashboard/create-calendar',
     component: () => import('@/views/CalendarCreatePage.vue'),
     meta: { requiresAuth: true }
-  },
-  {
-    path: '/test-video-upload',
-    component: () => import('@/views/VideoUploadTest.vue')
   }
 ]
 
