@@ -214,25 +214,61 @@ const validateVideoDuration = async (file: File): Promise<boolean> => {
     const video = document.createElement('video');
     video.preload = 'metadata';
 
-    video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(video.src);
-      const duration = video.duration;
-      videoDuration.value = duration;
+    // Set a timeout in case metadata never loads
+    let timeout: NodeJS.Timeout | null = null;
+    let resolved = false;
 
-      if (duration > MAX_DURATION) {
-        errorMessage.value = `Video duration exceeds 3 minutes. Selected video is ${formatDuration(duration)}.`;
-        resolve(false);
-      } else {
-        resolve(true);
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      if (video.src) {
+        window.URL.revokeObjectURL(video.src);
       }
     };
 
-    video.onerror = () => {
-      errorMessage.value = 'Unable to read video file. Please try a different file.';
-      resolve(false);
+    const resolveOnce = (result: boolean) => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        resolve(result);
+      }
     };
 
-    video.src = URL.createObjectURL(file);
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      videoDuration.value = duration;
+
+      if (isNaN(duration) || duration === 0) {
+        console.warn('Video duration is invalid:', duration);
+        errorMessage.value = 'Unable to read video duration. Please try a different file.';
+        resolveOnce(false);
+      } else if (duration > MAX_DURATION) {
+        errorMessage.value = `Video duration exceeds 3 minutes. Selected video is ${formatDuration(duration)}.`;
+        resolveOnce(false);
+      } else {
+        resolveOnce(true);
+      }
+    };
+
+    video.onerror = (e) => {
+      console.error('Video validation error:', e);
+      errorMessage.value = 'Unable to read video file. Please try a different file.';
+      resolveOnce(false);
+    };
+
+    // Timeout after 10 seconds
+    timeout = setTimeout(() => {
+      console.error('Video validation timeout for file:', file.name);
+      errorMessage.value = 'Video validation timed out. Please try a different file.';
+      resolveOnce(false);
+    }, 10000);
+
+    try {
+      video.src = URL.createObjectURL(file);
+    } catch (e) {
+      console.error('Failed to create object URL:', e);
+      errorMessage.value = 'Failed to process video file.';
+      resolveOnce(false);
+    }
   });
 };
 
@@ -241,21 +277,34 @@ const processFile = async (file: File) => {
   // Clear previous errors
   errorMessage.value = '';
 
+  console.log('Processing file:', {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    lastModified: new Date(file.lastModified)
+  });
+
   // Validate file type
   if (!validateFileType(file)) {
+    console.warn('File type validation failed');
     return;
   }
 
   // Validate file size
   if (!validateFileSize(file)) {
+    console.warn('File size validation failed');
     return;
   }
 
+  console.log('Starting duration validation...');
   // Validate video duration (async)
   const durationValid = await validateVideoDuration(file);
   if (!durationValid) {
+    console.warn('Duration validation failed');
     return;
   }
+
+  console.log('All validations passed! Duration:', videoDuration.value);
 
   // All validations passed
   selectedFile.value = file;
