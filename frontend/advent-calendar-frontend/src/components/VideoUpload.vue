@@ -338,9 +338,31 @@ const handleDrop = async (e: DragEvent) => {
 
   isDragging.value = false;
 
+  console.log('Drop event received');
+
   const files = e.dataTransfer?.files;
+  console.log('Files from dataTransfer:', files);
+
   if (files && files.length > 0) {
-    await processFile(files[0]);
+    const file = files[0];
+    console.log('Dropped file details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: new Date(file.lastModified)
+    });
+
+    // Check for 0-byte files (common with drag-and-drop on macOS)
+    if (file.size === 0) {
+      console.error('Detected 0-byte file - likely a macOS alias or system file');
+      errorMessage.value = 'Unable to read file. Please use the "Browse Files" button instead, or try a different file.';
+      return;
+    }
+
+    await processFile(file);
+  } else {
+    console.warn('No files found in drop event');
+    errorMessage.value = 'No file detected. Please try again or use the "Browse Files" button.';
   }
 };
 
