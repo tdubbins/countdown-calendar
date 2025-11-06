@@ -74,7 +74,7 @@
         </p>
 
         <p class="upload-requirements">
-          Max 50MB • 3 minutes • MP4, MOV, AVI, WEBM
+          Max 1GB • 3 minutes • MP4, MOV, AVI, WEBM
         </p>
 
         <!-- Hidden File Input -->
@@ -133,7 +133,7 @@ import {
 } from 'ionicons/icons';
 
 // Constants for validation
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes (1024MB) - allows 1080p 60fps videos
 const MAX_DURATION = 180; // 3 minutes in seconds
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
 const ALLOWED_EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm'];
@@ -202,7 +202,7 @@ const validateFileType = (file: File): boolean => {
 
 const validateFileSize = (file: File): boolean => {
   if (file.size > MAX_FILE_SIZE) {
-    errorMessage.value = `File size exceeds 50MB limit. Selected file is ${formatFileSize(file.size)}.`;
+    errorMessage.value = `File size exceeds 1GB limit. Selected file is ${formatFileSize(file.size)}.`;
     return false;
   }
 
