@@ -299,6 +299,77 @@ def list_calendar_videos(user_id: str, calendar_id: str) -> list[int]:
     return sorted(days)
 
 
+def get_user_total_storage(user_id: str) -> int:
+    """
+    Calculate total storage used by a user across all calendars.
+
+    NFR Compliance:
+        - [SC2] Video storage: 1GB per user capacity check
+
+    Args:
+        user_id: User ID to calculate storage for
+
+    Returns:
+        Total size in bytes
+    """
+    total_size = 0
+
+    try:
+        user_id = _sanitize_path_component(user_id)
+        user_video_dir = VIDEO_BASE_DIR / user_id
+
+        if user_video_dir.exists():
+            # Recursively calculate size of all videos in user's directory
+            for video_file in user_video_dir.rglob("*.mp4"):
+                total_size += video_file.stat().st_size
+    except Exception as e:
+        logger.error(f"Error calculating user storage: {e}")
+
+    return total_size
+
+
+def check_storage_quota(user_id: str, additional_bytes: int, quota_bytes: int = 1_073_741_824) -> Tuple[bool, int, str]:
+    """
+    Check if user has enough storage quota for additional upload.
+
+    NFR Compliance:
+        - [SC2] Video storage: 1GB (1,073,741,824 bytes) per user limit
+
+    Args:
+        user_id: User ID to check quota for
+        additional_bytes: Size of new upload in bytes
+        quota_bytes: Maximum storage quota in bytes (default: 1GB)
+
+    Returns:
+        Tuple of (has_space, remaining_bytes, error_message)
+        - has_space: True if upload would fit within quota
+        - remaining_bytes: Bytes remaining after this upload (negative if over quota)
+        - error_message: Error message if quota exceeded, empty string otherwise
+    """
+    try:
+        current_usage = get_user_total_storage(user_id)
+        new_total = current_usage + additional_bytes
+        remaining = quota_bytes - new_total
+
+        if new_total > quota_bytes:
+            current_mb = current_usage / (1024 * 1024)
+            quota_mb = quota_bytes / (1024 * 1024)
+            additional_mb = additional_bytes / (1024 * 1024)
+
+            error_msg = (
+                f"Storage quota exceeded. Current usage: {current_mb:.1f}MB, "
+                f"Upload size: {additional_mb:.1f}MB, "
+                f"Quota: {quota_mb:.0f}MB"
+            )
+            return False, remaining, error_msg
+
+        return True, remaining, ""
+
+    except Exception as e:
+        logger.error(f"Error checking storage quota: {e}")
+        return False, 0, f"Error checking storage quota: {str(e)}"
+
+
 def ensure_upload_directories() -> None:
     """
     Ensure base upload directories exist.
@@ -308,4 +379,9 @@ def ensure_upload_directories() -> None:
     """
     VIDEO_BASE_DIR.mkdir(parents=True, exist_ok=True)
     THUMBNAIL_BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Create temp directory for uploads
+    temp_dir = UPLOAD_BASE_DIR / "temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
     logger.info("Upload directories initialized")
