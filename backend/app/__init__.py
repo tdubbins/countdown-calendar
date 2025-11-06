@@ -20,14 +20,18 @@ def create_app(config_name=None):
     # Initialize upload directories for video storage
     from app.utils.storage import ensure_upload_directories
     ensure_upload_directories()
-    
+
+    # Start background worker for task processing (NFR [P2]: Processing starts within 5 seconds)
+    from app.tasks import start_worker
+    start_worker()
+
     # Register blueprints
     from app.routes.auth import auth_bp
     from app.routes.health import health_bp
     from app.routes.calendar import calendar_bp
-    
+
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(calendar_bp, url_prefix='/api')
-    
+
     return app
