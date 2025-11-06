@@ -1,7 +1,7 @@
 # Video Compression Tasks - Background Video Processing
 import os
 import time
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from pathlib import Path
 
 from app.services.video_service import process_uploaded_video, get_video_metadata
