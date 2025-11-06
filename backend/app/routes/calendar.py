@@ -1,14 +1,16 @@
 # Calendar Routes
 import os
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
 from app.utils.decorators import token_required
 from app.services.calendar_service import create_calendar as create_calendar_service, get_user_calendars, get_calendar_by_id, update_calendar as update_calendar_service, delete_calendar as delete_calendar_service
 from app.utils.validators import validate_video_file_type, validate_video_file_size, validate_video_day_number, validate_video_duration
-from app.utils.storage import check_storage_quota
-from app.tasks import VideoCompressionTask
+from app.utils.storage import check_storage_quota, get_video_path, get_thumbnail_path, delete_video_file
+from app.utils.json_db import calendars_db
+from app.tasks import VideoCompressionTask, TaskQueue
 
 calendar_bp = Blueprint('calendar', __name__)
 
@@ -390,3 +392,370 @@ def upload_video(calendar_id):
         return jsonify({
             'error': 'Internal server error during video upload'
         }), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/videos', methods=['GET'])
+@token_required
+def list_videos(calendar_id):
+    """
+    List all videos for a calendar (RESTful nested endpoint)
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [P3] Video listing response <3 seconds
+        - [SC3] RESTful API design - videos as calendar sub-resources
+
+    Returns:
+        200: List of videos with metadata
+        404: Calendar not found or access denied
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Get videos from calendar data
+        videos_dict = calendar_data.get('videos', {})
+
+        # Convert to list format with metadata
+        videos_list = []
+        for day_str, video_info in videos_dict.items():
+            video_metadata = {
+                'day': int(day_str),
+                'filename': video_info.get('filename'),
+                'thumbnail': video_info.get('thumbnail'),
+                'size': video_info.get('size', 0),
+                'duration': video_info.get('duration', 0),
+                'uploaded_at': video_info.get('uploaded_at'),
+                'status': video_info.get('status', 'completed')
+            }
+            videos_list.append(video_metadata)
+
+        # Sort by day number
+        videos_list.sort(key=lambda x: x['day'])
+
+        return jsonify({
+            'success': True,
+            'message': f'Found {len(videos_list)} video(s)',
+            'videos': videos_list,
+            'videoCount': len(videos_list)
+        }), 200
+
+    except Exception as e:
+        print(f"List videos error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>', methods=['GET'])
+@token_required
+def get_video_metadata(calendar_id, day):
+    """
+    Get metadata for a specific day's video (RESTful nested endpoint)
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [SC3] RESTful API design
+
+    Returns:
+        200: Video metadata with streaming URLs
+        404: Video not found
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Get video info for this day
+        videos_dict = calendar_data.get('videos', {})
+        video_info = videos_dict.get(str(day))
+
+        if not video_info:
+            return jsonify({'error': f'No video found for day {day}'}), 404
+
+        # Construct streaming URLs
+        video_url = f"/api/calendars/{calendar_id}/videos/{day}/stream"
+        thumbnail_url = f"/api/calendars/{calendar_id}/videos/{day}/thumbnail"
+
+        video_metadata = {
+            'day': day,
+            'filename': video_info.get('filename'),
+            'thumbnail': video_info.get('thumbnail'),
+            'size': video_info.get('size', 0),
+            'duration': video_info.get('duration', 0),
+            'uploaded_at': video_info.get('uploaded_at'),
+            'status': video_info.get('status', 'completed'),
+            'stream_url': video_url,
+            'thumbnail_url': thumbnail_url
+        }
+
+        return jsonify({
+            'success': True,
+            'video': video_metadata
+        }), 200
+
+    except Exception as e:
+        print(f"Get video metadata error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/status', methods=['GET'])
+@token_required
+def get_video_status(calendar_id, day):
+    """
+    Get processing status for a video upload (RESTful nested endpoint)
+
+    This endpoint allows the frontend to poll for video processing status
+    after upload. Returns task status and progress.
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [P2] Fast status check
+
+    Returns:
+        200: Status information (pending, processing, completed, failed)
+        404: No task found for this video
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Check if video exists in calendar (completed)
+        videos_dict = calendar_data.get('videos', {})
+        video_info = videos_dict.get(str(day))
+
+        if video_info and video_info.get('status') == 'completed':
+            # Video is completed
+            return jsonify({
+                'success': True,
+                'status': 'completed',
+                'progress': 100,
+                'message': 'Video processing completed',
+                'video': {
+                    'day': day,
+                    'filename': video_info.get('filename'),
+                    'size': video_info.get('size', 0),
+                    'duration': video_info.get('duration', 0)
+                }
+            }), 200
+
+        # Check for active/pending task
+        task_success, task_data, task_error = TaskQueue.get_task_by_video(
+            user_id,
+            calendar_id,
+            day
+        )
+
+        if task_success:
+            # Task found - return status
+            status = task_data.get('status')
+            progress = task_data.get('progress', 0)
+            error = task_data.get('error')
+
+            response = {
+                'success': status != 'failed',
+                'status': status,
+                'progress': progress
+            }
+
+            if status == 'processing':
+                response['message'] = 'Video is being processed'
+            elif status == 'pending':
+                response['message'] = 'Video is waiting to be processed'
+            elif status == 'failed':
+                response['message'] = 'Video processing failed'
+                response['error'] = error
+            elif status == 'completed':
+                response['message'] = 'Video processing completed'
+
+            return jsonify(response), 200
+        else:
+            # No task found
+            return jsonify({
+                'error': f'No processing task found for day {day}'
+            }), 404
+
+    except Exception as e:
+        print(f"Get video status error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/thumbnail', methods=['GET'])
+@token_required
+def get_video_thumbnail(calendar_id, day):
+    """
+    Get thumbnail image for a video (RESTful nested endpoint)
+
+    Returns the actual image file for display.
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [P3] Fast thumbnail delivery
+
+    Returns:
+        200: Thumbnail image file (image/jpeg)
+        404: Thumbnail not found
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Get thumbnail path
+        thumbnail_path = get_thumbnail_path(user_id, calendar_id, day)
+
+        if not thumbnail_path.exists():
+            return jsonify({'error': f'Thumbnail not found for day {day}'}), 404
+
+        # Send file with proper MIME type
+        return send_file(
+            str(thumbnail_path),
+            mimetype='image/jpeg',
+            as_attachment=False,
+            download_name=f'day_{day}_thumbnail.jpg'
+        )
+
+    except ValueError as e:
+        # Path validation error
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"Get thumbnail error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>', methods=['DELETE'])
+@token_required
+def delete_video(calendar_id, day):
+    """
+    Delete video and thumbnail for a specific day (RESTful nested endpoint)
+
+    Performs atomic cleanup:
+    - Deletes video file
+    - Deletes thumbnail file
+    - Updates calendar.videos array
+    - Updates calendar.videoCount
+    - Updates calendar.videoStorageUsed
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [SC3] RESTful API design
+        - GDPR: Complete data removal
+
+    Returns:
+        204: Video deleted successfully (No Content)
+        404: Video or calendar not found
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Check if video exists
+        videos_dict = calendar_data.get('videos', {})
+        if str(day) not in videos_dict:
+            return jsonify({'error': f'No video found for day {day}'}), 404
+
+        # Get video size before deletion (for storage calculation)
+        video_size = videos_dict[str(day)].get('size', 0)
+
+        # Delete video and thumbnail files
+        files_deleted = delete_video_file(user_id, calendar_id, day)
+
+        if not files_deleted:
+            print(f"Warning: No files deleted for calendar {calendar_id}, day {day}")
+
+        # Remove from calendar.videos dict
+        del videos_dict[str(day)]
+
+        # Update calendar metadata
+        new_video_count = len(videos_dict)
+        new_storage_used = calendar_data.get('videoStorageUsed', 0) - video_size
+
+        # Ensure storage doesn't go negative
+        if new_storage_used < 0:
+            new_storage_used = 0
+
+        updates = {
+            'videos': videos_dict,
+            'videoCount': new_video_count,
+            'videoStorageUsed': new_storage_used,
+            'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        }
+
+        # Update calendar in database
+        calendars_db.update('calendars', calendar_id, updates)
+
+        # Return 204 No Content (RESTful convention for successful DELETE)
+        return '', 204
+
+    except ValueError as e:
+        # Path validation error
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"Delete video error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
