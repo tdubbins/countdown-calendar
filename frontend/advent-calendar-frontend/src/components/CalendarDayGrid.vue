@@ -399,25 +399,48 @@ const handleUploadConfirm = async () => {
 
 /**
  * Watch for completion to announce (ARIA - Issue #58)
+ * FIX BUG #4: Store interval IDs to prevent memory leaks
  */
+const activeWatchers = ref<Map<number, number>>(new Map());
+
 const watchForCompletion = (day: number) => {
-  const checkInterval = setInterval(() => {
+  // Clear any existing watcher for this day
+  const existingInterval = activeWatchers.value.get(day);
+  if (existingInterval) {
+    clearInterval(existingInterval);
+  }
+
+  const checkInterval = window.setInterval(() => {
     const status = getDayStatus(day);
 
     if (status === 'completed') {
       statusAnnouncement.value = `Day ${day} video uploaded successfully`;
       emit('uploadComplete', day);
+
+      // Clean up
       clearInterval(checkInterval);
+      activeWatchers.value.delete(day);
     } else if (status === 'failed') {
       const error = getDayError(day);
       statusAnnouncement.value = `Day ${day} upload failed: ${error}`;
       emit('uploadError', day, error || 'Processing failed');
+
+      // Clean up
       clearInterval(checkInterval);
+      activeWatchers.value.delete(day);
     }
   }, 1000);
 
-  // Clear interval after 5 minutes max
-  setTimeout(() => clearInterval(checkInterval), 300000);
+  // Store interval ID
+  activeWatchers.value.set(day, checkInterval);
+
+  // Safety timeout: Clear interval after 5 minutes max
+  setTimeout(() => {
+    if (activeWatchers.value.has(day)) {
+      clearInterval(checkInterval);
+      activeWatchers.value.delete(day);
+    }
+  }, 300000);
 };
 
 /**
@@ -521,7 +544,14 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  // Clean up polling
   stopPolling();
+
+  // FIX BUG #4: Clean up all active watchers on unmount
+  activeWatchers.value.forEach((intervalId) => {
+    clearInterval(intervalId);
+  });
+  activeWatchers.value.clear();
 });
 </script>
 

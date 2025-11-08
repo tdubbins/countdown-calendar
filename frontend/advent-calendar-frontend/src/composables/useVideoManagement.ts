@@ -35,10 +35,6 @@ interface ApiResponse<T = any> {
   error?: string;
 }
 
-// Composable state
-const pollInterval = ref<number | null>(null);
-const activePollDays = ref<Set<number>>(new Set());
-
 export const useVideoManagement = (calendarId: string) => {
   const { getAuthHeaders } = useAuth();
 
@@ -47,6 +43,10 @@ export const useVideoManagement = (calendarId: string) => {
   const isLoading = ref(false);
   const uploadProgress = ref(0);
   const isUploading = ref(false);
+
+  // FIX BUG #2: Move polling state INSIDE composable (not global)
+  const pollInterval = ref<number | null>(null);
+  const activePollDays = ref<Set<number>>(new Set());
 
   /**
    * Initialize day statuses for calendar duration
@@ -70,22 +70,14 @@ export const useVideoManagement = (calendarId: string) => {
     try {
       isLoading.value = true;
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        return {
-          success: false,
-          error: 'No authentication token found'
-        };
-      }
+      // FIX BUG #1: Use getAuthHeaders() instead of localStorage directly
+      const headers = getAuthHeaders();
 
       const response = await fetch(
         `${API_BASE_URL}/calendars/${calendarId}/videos`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          headers
         }
       );
 
@@ -149,17 +141,13 @@ export const useVideoManagement = (calendarId: string) => {
    */
   const pollVideoStatus = async (day: number): Promise<void> => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+      const headers = getAuthHeaders();
 
       const response = await fetch(
         `${API_BASE_URL}/calendars/${calendarId}/videos/${day}/status`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          headers
         }
       );
 
@@ -238,35 +226,45 @@ export const useVideoManagement = (calendarId: string) => {
    */
   const uploadVideo = async (day: number, file: File): Promise<ApiResponse> => {
     return new Promise((resolve) => {
-      try {
-        isUploading.value = true;
+      isUploading.value = true;
+      uploadProgress.value = 0;
+
+      const headers = getAuthHeaders();
+      const token = headers['Authorization']?.replace('Bearer ', '');
+
+      if (!token) {
+        // FIX BUG #5: Reset state on error
+        isUploading.value = false;
+        uploadProgress.value = 0;
+        resolve({
+          success: false,
+          error: 'No authentication token found'
+        });
+        return;
+      }
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('day', day.toString());
+
+      // Upload with progress tracking using XMLHttpRequest
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          uploadProgress.value = Math.round((e.loaded / e.total) * 100);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        // FIX BUG #3: Reset state in handlers
+        isUploading.value = false;
         uploadProgress.value = 0;
 
-        const token = localStorage.getItem('token');
-        if (!token) {
-          resolve({
-            success: false,
-            error: 'No authentication token found'
-          });
-          return;
-        }
-
-        // Create FormData
-        const formData = new FormData();
-        formData.append('video', file);
-        formData.append('day', day.toString());
-
-        // Upload with progress tracking using XMLHttpRequest
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            uploadProgress.value = Math.round((e.loaded / e.total) * 100);
-          }
-        });
-
-        xhr.addEventListener('load', async () => {
-          if (xhr.status === 201) {
+        if (xhr.status === 201) {
+          try {
+            // FIX BUG #6: Wrap JSON.parse in try-catch
             const response = JSON.parse(xhr.responseText);
 
             // Update day status to processing
@@ -285,36 +283,52 @@ export const useVideoManagement = (calendarId: string) => {
               success: true,
               data: response
             });
-          } else {
+          } catch (parseError) {
+            console.error('Failed to parse upload response:', parseError);
+            resolve({
+              success: false,
+              error: 'Invalid response from server'
+            });
+          }
+        } else {
+          try {
             const errorData = JSON.parse(xhr.responseText);
             resolve({
               success: false,
               error: errorData.error || 'Upload failed'
             });
+          } catch (parseError) {
+            resolve({
+              success: false,
+              error: `Upload failed with status ${xhr.status}`
+            });
           }
-        });
+        }
+      });
 
-        xhr.addEventListener('error', () => {
-          resolve({
-            success: false,
-            error: 'Network error during upload'
-          });
-        });
-
-        xhr.open('POST', `${API_BASE_URL}/calendars/${calendarId}/videos`);
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.send(formData);
-
-      } catch (error) {
-        console.error('Upload error:', error);
-        resolve({
-          success: false,
-          error: error instanceof Error ? error.message : 'Upload failed'
-        });
-      } finally {
+      xhr.addEventListener('error', () => {
+        // FIX BUG #5: Reset state on error
         isUploading.value = false;
         uploadProgress.value = 0;
-      }
+        resolve({
+          success: false,
+          error: 'Network error during upload'
+        });
+      });
+
+      xhr.addEventListener('abort', () => {
+        // Handle abort case
+        isUploading.value = false;
+        uploadProgress.value = 0;
+        resolve({
+          success: false,
+          error: 'Upload cancelled'
+        });
+      });
+
+      xhr.open('POST', `${API_BASE_URL}/calendars/${calendarId}/videos`);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.send(formData);
     });
   };
 
@@ -324,22 +338,13 @@ export const useVideoManagement = (calendarId: string) => {
    */
   const getVideoMetadata = async (day: number): Promise<ApiResponse<VideoMetadata>> => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        return {
-          success: false,
-          error: 'No authentication token found'
-        };
-      }
+      const headers = getAuthHeaders();
 
       const response = await fetch(
         `${API_BASE_URL}/calendars/${calendarId}/videos/${day}`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          headers
         }
       );
 
@@ -373,26 +378,33 @@ export const useVideoManagement = (calendarId: string) => {
    */
   const deleteVideo = async (day: number): Promise<ApiResponse> => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        return {
-          success: false,
-          error: 'No authentication token found'
-        };
-      }
+      const headers = getAuthHeaders();
 
       const response = await fetch(
         `${API_BASE_URL}/calendars/${calendarId}/videos/${day}`,
         {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          headers
         }
       );
 
       if (!response.ok) {
+        // Handle 204 No Content correctly
+        if (response.status === 204) {
+          // Success - no content
+          dayStatuses.value.set(day, {
+            day,
+            status: 'empty'
+          });
+
+          // Remove from polling if active
+          activePollDays.value.delete(day);
+
+          return {
+            success: true
+          };
+        }
+
         const errorData = await response.json();
         return {
           success: false,
