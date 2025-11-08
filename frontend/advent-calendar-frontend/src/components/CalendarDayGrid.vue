@@ -126,7 +126,7 @@
             ref="videoPlayerRef"
             controls
             preload="metadata"
-            :src="`${API_BASE_URL}${videoMetadata.stream_url}`"
+            :src="`${API_CONFIG.BASE_URL}${videoMetadata.stream_url}`"
             :poster="videoMetadata.thumbnail_url"
             class="video-player"
             :aria-label="`Day ${playbackDay} video player`"
@@ -215,7 +215,7 @@ import {
 import CalendarDayCard from '@/components/CalendarDayCard.vue';
 import VideoUpload from '@/components/VideoUpload.vue';
 import { useVideoManagement, type VideoMetadata } from '@/composables/useVideoManagement';
-import { API_BASE_URL } from '@/config/api';
+import API_CONFIG from '@/config/api';
 
 // Props
 interface Props {

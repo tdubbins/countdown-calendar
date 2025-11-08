@@ -242,8 +242,7 @@ const goToCreateCalendar = () => {
 };
 
 const openCalendar = (calendarId: string) => {
-  // TODO: Navigate to specific calendar
-  console.log('Open calendar:', calendarId);
+  router.push(`/dashboard/calendar/${calendarId}`);
 };
 
 const goToProfile = () => {

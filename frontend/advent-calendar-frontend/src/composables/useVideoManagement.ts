@@ -1,11 +1,11 @@
 import { ref } from 'vue';
 import { useAuth } from '@/composables/useAuth';
-import { API_BASE_URL } from '@/config/api';
+import API_CONFIG from '@/config/api';
 
 // Video status interface
 export interface VideoStatus {
   day: number;
-  status: 'empty' | 'uploading' | 'processing' | 'completed' | 'failed';
+  status: 'empty' | 'uploading' | 'processing' | 'pending' | 'completed' | 'failed';
   thumbnailUrl?: string;
   progress?: number;
   error?: string;
@@ -74,7 +74,7 @@ export const useVideoManagement = (calendarId: string) => {
       const headers = getAuthHeaders();
 
       const response = await fetch(
-        `${API_BASE_URL}/calendars/${calendarId}/videos`,
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos`,
         {
           method: 'GET',
           headers
@@ -98,7 +98,7 @@ export const useVideoManagement = (calendarId: string) => {
           day: video.day,
           status: video.status || 'completed',
           thumbnailUrl: video.thumbnail
-            ? `${API_BASE_URL}/calendars/${calendarId}/videos/${video.day}/thumbnail`
+            ? `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/${video.day}/thumbnail`
             : undefined,
           filename: video.filename,
           size: video.size,
@@ -144,7 +144,7 @@ export const useVideoManagement = (calendarId: string) => {
       const headers = getAuthHeaders();
 
       const response = await fetch(
-        `${API_BASE_URL}/calendars/${calendarId}/videos/${day}/status`,
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/${day}/status`,
         {
           method: 'GET',
           headers
@@ -326,7 +326,7 @@ export const useVideoManagement = (calendarId: string) => {
         });
       });
 
-      xhr.open('POST', `${API_BASE_URL}/calendars/${calendarId}/videos`);
+      xhr.open('POST', `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
     });
@@ -341,7 +341,7 @@ export const useVideoManagement = (calendarId: string) => {
       const headers = getAuthHeaders();
 
       const response = await fetch(
-        `${API_BASE_URL}/calendars/${calendarId}/videos/${day}`,
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/${day}`,
         {
           method: 'GET',
           headers
@@ -381,7 +381,7 @@ export const useVideoManagement = (calendarId: string) => {
       const headers = getAuthHeaders();
 
       const response = await fetch(
-        `${API_BASE_URL}/calendars/${calendarId}/videos/${day}`,
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/${day}`,
         {
           method: 'DELETE',
           headers
