@@ -480,14 +480,15 @@ const openPlaybackModal = async (day: number) => {
     // Fetch video blob and create object URL for playback
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}${result.data.stream_url}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+      // stream_url already includes /api/, so use full URL construction
+      const videoUrl = `http://localhost:5001${result.data.stream_url}`;
+      console.log('Fetching video from:', videoUrl);
+
+      const response = await fetch(videoUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      );
+      });
 
       if (response.ok) {
         const blob = await response.blob();
