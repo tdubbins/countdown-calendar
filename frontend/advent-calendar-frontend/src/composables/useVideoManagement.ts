@@ -93,13 +93,11 @@ export const useVideoManagement = (calendarId: string) => {
       const videos = data.videos || [];
 
       // Update status for days with videos
-      videos.forEach((video: any) => {
+      videos.forEach(async (video: any) => {
         const status: VideoStatus = {
           day: video.day,
           status: video.status || 'completed',
-          thumbnailUrl: video.thumbnail
-            ? `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/${video.day}/thumbnail`
-            : undefined,
+          thumbnailUrl: undefined, // Will be loaded separately
           filename: video.filename,
           size: video.size,
           duration: video.duration,
@@ -107,6 +105,11 @@ export const useVideoManagement = (calendarId: string) => {
         };
 
         dayStatuses.value.set(video.day, status);
+
+        // Load thumbnail as data URL if video has one
+        if (video.thumbnail && (video.status === 'completed' || !video.status)) {
+          loadThumbnailAsDataUrl(video.day);
+        }
 
         // If video is processing/pending, add to polling list
         if (status.status === 'processing' || status.status === 'pending') {
@@ -132,6 +135,43 @@ export const useVideoManagement = (calendarId: string) => {
       };
     } finally {
       isLoading.value = false;
+    }
+  };
+
+  /**
+   * Load thumbnail as base64 data URL (fixes auth issue with img tags)
+   */
+  const loadThumbnailAsDataUrl = async (day: number): Promise<void> => {
+    try {
+      const headers = getAuthHeaders();
+
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/${day}/thumbnail`,
+        {
+          method: 'GET',
+          headers
+        }
+      );
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+
+        // Update thumbnail URL with data URL
+        const currentStatus = dayStatuses.value.get(day);
+        if (currentStatus) {
+          dayStatuses.value.set(day, {
+            ...currentStatus,
+            thumbnailUrl: dataUrl
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to load thumbnail for day ${day}:`, error);
     }
   };
 
@@ -177,9 +217,9 @@ export const useVideoManagement = (calendarId: string) => {
         if (data.status === 'completed' || data.status === 'failed') {
           activePollDays.value.delete(day);
 
-          // Reload full status to get thumbnail
+          // Load thumbnail for completed video
           if (data.status === 'completed') {
-            await loadVideoStatuses();
+            await loadThumbnailAsDataUrl(day);
           }
         }
       }
