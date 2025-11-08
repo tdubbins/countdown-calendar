@@ -65,7 +65,8 @@
         <div class="upload-modal-body">
           <!-- Video Upload Component -->
           <VideoUpload
-            v-if="selectedDay"
+            v-if="selectedDay && isUploadModalOpen"
+            :key="`upload-${selectedDay}`"
             :day="selectedDay"
             :disabled="isUploading"
             @videoSelected="handleVideoSelected"
@@ -130,6 +131,7 @@
             :poster="playbackThumbnailUrl || undefined"
             class="video-player"
             :aria-label="`Day ${playbackDay} video player`"
+            @loadedmetadata="handlePlaybackVideoMetadata"
           ></video>
 
           <!-- Video Metadata Bar (Option B) -->
@@ -453,6 +455,15 @@ const closeUploadModal = () => {
   selectedDay.value = null;
   selectedFile.value = null;
   selectedDuration.value = 0;
+};
+
+/**
+ * Handle playback video metadata loaded - ensures audio is enabled
+ */
+const handlePlaybackVideoMetadata = (e: Event) => {
+  const video = e.target as HTMLVideoElement;
+  video.muted = false;
+  video.volume = 1.0;
 };
 
 /**

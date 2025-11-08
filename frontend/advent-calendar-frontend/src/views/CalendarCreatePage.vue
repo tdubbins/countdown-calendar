@@ -83,10 +83,10 @@ const handleFormSubmit = async (formData: CalendarCreateData) => {
           {
             text: 'View Calendar',
             handler: () => {
-              // TODO: Navigate to the specific calendar view
+              // Navigate to the calendar detail page (day grid)
               console.log('Navigate to calendar view for ID:', result.data?.id);
               // Use setTimeout to ensure proper focus management
-              setTimeout(() => router.push('/dashboard'), 100);
+              setTimeout(() => router.push(`/dashboard/calendar/${result.data?.id}`), 100);
             }
           },
           {

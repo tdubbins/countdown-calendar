@@ -3,9 +3,11 @@
     <ion-header>
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
-          <ion-button @click="goBack">
-            <ion-icon slot="icon-only" :icon="arrowBack"></ion-icon>
-          </ion-button>
+          <ion-back-button
+            default-href="/dashboard"
+            text="Dashboard"
+            aria-label="Back to dashboard"
+          ></ion-back-button>
         </ion-buttons>
         <ion-title v-if="calendar">{{ calendar.title }}</ion-title>
         <ion-title v-else>Calendar Details</ion-title>
@@ -60,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import {
   IonPage,
   IonHeader,
@@ -69,18 +71,18 @@ import {
   IonContent,
   IonButton,
   IonButtons,
+  IonBackButton,
   IonIcon,
   IonSpinner,
   toastController
 } from '@ionic/vue';
-import { arrowBack, alertCircleOutline } from 'ionicons/icons';
+import { alertCircleOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import type { Calendar } from '@/types/calendar';
 
 // Router
 const route = useRoute();
-const router = useRouter();
 
 // Composable
 const { getCalendar } = useCalendar();
@@ -163,13 +165,6 @@ const handleVideoDeleted = async (day: number) => {
 
   // Reload calendar to update video count
   await loadCalendarData();
-};
-
-/**
- * Go back to dashboard
- */
-const goBack = () => {
-  router.push('/dashboard');
 };
 
 // Lifecycle

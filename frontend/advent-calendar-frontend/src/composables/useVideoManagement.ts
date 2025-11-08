@@ -144,7 +144,6 @@ export const useVideoManagement = (calendarId: string) => {
    */
   const loadThumbnailAsDataUrl = async (day: number): Promise<void> => {
     try {
-      console.log(`Loading thumbnail for day ${day}...`);
       const headers = getAuthHeaders();
 
       const response = await fetch(
@@ -155,19 +154,13 @@ export const useVideoManagement = (calendarId: string) => {
         }
       );
 
-      console.log(`Thumbnail response for day ${day}:`, response.status);
-
       if (response.ok) {
         const blob = await response.blob();
-        console.log(`Thumbnail blob for day ${day}:`, blob.size, 'bytes');
-
         const dataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(blob);
         });
-
-        console.log(`Thumbnail data URL for day ${day}:`, dataUrl.substring(0, 50) + '...');
 
         // Update thumbnail URL with data URL
         const currentStatus = dayStatuses.value.get(day);
@@ -176,13 +169,11 @@ export const useVideoManagement = (calendarId: string) => {
             ...currentStatus,
             thumbnailUrl: dataUrl
           });
-          console.log(`✅ Thumbnail set for day ${day}`);
         }
-      } else {
-        console.error(`Failed to load thumbnail for day ${day}: ${response.status} ${response.statusText}`);
       }
+      // Silently ignore 404s - thumbnail may not be ready yet
     } catch (error) {
-      console.error(`Failed to load thumbnail for day ${day}:`, error);
+      // Silently ignore errors - thumbnail loading is non-critical
     }
   };
 

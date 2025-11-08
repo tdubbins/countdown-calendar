@@ -164,8 +164,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, watch, ref } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
   IonHeader,
@@ -192,6 +192,7 @@ import type { Calendar, CalendarCreateData } from '@/types/calendar';
 
 // Composables
 const router = useRouter();
+const route = useRoute();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
 const { calendars, isLoading, hasCalendars, loadCalendars, getCalendar, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
@@ -210,10 +211,21 @@ onMounted(async () => {
     redirectToLogin();
     return;
   }
-  
+
   // Load user's calendars from API
   await loadUserCalendars();
 });
+
+// Watch route changes to reload calendars when navigating back to dashboard
+// This ensures video counts are up-to-date after editing calendars
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath === '/dashboard' && isAuthenticated.value) {
+      loadUserCalendars();
+    }
+  }
+);
 
 // API Functions
 const loadUserCalendars = async () => {
