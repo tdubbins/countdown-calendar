@@ -126,7 +126,7 @@
             ref="videoPlayerRef"
             controls
             preload="metadata"
-            :src="`${API_CONFIG.BASE_URL}${videoMetadata.stream_url}`"
+            :src="playbackVideoUrl || undefined"
             :poster="playbackThumbnailUrl || undefined"
             class="video-player"
             :aria-label="`Day ${playbackDay} video player`"
@@ -266,6 +266,7 @@ const playbackDay = ref<number | null>(null);
 const videoMetadata = ref<VideoMetadata | null>(null);
 const videoPlayerRef = ref<HTMLVideoElement | null>(null);
 const playbackThumbnailUrl = ref<string | null>(null);
+const playbackVideoUrl = ref<string | null>(null);
 
 // Delete alert state
 const isDeleteAlertOpen = ref(false);
@@ -461,6 +462,7 @@ const openPlaybackModal = async (day: number) => {
   playbackDay.value = day;
   videoMetadata.value = null;
   playbackThumbnailUrl.value = null;
+  playbackVideoUrl.value = null;
   isPlaybackModalOpen.value = true;
 
   // Use thumbnail from grid if available (already loaded as data URL)
@@ -474,6 +476,35 @@ const openPlaybackModal = async (day: number) => {
 
   if (result.success && result.data) {
     videoMetadata.value = result.data;
+
+    // Fetch video blob and create object URL for playback
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}${result.data.stream_url}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        const blob = await response.blob();
+        playbackVideoUrl.value = URL.createObjectURL(blob);
+      } else {
+        throw new Error('Failed to fetch video');
+      }
+    } catch (error) {
+      console.error('Failed to load video for playback:', error);
+      const toast = await toastController.create({
+        message: 'Failed to load video for playback',
+        duration: 3000,
+        color: 'danger',
+        position: 'top'
+      });
+      await toast.present();
+    }
   } else {
     const toast = await toastController.create({
       message: 'Failed to load video',
@@ -495,9 +526,16 @@ const closePlaybackModal = () => {
     videoPlayerRef.value.pause();
   }
 
+  // Revoke object URL to free memory
+  if (playbackVideoUrl.value) {
+    URL.revokeObjectURL(playbackVideoUrl.value);
+    playbackVideoUrl.value = null;
+  }
+
   isPlaybackModalOpen.value = false;
   playbackDay.value = null;
   videoMetadata.value = null;
+  playbackThumbnailUrl.value = null;
 };
 
 /**
