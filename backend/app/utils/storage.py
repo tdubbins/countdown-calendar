@@ -22,8 +22,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Base upload directories (relative to backend root)
-UPLOAD_BASE_DIR = Path("uploads")
+# Base upload directories (relative to backend root, not app root)
+# Use __file__ to get the actual backend root directory
+BACKEND_ROOT = Path(__file__).parent.parent.parent  # Go up from app/utils/ to backend/
+UPLOAD_BASE_DIR = BACKEND_ROOT / "uploads"
 VIDEO_BASE_DIR = UPLOAD_BASE_DIR / "videos"
 THUMBNAIL_BASE_DIR = UPLOAD_BASE_DIR / "thumbnails"
 
