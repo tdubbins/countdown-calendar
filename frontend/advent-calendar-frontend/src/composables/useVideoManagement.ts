@@ -93,7 +93,7 @@ export const useVideoManagement = (calendarId: string) => {
       const videos = data.videos || [];
 
       // Update status for days with videos
-      videos.forEach(async (video: any) => {
+      for (const video of videos) {
         const status: VideoStatus = {
           day: video.day,
           status: video.status || 'completed',
@@ -106,16 +106,17 @@ export const useVideoManagement = (calendarId: string) => {
 
         dayStatuses.value.set(video.day, status);
 
-        // Load thumbnail as data URL if video has one
-        if (video.thumbnail && (video.status === 'completed' || !video.status)) {
-          loadThumbnailAsDataUrl(video.day);
-        }
-
         // If video is processing/pending, add to polling list
         if (status.status === 'processing' || status.status === 'pending') {
           activePollDays.value.add(video.day);
         }
-      });
+
+        // Load thumbnail as data URL if video has one (run in background)
+        if (video.thumbnail && (video.status === 'completed' || !video.status)) {
+          // Don't await - load thumbnails in parallel
+          loadThumbnailAsDataUrl(video.day);
+        }
+      }
 
       // Start polling if there are active uploads
       if (activePollDays.value.size > 0) {
@@ -143,6 +144,7 @@ export const useVideoManagement = (calendarId: string) => {
    */
   const loadThumbnailAsDataUrl = async (day: number): Promise<void> => {
     try {
+      console.log(`Loading thumbnail for day ${day}...`);
       const headers = getAuthHeaders();
 
       const response = await fetch(
@@ -153,13 +155,19 @@ export const useVideoManagement = (calendarId: string) => {
         }
       );
 
+      console.log(`Thumbnail response for day ${day}:`, response.status);
+
       if (response.ok) {
         const blob = await response.blob();
+        console.log(`Thumbnail blob for day ${day}:`, blob.size, 'bytes');
+
         const dataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(blob);
         });
+
+        console.log(`Thumbnail data URL for day ${day}:`, dataUrl.substring(0, 50) + '...');
 
         // Update thumbnail URL with data URL
         const currentStatus = dayStatuses.value.get(day);
@@ -168,7 +176,10 @@ export const useVideoManagement = (calendarId: string) => {
             ...currentStatus,
             thumbnailUrl: dataUrl
           });
+          console.log(`✅ Thumbnail set for day ${day}`);
         }
+      } else {
+        console.error(`Failed to load thumbnail for day ${day}: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error(`Failed to load thumbnail for day ${day}:`, error);
