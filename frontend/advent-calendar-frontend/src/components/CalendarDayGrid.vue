@@ -14,7 +14,7 @@
         fill="outline"
         color="primary"
         size="small"
-        @click="loadVideoStatuses"
+        @click="handleLoadRetry"
       >
         Try Again
       </ion-button>
@@ -32,6 +32,16 @@
         :error-message="getDayError(day)"
         @click="handleDayClick(day)"
       />
+    </div>
+
+    <!-- ARIA Live Region for Status Announcements (Issue #58) -->
+    <div
+      aria-live="polite"
+      aria-atomic="true"
+      class="sr-only"
+      role="status"
+    >
+      {{ statusAnnouncement }}
     </div>
 
     <!-- Upload Modal -->
@@ -86,12 +96,102 @@
         </div>
       </ion-content>
     </ion-modal>
+
+    <!-- Video Playback Modal (Issue #59) -->
+    <ion-modal
+      :is-open="isPlaybackModalOpen"
+      @didDismiss="closePlaybackModal"
+    >
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>Day {{ playbackDay }} Video</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              @click="showDeleteConfirmation"
+              color="danger"
+              :aria-label="`Delete day ${playbackDay} video`"
+            >
+              <ion-icon slot="icon-only" :icon="trashOutline"></ion-icon>
+            </ion-button>
+            <ion-button @click="closePlaybackModal" color="light">
+              <strong>Close</strong>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="playback-modal-content">
+        <div v-if="videoMetadata" class="playback-container">
+          <!-- Video Player -->
+          <video
+            ref="videoPlayerRef"
+            controls
+            preload="metadata"
+            :src="`${API_BASE_URL}${videoMetadata.stream_url}`"
+            :poster="videoMetadata.thumbnail_url"
+            class="video-player"
+            :aria-label="`Day ${playbackDay} video player`"
+          ></video>
+
+          <!-- Video Metadata Bar (Option B) -->
+          <div class="video-metadata">
+            <div class="metadata-item">
+              <ion-icon :icon="timeOutline" aria-hidden="true"></ion-icon>
+              <span>{{ formatDuration(videoMetadata.duration) }}</span>
+              <span class="sr-only">Duration:</span>
+            </div>
+            <div class="metadata-item">
+              <ion-icon :icon="documentOutline" aria-hidden="true"></ion-icon>
+              <span>{{ formatFileSize(videoMetadata.size) }}</span>
+              <span class="sr-only">File size:</span>
+            </div>
+            <div class="metadata-item">
+              <ion-icon :icon="calendarOutline" aria-hidden="true"></ion-icon>
+              <span>{{ formatDate(videoMetadata.uploaded_at) }}</span>
+              <span class="sr-only">Uploaded on:</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-else class="playback-loading">
+          <ion-spinner name="crescent" color="primary"></ion-spinner>
+          <p>Loading video...</p>
+        </div>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Delete Confirmation Alert -->
+    <ion-alert
+      :is-open="isDeleteAlertOpen"
+      :header="'⚠️ Delete Video'"
+      :sub-header="`Day ${playbackDay}`"
+      :message="`This will permanently delete this video. This cannot be undone.`"
+      :buttons="[
+        {
+          text: 'Cancel',
+          role: 'cancel',
+          handler: () => {
+            isDeleteAlertOpen = false;
+          }
+        },
+        {
+          text: 'Delete',
+          role: 'destructive',
+          cssClass: 'alert-button-danger',
+          handler: () => {
+            handleDeleteVideo();
+          }
+        }
+      ]"
+      @didDismiss="isDeleteAlertOpen = false"
+    ></ion-alert>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import {
+  IonAlert,
   IonButton,
   IonButtons,
   IonContent,
@@ -106,10 +206,15 @@ import {
 } from '@ionic/vue';
 import {
   alertCircleOutline,
-  cloudUploadOutline
+  calendarOutline,
+  cloudUploadOutline,
+  documentOutline,
+  timeOutline,
+  trashOutline
 } from 'ionicons/icons';
 import CalendarDayCard from '@/components/CalendarDayCard.vue';
 import VideoUpload from '@/components/VideoUpload.vue';
+import { useVideoManagement, type VideoMetadata } from '@/composables/useVideoManagement';
 import { API_BASE_URL } from '@/config/api';
 
 // Props
@@ -124,339 +229,295 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   'uploadComplete': [day: number];
   'uploadError': [day: number, error: string];
+  'videoDeleted': [day: number];
 }>();
 
-// Day status tracking
-interface DayStatus {
-  day: number;
-  status: 'empty' | 'uploading' | 'processing' | 'completed' | 'failed';
-  thumbnailUrl?: string;
-  progress?: number;
-  error?: string;
-  filename?: string;
-}
+// Composable
+const {
+  dayStatuses,
+  isLoading,
+  uploadProgress,
+  isUploading,
+  initializeDayStatuses,
+  loadVideoStatuses,
+  stopPolling,
+  uploadVideo,
+  getVideoMetadata,
+  deleteVideo,
+  getDayStatus,
+  getDayThumbnail,
+  getDayProgress,
+  getDayError
+} = useVideoManagement(props.calendarId);
 
-// Reactive state
-const dayStatuses = ref<Map<number, DayStatus>>(new Map());
-const isLoading = ref(true);
+// Local state
 const loadError = ref<string>('');
+const statusAnnouncement = ref<string>(''); // ARIA live region (Issue #58)
 
-// Modal state
+// Upload modal state
 const isUploadModalOpen = ref(false);
 const selectedDay = ref<number | null>(null);
 const selectedFile = ref<File | null>(null);
 const selectedDuration = ref<number>(0);
 
-// Upload state
-const isUploading = ref(false);
-const uploadProgress = ref(0);
+// Playback modal state (Issue #59)
+const isPlaybackModalOpen = ref(false);
+const playbackDay = ref<number | null>(null);
+const videoMetadata = ref<VideoMetadata | null>(null);
+const videoPlayerRef = ref<HTMLVideoElement | null>(null);
 
-// Polling state
-const pollInterval = ref<number | null>(null);
-const activePollDays = ref<Set<number>>(new Set());
+// Delete alert state
+const isDeleteAlertOpen = ref(false);
 
-// Initialize day statuses (all empty by default)
-const initializeDayStatuses = () => {
-  const statusMap = new Map<number, DayStatus>();
-  for (let day = 1; day <= props.duration; day++) {
-    statusMap.set(day, {
-      day,
-      status: 'empty'
-    });
-  }
-  dayStatuses.value = statusMap;
+/**
+ * Helper: Format duration (seconds to MM:SS)
+ * Reused from VideoUpload.vue pattern
+ */
+const formatDuration = (seconds: number): string => {
+  if (seconds === 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Get day status
-const getDayStatus = (day: number): DayStatus['status'] => {
-  return dayStatuses.value.get(day)?.status || 'empty';
+/**
+ * Helper: Format file size (bytes to MB)
+ */
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 MB';
+  const mb = bytes / (1024 * 1024);
+  return `${Math.round(mb)} MB`;
 };
 
-const getDayThumbnail = (day: number): string | undefined => {
-  return dayStatuses.value.get(day)?.thumbnailUrl;
+/**
+ * Helper: Format date (ISO to readable)
+ */
+const formatDate = (isoString: string): string => {
+  return new Date(isoString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 };
 
-const getDayProgress = (day: number): number | undefined => {
-  return dayStatuses.value.get(day)?.progress;
+/**
+ * Load videos and initialize day statuses
+ */
+const handleLoadRetry = async () => {
+  loadError.value = '';
+  await loadVideos();
 };
 
-const getDayError = (day: number): string | undefined => {
-  return dayStatuses.value.get(day)?.error;
-};
+const loadVideos = async () => {
+  // Initialize all days as empty first
+  initializeDayStatuses(props.duration);
 
-// Load video statuses from API
-const loadVideoStatuses = async () => {
-  try {
-    isLoading.value = true;
-    loadError.value = '';
+  const result = await loadVideoStatuses();
 
-    // Initialize all days as empty first
-    initializeDayStatuses();
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(
-      `${API_BASE_URL}/calendars/${props.calendarId}/videos`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to load videos');
-    }
-
-    const data = await response.json();
-    const videos = data.videos || [];
-
-    // Update status for days with videos
-    videos.forEach((video: any) => {
-      const status: DayStatus = {
-        day: video.day,
-        status: video.status || 'completed',
-        thumbnailUrl: video.thumbnail
-          ? `${API_BASE_URL}/calendars/${props.calendarId}/videos/${video.day}/thumbnail`
-          : undefined,
-        filename: video.filename
-      };
-
-      dayStatuses.value.set(video.day, status);
-
-      // If video is processing/pending, add to polling list
-      if (status.status === 'processing' || status.status === 'pending') {
-        activePollDays.value.add(video.day);
-      }
-    });
-
-    // Start polling if there are active uploads
-    if (activePollDays.value.size > 0) {
-      startPolling();
-    }
-
-  } catch (error) {
-    console.error('Failed to load video statuses:', error);
-    loadError.value = error instanceof Error ? error.message : 'Failed to load calendar days';
-  } finally {
-    isLoading.value = false;
+  if (!result.success) {
+    loadError.value = result.error || 'Failed to load calendar days';
   }
 };
 
-// Poll for video status updates
-const pollVideoStatus = async (day: number) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    const response = await fetch(
-      `${API_BASE_URL}/calendars/${props.calendarId}/videos/${day}/status`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      // If 404, video might have been deleted or doesn't exist
-      if (response.status === 404) {
-        activePollDays.value.delete(day);
-        return;
-      }
-      throw new Error('Failed to get video status');
-    }
-
-    const data = await response.json();
-    const currentStatus = dayStatuses.value.get(day);
-
-    if (currentStatus) {
-      const updatedStatus: DayStatus = {
-        ...currentStatus,
-        status: data.status,
-        progress: data.progress || 0,
-        error: data.error
-      };
-
-      dayStatuses.value.set(day, updatedStatus);
-
-      // Stop polling if completed or failed
-      if (data.status === 'completed' || data.status === 'failed') {
-        activePollDays.value.delete(day);
-
-        // Reload full status to get thumbnail
-        if (data.status === 'completed') {
-          await loadVideoStatuses();
-          emit('uploadComplete', day);
-        } else if (data.status === 'failed') {
-          emit('uploadError', day, data.error || 'Video processing failed');
-        }
-      }
-    }
-
-  } catch (error) {
-    console.error(`Failed to poll status for day ${day}:`, error);
-  }
-};
-
-// Start polling for active uploads
-const startPolling = () => {
-  if (pollInterval.value) return; // Already polling
-
-  pollInterval.value = window.setInterval(async () => {
-    if (activePollDays.value.size === 0) {
-      stopPolling();
-      return;
-    }
-
-    // Poll all active days
-    const pollPromises = Array.from(activePollDays.value).map(day =>
-      pollVideoStatus(day)
-    );
-    await Promise.all(pollPromises);
-
-  }, 3000); // Poll every 3 seconds
-};
-
-// Stop polling
-const stopPolling = () => {
-  if (pollInterval.value) {
-    clearInterval(pollInterval.value);
-    pollInterval.value = null;
-  }
-};
-
-// Handle day card click
-const handleDayClick = (day: number) => {
+/**
+ * Handle day card click
+ * - Empty/Failed: Open upload modal
+ * - Completed: Open playback modal
+ * - Processing/Uploading: No action (visual feedback only)
+ */
+const handleDayClick = async (day: number) => {
   const status = getDayStatus(day);
 
-  // Only allow upload if empty or failed
   if (status === 'empty' || status === 'failed') {
+    // Open upload modal
     selectedDay.value = day;
     selectedFile.value = null;
     selectedDuration.value = 0;
     isUploadModalOpen.value = true;
   } else if (status === 'completed') {
-    // TODO: Show video preview/playback
-    console.log('Show video for day', day);
+    // Open playback modal
+    await openPlaybackModal(day);
   }
+  // Processing/uploading: no action
 };
 
-// Handle video selection from VideoUpload component
+/**
+ * Handle video selection from VideoUpload component
+ */
 const handleVideoSelected = (file: File, duration: number) => {
   selectedFile.value = file;
   selectedDuration.value = duration;
 };
 
-// Handle upload confirmation
+/**
+ * Handle upload confirmation
+ */
 const handleUploadConfirm = async () => {
   if (!selectedFile.value || !selectedDay.value) return;
 
-  try {
-    isUploading.value = true;
-    uploadProgress.value = 0;
+  const day = selectedDay.value;
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
+  // Announce upload start (ARIA - Issue #58, Option B: Major transitions)
+  statusAnnouncement.value = `Day ${day} upload started`;
 
-    // Create FormData
-    const formData = new FormData();
-    formData.append('video', selectedFile.value);
-    formData.append('day', selectedDay.value.toString());
+  const result = await uploadVideo(day, selectedFile.value);
 
-    // Upload with progress tracking
-    const xhr = new XMLHttpRequest();
+  if (result.success) {
+    // Announce processing (ARIA - Issue #58)
+    statusAnnouncement.value = `Day ${day} processing`;
 
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        uploadProgress.value = Math.round((e.loaded / e.total) * 100);
-      }
+    // Show success toast
+    const toast = await toastController.create({
+      message: 'Video uploaded successfully! Processing...',
+      duration: 3000,
+      color: 'success',
+      position: 'top'
     });
+    await toast.present();
 
-    xhr.addEventListener('load', async () => {
-      if (xhr.status === 201) {
-        const response = JSON.parse(xhr.responseText);
+    // Close modal
+    closeUploadModal();
 
-        // Update day status to processing
-        if (selectedDay.value) {
-          const updatedStatus: DayStatus = {
-            day: selectedDay.value,
-            status: 'processing',
-            progress: 0
-          };
-          dayStatuses.value.set(selectedDay.value, updatedStatus);
+    // Wait for processing to complete, then announce
+    watchForCompletion(day);
 
-          // Add to polling list
-          activePollDays.value.add(selectedDay.value);
-          startPolling();
-        }
-
-        // Show success toast
-        const toast = await toastController.create({
-          message: 'Video uploaded successfully! Processing...',
-          duration: 3000,
-          color: 'success',
-          position: 'top'
-        });
-        await toast.present();
-
-        // Close modal
-        closeUploadModal();
-
-      } else {
-        const errorData = JSON.parse(xhr.responseText);
-        throw new Error(errorData.error || 'Upload failed');
-      }
-    });
-
-    xhr.addEventListener('error', () => {
-      throw new Error('Network error during upload');
-    });
-
-    xhr.open('POST', `${API_BASE_URL}/calendars/${props.calendarId}/videos`);
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.send(formData);
-
-  } catch (error) {
-    console.error('Upload error:', error);
+  } else {
+    // Announce failure (ARIA - Issue #58)
+    statusAnnouncement.value = `Day ${day} upload failed: ${result.error}`;
 
     const toast = await toastController.create({
-      message: error instanceof Error ? error.message : 'Upload failed',
+      message: result.error || 'Upload failed',
       duration: 4000,
       color: 'danger',
       position: 'top'
     });
     await toast.present();
 
-  } finally {
-    isUploading.value = false;
-    uploadProgress.value = 0;
+    emit('uploadError', day, result.error || 'Upload failed');
   }
 };
 
-// Close upload modal
+/**
+ * Watch for completion to announce (ARIA - Issue #58)
+ */
+const watchForCompletion = (day: number) => {
+  const checkInterval = setInterval(() => {
+    const status = getDayStatus(day);
+
+    if (status === 'completed') {
+      statusAnnouncement.value = `Day ${day} video uploaded successfully`;
+      emit('uploadComplete', day);
+      clearInterval(checkInterval);
+    } else if (status === 'failed') {
+      const error = getDayError(day);
+      statusAnnouncement.value = `Day ${day} upload failed: ${error}`;
+      emit('uploadError', day, error || 'Processing failed');
+      clearInterval(checkInterval);
+    }
+  }, 1000);
+
+  // Clear interval after 5 minutes max
+  setTimeout(() => clearInterval(checkInterval), 300000);
+};
+
+/**
+ * Close upload modal
+ */
 const closeUploadModal = () => {
   isUploadModalOpen.value = false;
   selectedDay.value = null;
   selectedFile.value = null;
   selectedDuration.value = 0;
-  isUploading.value = false;
-  uploadProgress.value = 0;
+};
+
+/**
+ * Open playback modal (Issue #59)
+ */
+const openPlaybackModal = async (day: number) => {
+  playbackDay.value = day;
+  videoMetadata.value = null;
+  isPlaybackModalOpen.value = true;
+
+  // Fetch video metadata
+  const result = await getVideoMetadata(day);
+
+  if (result.success && result.data) {
+    videoMetadata.value = result.data;
+  } else {
+    const toast = await toastController.create({
+      message: 'Failed to load video',
+      duration: 3000,
+      color: 'danger',
+      position: 'top'
+    });
+    await toast.present();
+    closePlaybackModal();
+  }
+};
+
+/**
+ * Close playback modal
+ */
+const closePlaybackModal = () => {
+  // Pause video if playing
+  if (videoPlayerRef.value) {
+    videoPlayerRef.value.pause();
+  }
+
+  isPlaybackModalOpen.value = false;
+  playbackDay.value = null;
+  videoMetadata.value = null;
+};
+
+/**
+ * Show delete confirmation (Issue #59)
+ */
+const showDeleteConfirmation = () => {
+  isDeleteAlertOpen.value = true;
+};
+
+/**
+ * Handle video deletion (Issue #59)
+ */
+const handleDeleteVideo = async () => {
+  if (!playbackDay.value) return;
+
+  const day = playbackDay.value;
+
+  const result = await deleteVideo(day);
+
+  if (result.success) {
+    // Announce deletion (ARIA - Issue #58)
+    statusAnnouncement.value = `Day ${day} video deleted`;
+
+    const toast = await toastController.create({
+      message: 'Video deleted successfully',
+      duration: 3000,
+      color: 'success',
+      position: 'top'
+    });
+    await toast.present();
+
+    // Close modal
+    closePlaybackModal();
+
+    // Emit event
+    emit('videoDeleted', day);
+
+  } else {
+    const toast = await toastController.create({
+      message: result.error || 'Failed to delete video',
+      duration: 3000,
+      color: 'danger',
+      position: 'top'
+    });
+    await toast.present();
+  }
 };
 
 // Lifecycle
 onMounted(async () => {
-  await loadVideoStatuses();
+  await loadVideos();
 });
 
 onUnmounted(() => {
@@ -554,7 +615,20 @@ onUnmounted(() => {
   }
 }
 
-/* Modal Content */
+/* Screen Reader Only - ARIA Live Region */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Upload Modal Content */
 .modal-content {
   --padding-top: clamp(1rem, 3vw, 1.5rem);
   --padding-bottom: clamp(1rem, 3vw, 1.5rem);
@@ -609,20 +683,94 @@ onUnmounted(() => {
   padding-top: clamp(0.5rem, 1.5vw, 1rem);
 }
 
+/* Playback Modal Content (Issue #59) */
+.playback-modal-content {
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.playback-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Video Player */
+.video-player {
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+  object-fit: contain;
+}
+
+/* Video Metadata Bar (Option B) */
+.video-metadata {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  gap: clamp(0.75rem, 2vw, 1rem);
+  flex-wrap: wrap;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.25rem, 1vw, 0.5rem);
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.metadata-item ion-icon {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  color: var(--ion-color-primary);
+}
+
+/* Playback Loading State */
+.playback-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.75rem, 2vh, 1rem);
+  min-height: 50vh;
+  padding: clamp(1.5rem, 4vw, 2rem);
+}
+
+.playback-loading ion-spinner {
+  --color: var(--ion-color-primary);
+  width: clamp(2.5rem, 6vw, 3rem);
+  height: clamp(2.5rem, 6vw, 3rem);
+}
+
+.playback-loading p {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
 /* Accessibility */
 @media (prefers-reduced-motion: reduce) {
-  .loading-section ion-spinner {
+  .loading-section ion-spinner,
+  .playback-loading ion-spinner {
     animation: none;
   }
 }
 
 @media (prefers-contrast: high) {
-  .error-section {
+  .error-section,
+  .upload-progress-section {
     border-width: 2px;
   }
 
-  .upload-progress-section {
-    border-width: 2px;
+  .video-metadata {
+    border-top-width: 2px;
   }
 }
 </style>
