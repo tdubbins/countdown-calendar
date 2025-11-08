@@ -82,25 +82,42 @@ def compress_video(
         # Get original file size
         original_size = os.path.getsize(input_path)
 
-        # Compress video with H.264 and optimize for web streaming
-        stream = ffmpeg.input(input_path)
+        # Set up input stream and check for audio
+        input_stream = ffmpeg.input(input_path)
+        probe = ffmpeg.probe(input_path)
+        has_audio = any(stream['codec_type'] == 'audio' for stream in probe['streams'])
 
-        # Scale if resolution exceeds maximum (maintain aspect ratio)
-        stream = ffmpeg.filter(stream, 'scale', max_resolution[0], max_resolution[1], force_original_aspect_ratio='decrease')
+        # Apply video scaling filter (maintain aspect ratio)
+        video = input_stream.video.filter('scale', max_resolution[0], max_resolution[1], force_original_aspect_ratio='decrease')
 
-        # Output with optimized settings
-        stream = ffmpeg.output(
-            stream,
-            output_path,
-            vcodec='libx264',              # H.264 codec for wide compatibility
-            video_bitrate=target_bitrate,  # Target bitrate
-            maxrate='1500k',               # Maximum bitrate
-            bufsize='2000k',               # Buffer size
-            acodec='aac',                  # AAC audio codec
-            audio_bitrate='128k',          # Audio bitrate
-            preset='medium',               # Encoding speed/compression tradeoff
-            movflags='faststart'           # Enable progressive download for web
-        )
+        # Build output stream with audio if present
+        # Use explicit stream selection to avoid copying metadata streams
+        # Select only the first audio stream to avoid spatial audio codecs
+        if has_audio:
+            audio = input_stream['a:0']  # Select first audio stream only
+            stream = ffmpeg.output(
+                video, audio, output_path,
+                vcodec='libx264',
+                video_bitrate=target_bitrate,
+                maxrate='1500k',
+                bufsize='2000k',
+                acodec='aac',
+                audio_bitrate='128k',
+                preset='medium',
+                movflags='faststart',
+                map_metadata=-1  # Strip all metadata to avoid incompatible streams
+            )
+        else:
+            stream = ffmpeg.output(
+                video, output_path,
+                vcodec='libx264',
+                video_bitrate=target_bitrate,
+                maxrate='1500k',
+                bufsize='2000k',
+                preset='medium',
+                movflags='faststart',
+                map_metadata=-1  # Strip all metadata to avoid incompatible streams
+            )
 
         # Execute compression
         ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)

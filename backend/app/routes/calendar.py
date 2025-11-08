@@ -675,6 +675,62 @@ def get_video_thumbnail(calendar_id, day):
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/stream', methods=['GET'])
+@token_required
+def stream_video(calendar_id, day):
+    """
+    Stream video file for playback (RESTful nested endpoint)
+
+    Returns the actual video file for HTML5 video player.
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [P3] Fast video delivery
+
+    Returns:
+        200: Video file (video/mp4)
+        404: Video not found
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Get video path
+        video_path = get_video_path(user_id, calendar_id, day)
+
+        if not video_path.exists():
+            return jsonify({'error': f'Video not found for day {day}'}), 404
+
+        # Send file with proper MIME type
+        return send_file(
+            str(video_path),
+            mimetype='video/mp4',
+            as_attachment=False,
+            download_name=f'day_{day}_video.mp4'
+        )
+
+    except ValueError as e:
+        # Path validation error
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"Stream video error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>', methods=['DELETE'])
 @token_required
 def delete_video(calendar_id, day):

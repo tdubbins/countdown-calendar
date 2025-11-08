@@ -27,13 +27,12 @@
             ref="videoPreviewRef"
             :src="videoPreviewUrl"
             class="preview-video"
+            controls
+            preload="metadata"
+            :muted="false"
             @loadedmetadata="handleVideoMetadata"
+            aria-label="Video preview with playback controls"
           ></video>
-          <ion-icon
-            :icon="playCircleOutline"
-            class="play-icon"
-            aria-hidden="true"
-          ></ion-icon>
         </div>
 
         <!-- File Information -->
@@ -128,7 +127,6 @@ import {
   cloudUploadOutline,
   folderOpenOutline,
   closeCircleOutline,
-  playCircleOutline,
   alertCircleOutline
 } from 'ionicons/icons';
 
@@ -238,7 +236,6 @@ const validateVideoDuration = async (file: File): Promise<boolean> => {
       videoDuration.value = duration;
 
       if (isNaN(duration) || duration === 0) {
-        console.warn('Video duration is invalid:', duration);
         errorMessage.value = 'Unable to read video duration. Please try a different file.';
         resolveOnce(false);
       } else if (duration > MAX_DURATION) {
@@ -249,15 +246,12 @@ const validateVideoDuration = async (file: File): Promise<boolean> => {
       }
     };
 
-    video.onerror = (e) => {
-      console.error('Video validation error:', e);
+    video.onerror = () => {
       errorMessage.value = 'Unable to read video file. Please try a different file.';
       resolveOnce(false);
     };
 
-    // Timeout after 10 seconds
     timeout = setTimeout(() => {
-      console.error('Video validation timeout for file:', file.name);
       errorMessage.value = 'Video validation timed out. Please try a different file.';
       resolveOnce(false);
     }, 10000);
@@ -265,7 +259,6 @@ const validateVideoDuration = async (file: File): Promise<boolean> => {
     try {
       video.src = URL.createObjectURL(file);
     } catch (e) {
-      console.error('Failed to create object URL:', e);
       errorMessage.value = 'Failed to process video file.';
       resolveOnce(false);
     }
@@ -274,43 +267,16 @@ const validateVideoDuration = async (file: File): Promise<boolean> => {
 
 // File handling
 const processFile = async (file: File) => {
-  // Clear previous errors
   errorMessage.value = '';
 
-  console.log('Processing file:', {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    lastModified: new Date(file.lastModified)
-  });
+  // Validate file type, size, and duration
+  if (!validateFileType(file)) return;
+  if (!validateFileSize(file)) return;
+  if (!await validateVideoDuration(file)) return;
 
-  // Validate file type
-  if (!validateFileType(file)) {
-    console.warn('File type validation failed');
-    return;
-  }
-
-  // Validate file size
-  if (!validateFileSize(file)) {
-    console.warn('File size validation failed');
-    return;
-  }
-
-  console.log('Starting duration validation...');
-  // Validate video duration (async)
-  const durationValid = await validateVideoDuration(file);
-  if (!durationValid) {
-    console.warn('Duration validation failed');
-    return;
-  }
-
-  console.log('All validations passed! Duration:', videoDuration.value);
-
-  // All validations passed
+  // All validations passed - set file and preview
   selectedFile.value = file;
   videoPreviewUrl.value = URL.createObjectURL(file);
-
-  // Emit event to parent
   emit('videoSelected', file, videoDuration.value);
 };
 
@@ -335,67 +301,29 @@ const handleDragLeave = (e: DragEvent) => {
 
 const handleDrop = async (e: DragEvent) => {
   if (props.disabled) return;
-
   isDragging.value = false;
 
-  console.log('Drop event received');
-  console.log('DataTransfer object:', e.dataTransfer);
+  // Get file from drop event (try DataTransferItem API first for better compatibility)
+  let file: File | null = null;
 
-  // Try DataTransferItem API first (better for macOS)
-  if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-    console.log('Using DataTransferItem API');
-    const item = e.dataTransfer.items[0];
-
-    if (item.kind === 'file') {
-      const file = item.getAsFile();
-
-      if (file) {
-        console.log('File from DataTransferItem:', {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          lastModified: new Date(file.lastModified)
-        });
-
-        // Check for 0-byte files (common with drag-and-drop on macOS)
-        if (file.size === 0) {
-          console.error('Detected 0-byte file - macOS drag-and-drop limitation');
-          errorMessage.value = 'Unable to read file via drag-and-drop. Please use the "Browse Files" button instead.';
-          return;
-        }
-
-        await processFile(file);
-        return;
-      }
-    }
+  if (e.dataTransfer?.items?.[0]?.kind === 'file') {
+    file = e.dataTransfer.items[0].getAsFile();
+  } else if (e.dataTransfer?.files?.[0]) {
+    file = e.dataTransfer.files[0];
   }
 
-  // Fallback to traditional files API
-  console.log('Falling back to traditional FileList API');
-  const files = e.dataTransfer?.files;
-  console.log('Files from dataTransfer.files:', files);
-
-  if (files && files.length > 0) {
-    const file = files[0];
-    console.log('Dropped file details:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: new Date(file.lastModified)
-    });
-
-    // Check for 0-byte files
-    if (file.size === 0) {
-      console.error('Detected 0-byte file - macOS drag-and-drop limitation');
-      errorMessage.value = 'Unable to read file via drag-and-drop. Please use the "Browse Files" button instead.';
-      return;
-    }
-
-    await processFile(file);
-  } else {
-    console.warn('No files found in drop event');
+  if (!file) {
     errorMessage.value = 'No file detected. Please try again or use the "Browse Files" button.';
+    return;
   }
+
+  // Check for 0-byte files (macOS drag-and-drop issue)
+  if (file.size === 0) {
+    errorMessage.value = 'Unable to read file via drag-and-drop. Please use the "Browse Files" button instead.';
+    return;
+  }
+
+  await processFile(file);
 };
 
 const triggerFileInput = () => {
@@ -436,6 +364,8 @@ const handleRemoveFile = () => {
 const handleVideoMetadata = (e: Event) => {
   const video = e.target as HTMLVideoElement;
   videoDuration.value = video.duration;
+  video.muted = false;
+  video.volume = 1.0;
 };
 
 // Expose methods for parent component
@@ -575,8 +505,8 @@ defineExpose({
 .video-thumbnail {
   position: relative;
   flex-shrink: 0;
-  width: clamp(5rem, 20vw, 8rem);
-  height: clamp(5rem, 20vw, 8rem);
+  width: clamp(8rem, 25vw, 12rem);
+  height: clamp(8rem, 25vw, 12rem);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-background-secondary);
@@ -586,18 +516,7 @@ defineExpose({
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.play-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: clamp(2rem, 6vw, 3rem);
-  color: white;
-  opacity: 0.9;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  border-radius: var(--radius-md);
 }
 
 /* File Information */
@@ -685,19 +604,23 @@ defineExpose({
 /* Mobile optimizations */
 @media (max-width: 640px) {
   .file-preview {
-    flex-direction: column;
-    text-align: center;
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .video-thumbnail {
-    width: 100%;
-    max-width: 12rem;
-    height: auto;
-    aspect-ratio: 16/9;
+    width: clamp(6rem, 30vw, 10rem);
+    height: clamp(6rem, 30vw, 10rem);
+  }
+
+  .file-info {
+    flex: 1;
+    min-width: 8rem;
   }
 
   .remove-button {
-    align-self: stretch;
+    width: 100%;
+    margin-top: 0.5rem;
   }
 }
 </style>

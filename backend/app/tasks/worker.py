@@ -30,25 +30,30 @@ class Worker:
         worker.stop()   # Graceful shutdown
     """
 
-    def __init__(self, poll_interval: int = 2, max_concurrent: int = 10):
+    def __init__(self, poll_interval: int = 2, max_concurrent: int = 10, cleanup_interval: int = 3600):
         """
         Initialize worker
 
         Args:
             poll_interval: Seconds between queue polls (default: 2)
             max_concurrent: Maximum concurrent tasks to process (default: 10, NFR [P3])
+            cleanup_interval: Seconds between cleanup runs (default: 3600 = 1 hour)
         """
         self.poll_interval = poll_interval
         self.max_concurrent = max_concurrent
+        self.cleanup_interval = cleanup_interval
         self.running = False
         self.thread: Optional[threading.Thread] = None
+        self.cleanup_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
     def start(self) -> None:
         """
-        Start the background worker thread
+        Start the background worker thread and cleanup scheduler
 
-        This creates and starts a daemon thread that processes tasks.
+        This creates and starts daemon threads for:
+        - Task processing (polls queue every 2 seconds)
+        - Cleanup scheduler (runs every hour to delete old tasks)
         Daemon threads automatically terminate when the main program exits.
         """
         with self._lock:
@@ -57,15 +62,22 @@ class Worker:
                 return
 
             self.running = True
+
+            # Start task processing thread
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
-            print("Background worker started")
+
+            # Start cleanup scheduler thread
+            self.cleanup_thread = threading.Thread(target=self._run_cleanup, daemon=True)
+            self.cleanup_thread.start()
+
+            print("Background worker started (task processing + cleanup scheduler)")
 
     def stop(self) -> None:
         """
-        Stop the background worker gracefully
+        Stop the background worker and cleanup scheduler gracefully
 
-        Sets the running flag to False and waits for the worker thread to finish.
+        Sets the running flag to False and waits for both threads to finish.
         """
         with self._lock:
             if not self.running:
@@ -75,10 +87,15 @@ class Worker:
             print("Stopping background worker...")
             self.running = False
 
-        # Wait for thread to finish (with timeout)
+        # Wait for task processing thread to finish (with timeout)
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=10)
-            print("Background worker stopped")
+
+        # Wait for cleanup thread to finish (with timeout)
+        if self.cleanup_thread and self.cleanup_thread.is_alive():
+            self.cleanup_thread.join(timeout=10)
+
+        print("Background worker stopped")
 
     def is_running(self) -> bool:
         """Check if worker is currently running"""
@@ -120,6 +137,48 @@ class Worker:
                 time.sleep(self.poll_interval)
 
         print("Worker thread stopped")
+
+    def _run_cleanup(self) -> None:
+        """
+        Cleanup scheduler loop
+
+        Runs periodically to delete old completed/failed tasks from the queue.
+        Prevents tasks.json from growing indefinitely.
+
+        NFR Compliance:
+            - Resource management: Keep tasks.json size manageable
+            - [SC3] Modular architecture: Automatic maintenance
+        """
+        print("Cleanup scheduler started - will run every hour")
+
+        # Run initial cleanup on startup
+        try:
+            success, deleted_count, error = TaskQueue.cleanup_old_tasks(hours_old=24)
+            if success and deleted_count > 0:
+                print(f"Initial cleanup: deleted {deleted_count} old task(s)")
+        except Exception as e:
+            print(f"Initial cleanup error: {str(e)}")
+
+        while self.running:
+            try:
+                # Sleep for cleanup interval (default: 1 hour)
+                time.sleep(self.cleanup_interval)
+
+                # Run cleanup
+                success, deleted_count, error = TaskQueue.cleanup_old_tasks(hours_old=24)
+
+                if success:
+                    if deleted_count > 0:
+                        print(f"Cleanup: deleted {deleted_count} old task(s)")
+                else:
+                    print(f"Cleanup error: {error}")
+
+            except Exception as e:
+                # Scheduler continues running even if cleanup fails
+                print(f"Cleanup scheduler error: {str(e)}")
+                time.sleep(self.cleanup_interval)
+
+        print("Cleanup scheduler stopped")
 
     def _process_task(self, task_data: dict) -> None:
         """
