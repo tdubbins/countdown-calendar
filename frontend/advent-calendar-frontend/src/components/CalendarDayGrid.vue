@@ -127,7 +127,7 @@
             controls
             preload="metadata"
             :src="`${API_CONFIG.BASE_URL}${videoMetadata.stream_url}`"
-            :poster="videoMetadata.thumbnail_url"
+            :poster="playbackThumbnailUrl || undefined"
             class="video-player"
             :aria-label="`Day ${playbackDay} video player`"
           ></video>
@@ -265,6 +265,7 @@ const isPlaybackModalOpen = ref(false);
 const playbackDay = ref<number | null>(null);
 const videoMetadata = ref<VideoMetadata | null>(null);
 const videoPlayerRef = ref<HTMLVideoElement | null>(null);
+const playbackThumbnailUrl = ref<string | null>(null);
 
 // Delete alert state
 const isDeleteAlertOpen = ref(false);
@@ -459,7 +460,14 @@ const closeUploadModal = () => {
 const openPlaybackModal = async (day: number) => {
   playbackDay.value = day;
   videoMetadata.value = null;
+  playbackThumbnailUrl.value = null;
   isPlaybackModalOpen.value = true;
+
+  // Use thumbnail from grid if available (already loaded as data URL)
+  const dayThumbnail = getDayThumbnail(day);
+  if (dayThumbnail) {
+    playbackThumbnailUrl.value = dayThumbnail;
+  }
 
   // Fetch video metadata
   const result = await getVideoMetadata(day);
