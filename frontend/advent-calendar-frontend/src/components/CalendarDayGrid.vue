@@ -382,12 +382,15 @@ const watchForCompletion = (day: number) => {
 
 
 /**
- * Handle playback video metadata loaded - ensures audio is enabled
+ * Handle playback video metadata loaded - ensures audio is enabled and auto-plays
  */
 const handlePlaybackVideoMetadata = (e: Event) => {
   const video = e.target as HTMLVideoElement;
   video.muted = false;
   video.volume = 1.0;
+  video.play().catch((error) => {
+    console.log('Autoplay prevented:', error);
+  });
 };
 
 /**
