@@ -95,7 +95,6 @@ import FormField from '@/components/FormField.vue';
 import type { CalendarCreateData, Calendar } from '@/types/calendar';
 import {
   calculateDaysBetween,
-  formatCalendarSummary,
   validateDateRange,
   isDateInPast,
   CALENDAR_CONSTANTS
@@ -171,10 +170,6 @@ const successMessage = ref('');
 // Computed properties using extracted utilities
 const calculatedDuration = computed(() => {
   return calculateDaysBetween(formData.value.startDate, formData.value.endDate);
-});
-
-const formattedSummary = computed(() => {
-  return formatCalendarSummary(formData.value.startDate, formData.value.endDate);
 });
 
 const isFormValid = computed(() => {

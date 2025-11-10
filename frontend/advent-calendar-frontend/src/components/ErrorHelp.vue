@@ -30,7 +30,7 @@ interface Props {
   suggestions: string[];
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   helpTitle: 'What can you do?'
 });
 </script>

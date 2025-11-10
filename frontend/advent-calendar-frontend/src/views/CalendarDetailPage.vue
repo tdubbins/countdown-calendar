@@ -4,6 +4,7 @@
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
           <ion-back-button
+            color="light"
             default-href="/dashboard"
             text="Dashboard"
             aria-label="Back to dashboard"
@@ -73,19 +74,20 @@ import {
   IonButtons,
   IonBackButton,
   IonIcon,
-  IonSpinner,
-  toastController
+  IonSpinner
 } from '@ionic/vue';
 import { alertCircleOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import { useCalendar } from '@/composables/useCalendar';
+import { useToast } from '@/composables/useToast';
 import type { Calendar } from '@/types/calendar';
 
 // Router
 const route = useRoute();
 
-// Composable
+// Composables
 const { getCalendar } = useCalendar();
+const { showSuccess, showError } = useToast();
 
 // State
 const calendarId = ref<string>(route.params.id as string);
@@ -122,13 +124,7 @@ const loadCalendarData = async () => {
 const handleUploadComplete = async (day: number) => {
   console.log(`Upload complete for day ${day}`);
 
-  const toast = await toastController.create({
-    message: `Day ${day} video uploaded successfully!`,
-    duration: 2000,
-    color: 'success',
-    position: 'top'
-  });
-  await toast.present();
+  await showSuccess(`Day ${day} video uploaded successfully!`);
 
   // Reload calendar to update video count
   await loadCalendarData();
@@ -140,13 +136,7 @@ const handleUploadComplete = async (day: number) => {
 const handleUploadError = async (day: number, error: string) => {
   console.error(`Upload error for day ${day}:`, error);
 
-  const toast = await toastController.create({
-    message: `Failed to upload day ${day}: ${error}`,
-    duration: 3000,
-    color: 'danger',
-    position: 'top'
-  });
-  await toast.present();
+  await showError(`Failed to upload day ${day}: ${error}`);
 };
 
 /**
@@ -155,13 +145,7 @@ const handleUploadError = async (day: number, error: string) => {
 const handleVideoDeleted = async (day: number) => {
   console.log(`Video deleted for day ${day}`);
 
-  const toast = await toastController.create({
-    message: `Day ${day} video deleted`,
-    duration: 2000,
-    color: 'success',
-    position: 'top'
-  });
-  await toast.present();
+  await showSuccess(`Day ${day} video deleted`);
 
   // Reload calendar to update video count
   await loadCalendarData();
@@ -174,6 +158,38 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Back Button Visibility - Ensure it's visible on both web and mobile */
+ion-back-button {
+  --color: var(--ion-color-light);
+  --icon-font-size: 1.5rem;
+  --min-width: 44px;
+  --min-height: 44px;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure back button is touch-friendly on mobile (NFR: U2) */
+ion-back-button::part(native) {
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Make back button text visible on web */
+@media (min-width: 768px) {
+  ion-back-button {
+    --icon-margin-end: 0.5rem;
+  }
+}
+
+/* Hide text on mobile, keep icon */
+@media (max-width: 767px) {
+  ion-back-button {
+    --icon-margin-end: 0;
+  }
+}
+
 .calendar-detail-container {
   max-width: 1200px;
   margin: 0 auto;

@@ -143,7 +143,7 @@
             </div>
             <div class="metadata-item">
               <ion-icon :icon="documentOutline" aria-hidden="true"></ion-icon>
-              <span>{{ formatFileSize(videoMetadata.size) }}</span>
+              <span>{{ formatFileSizeMB(videoMetadata.size) }}</span>
               <span class="sr-only">File size:</span>
             </div>
             <div class="metadata-item">
@@ -203,8 +203,7 @@ import {
   IonProgressBar,
   IonSpinner,
   IonTitle,
-  IonToolbar,
-  toastController
+  IonToolbar
 } from '@ionic/vue';
 import {
   alertCircleOutline,
@@ -217,7 +216,8 @@ import {
 import CalendarDayCard from '@/components/CalendarDayCard.vue';
 import VideoUpload from '@/components/VideoUpload.vue';
 import { useVideoManagement, type VideoMetadata } from '@/composables/useVideoManagement';
-import API_CONFIG from '@/config/api';
+import { useToast } from '@/composables/useToast';
+import { formatDuration, formatFileSizeMB } from '@/utils/mediaUtils';
 
 // Props
 interface Props {
@@ -236,7 +236,6 @@ const emit = defineEmits<{
 
 // Composable
 const {
-  dayStatuses,
   isLoading,
   uploadProgress,
   isUploading,
@@ -251,6 +250,9 @@ const {
   getDayProgress,
   getDayError
 } = useVideoManagement(props.calendarId);
+
+// Composables
+const { showSuccess, showError } = useToast();
 
 // Local state
 const loadError = ref<string>('');
@@ -272,26 +274,6 @@ const playbackVideoUrl = ref<string | null>(null);
 
 // Delete alert state
 const isDeleteAlertOpen = ref(false);
-
-/**
- * Helper: Format duration (seconds to MM:SS)
- * Reused from VideoUpload.vue pattern
- */
-const formatDuration = (seconds: number): string => {
-  if (seconds === 0) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-/**
- * Helper: Format file size (bytes to MB)
- */
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 MB';
-  const mb = bytes / (1024 * 1024);
-  return `${Math.round(mb)} MB`;
-};
 
 /**
  * Helper: Format date (ISO to readable)
@@ -371,13 +353,7 @@ const handleUploadConfirm = async () => {
     statusAnnouncement.value = `Day ${day} processing`;
 
     // Show success toast
-    const toast = await toastController.create({
-      message: 'Video uploaded successfully! Processing...',
-      duration: 3000,
-      color: 'success',
-      position: 'top'
-    });
-    await toast.present();
+    await showSuccess('Video uploaded successfully! Processing...', 3000);
 
     // Close modal
     closeUploadModal();
@@ -389,13 +365,7 @@ const handleUploadConfirm = async () => {
     // Announce failure (ARIA - Issue #58)
     statusAnnouncement.value = `Day ${day} upload failed: ${result.error}`;
 
-    const toast = await toastController.create({
-      message: result.error || 'Upload failed',
-      duration: 4000,
-      color: 'danger',
-      position: 'top'
-    });
-    await toast.present();
+    await showError(result.error || 'Upload failed', 4000);
 
     emit('uploadError', day, result.error || 'Upload failed');
   }
@@ -509,22 +479,10 @@ const openPlaybackModal = async (day: number) => {
       }
     } catch (error) {
       console.error('Failed to load video for playback:', error);
-      const toast = await toastController.create({
-        message: 'Failed to load video for playback',
-        duration: 3000,
-        color: 'danger',
-        position: 'top'
-      });
-      await toast.present();
+      await showError('Failed to load video for playback');
     }
   } else {
-    const toast = await toastController.create({
-      message: 'Failed to load video',
-      duration: 3000,
-      color: 'danger',
-      position: 'top'
-    });
-    await toast.present();
+    await showError('Failed to load video');
     closePlaybackModal();
   }
 };
@@ -571,13 +529,7 @@ const handleDeleteVideo = async () => {
     // Announce deletion (ARIA - Issue #58)
     statusAnnouncement.value = `Day ${day} video deleted`;
 
-    const toast = await toastController.create({
-      message: 'Video deleted successfully',
-      duration: 3000,
-      color: 'success',
-      position: 'top'
-    });
-    await toast.present();
+    await showSuccess('Video deleted successfully');
 
     // Close modal
     closePlaybackModal();
@@ -586,13 +538,7 @@ const handleDeleteVideo = async () => {
     emit('videoDeleted', day);
 
   } else {
-    const toast = await toastController.create({
-      message: result.error || 'Failed to delete video',
-      duration: 3000,
-      color: 'danger',
-      position: 'top'
-    });
-    await toast.present();
+    await showError(result.error || 'Failed to delete video');
   }
 };
 
@@ -674,24 +620,24 @@ onUnmounted(() => {
 /* Day Grid - Intrinsic Responsive Design */
 .day-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(4rem, 15vw, 8rem), 1fr));
-  gap: clamp(0.5rem, 2vw, 1rem);
-  padding: clamp(0.5rem, 2vw, 1rem);
+  grid-template-columns: repeat(auto-fill, minmax(clamp(7rem, 22vw, 12rem), 1fr));
+  gap: clamp(0.75rem, 2.5vw, 1.5rem);
+  padding: clamp(0.75rem, 2.5vw, 1.5rem);
 }
 
 /* Container query for very small containers */
 @container (max-width: 20rem) {
   .day-grid {
-    grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+    gap: 0.75rem;
   }
 }
 
 /* Container query for medium containers */
 @container (min-width: 40rem) {
   .day-grid {
-    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+    gap: 1rem;
   }
 }
 
