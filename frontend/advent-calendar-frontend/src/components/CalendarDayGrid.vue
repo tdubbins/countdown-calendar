@@ -44,59 +44,15 @@
       {{ statusAnnouncement }}
     </div>
 
-    <!-- Upload Modal -->
-    <ion-modal
-      :is-open="isUploadModalOpen"
-      @didDismiss="closeUploadModal"
-      :initial-breakpoint="0.9"
-      :breakpoints="[0, 0.5, 0.9]"
-    >
-      <ion-header>
-        <ion-toolbar color="primary">
-          <ion-title>Upload Video - Day {{ selectedDay }}</ion-title>
-          <ion-buttons slot="end">
-            <ion-button @click="closeUploadModal" color="light">
-              <strong>Close</strong>
-            </ion-button>
-          </ion-buttons>
-        </ion-toolbar>
-      </ion-header>
-      <ion-content class="modal-content">
-        <div class="upload-modal-body">
-          <!-- Video Upload Component -->
-          <VideoUpload
-            v-if="selectedDay && isUploadModalOpen"
-            :key="`upload-${selectedDay}`"
-            :day="selectedDay"
-            :disabled="isUploading"
-            @videoSelected="handleVideoSelected"
-          />
-
-          <!-- Upload Progress -->
-          <div v-if="isUploading" class="upload-progress-section">
-            <div class="progress-header">
-              <ion-icon :icon="cloudUploadOutline" class="progress-icon"></ion-icon>
-              <p class="progress-title">Uploading video...</p>
-            </div>
-            <ion-progress-bar :value="uploadProgress / 100" color="primary"></ion-progress-bar>
-            <p class="progress-text">{{ uploadProgress }}% complete</p>
-          </div>
-
-          <!-- Upload Actions -->
-          <div class="upload-actions">
-            <ion-button
-              expand="block"
-              color="primary"
-              :disabled="!selectedFile || isUploading"
-              @click="handleUploadConfirm"
-            >
-              <ion-icon slot="start" :icon="cloudUploadOutline"></ion-icon>
-              {{ isUploading ? 'Uploading...' : 'Upload Video' }}
-            </ion-button>
-          </div>
-        </div>
-      </ion-content>
-    </ion-modal>
+    <!-- Hidden File Input -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="video/mp4,video/quicktime,video/x-msvideo,video/webm"
+      @change="handleFileSelect"
+      class="hidden-file-input"
+      aria-label="Choose video file"
+    />
 
     <!-- Video Playback Modal (Issue #59) -->
     <ion-modal
@@ -200,7 +156,6 @@ import {
   IonHeader,
   IonIcon,
   IonModal,
-  IonProgressBar,
   IonSpinner,
   IonTitle,
   IonToolbar
@@ -208,13 +163,11 @@ import {
 import {
   alertCircleOutline,
   calendarOutline,
-  cloudUploadOutline,
   documentOutline,
   timeOutline,
   trashOutline
 } from 'ionicons/icons';
 import CalendarDayCard from '@/components/CalendarDayCard.vue';
-import VideoUpload from '@/components/VideoUpload.vue';
 import { useVideoManagement, type VideoMetadata } from '@/composables/useVideoManagement';
 import { useToast } from '@/composables/useToast';
 import { formatDuration, formatFileSizeMB } from '@/utils/mediaUtils';
@@ -257,12 +210,8 @@ const { showSuccess, showError } = useToast();
 // Local state
 const loadError = ref<string>('');
 const statusAnnouncement = ref<string>(''); // ARIA live region (Issue #58)
-
-// Upload modal state
-const isUploadModalOpen = ref(false);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const selectedDay = ref<number | null>(null);
-const selectedFile = ref<File | null>(null);
-const selectedDuration = ref<number>(0);
 
 // Playback modal state (Issue #59)
 const isPlaybackModalOpen = ref(false);
@@ -307,7 +256,7 @@ const loadVideos = async () => {
 
 /**
  * Handle day card click
- * - Empty/Failed: Open upload modal
+ * - Empty/Failed: Open file picker
  * - Completed: Open playback modal
  * - Processing/Uploading: No action (visual feedback only)
  */
@@ -315,11 +264,9 @@ const handleDayClick = async (day: number) => {
   const status = getDayStatus(day);
 
   if (status === 'empty' || status === 'failed') {
-    // Open upload modal
+    // Open file picker
     selectedDay.value = day;
-    selectedFile.value = null;
-    selectedDuration.value = 0;
-    isUploadModalOpen.value = true;
+    fileInputRef.value?.click();
   } else if (status === 'completed') {
     // Open playback modal
     await openPlaybackModal(day);
@@ -328,47 +275,63 @@ const handleDayClick = async (day: number) => {
 };
 
 /**
- * Handle video selection from VideoUpload component
+ * Validate video file
  */
-const handleVideoSelected = (file: File, duration: number) => {
-  selectedFile.value = file;
-  selectedDuration.value = duration;
+const validateVideoFile = (file: File): string | null => {
+  const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB
+  const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+  const ALLOWED_EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm'];
+
+  const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+  if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+    return 'Invalid file type. Please upload MP4, MOV, AVI, or WEBM files.';
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return `File size exceeds 1GB limit. Selected file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
+  }
+
+  return null;
 };
 
 /**
- * Handle upload confirmation
+ * Handle file selection from file input
  */
-const handleUploadConfirm = async () => {
-  if (!selectedFile.value || !selectedDay.value) return;
+const handleFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+
+  if (!file || !selectedDay.value) return;
 
   const day = selectedDay.value;
 
-  // Announce upload start (ARIA - Issue #58, Option B: Major transitions)
+  // Validate file
+  const validationError = validateVideoFile(file);
+  if (validationError) {
+    await showError(validationError, 4000);
+    target.value = ''; // Reset input
+    return;
+  }
+
+  // Announce upload start
   statusAnnouncement.value = `Day ${day} upload started`;
 
-  const result = await uploadVideo(day, selectedFile.value);
+  // Upload video
+  const result = await uploadVideo(day, file);
 
   if (result.success) {
-    // Announce processing (ARIA - Issue #58)
     statusAnnouncement.value = `Day ${day} processing`;
-
-    // Show success toast
     await showSuccess('Video uploaded successfully! Processing...', 3000);
-
-    // Close modal
-    closeUploadModal();
-
-    // Wait for processing to complete, then announce
     watchForCompletion(day);
-
   } else {
-    // Announce failure (ARIA - Issue #58)
     statusAnnouncement.value = `Day ${day} upload failed: ${result.error}`;
-
     await showError(result.error || 'Upload failed', 4000);
-
     emit('uploadError', day, result.error || 'Upload failed');
   }
+
+  // Reset input
+  target.value = '';
 };
 
 /**
@@ -417,23 +380,17 @@ const watchForCompletion = (day: number) => {
   }, 300000);
 };
 
-/**
- * Close upload modal
- */
-const closeUploadModal = () => {
-  isUploadModalOpen.value = false;
-  selectedDay.value = null;
-  selectedFile.value = null;
-  selectedDuration.value = 0;
-};
 
 /**
- * Handle playback video metadata loaded - ensures audio is enabled
+ * Handle playback video metadata loaded - ensures audio is enabled and auto-plays
  */
 const handlePlaybackVideoMetadata = (e: Event) => {
   const video = e.target as HTMLVideoElement;
   video.muted = false;
   video.volume = 1.0;
+  video.play().catch((error) => {
+    console.log('Autoplay prevented:', error);
+  });
 };
 
 /**
@@ -662,59 +619,13 @@ onUnmounted(() => {
   border-width: 0;
 }
 
-/* Upload Modal Content */
-.modal-content {
-  --padding-top: clamp(1rem, 3vw, 1.5rem);
-  --padding-bottom: clamp(1rem, 3vw, 1.5rem);
-  --padding-start: clamp(1rem, 3vw, 1.5rem);
-  --padding-end: clamp(1rem, 3vw, 1.5rem);
-}
-
-.upload-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(1rem, 3vw, 1.5rem);
-}
-
-/* Upload Progress Section */
-.upload-progress-section {
-  padding: clamp(1rem, 3vw, 1.5rem);
-  background: rgba(var(--ion-color-primary-rgb), 0.05);
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.2);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: clamp(0.5rem, 1.5vw, 0.75rem);
-}
-
-.progress-header {
-  display: flex;
-  align-items: center;
-  gap: clamp(0.5rem, 1.5vw, 0.75rem);
-}
-
-.progress-icon {
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  color: var(--ion-color-primary);
-}
-
-.progress-title {
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.progress-text {
-  font-size: clamp(0.85rem, 2vw, 0.9rem);
-  color: var(--color-text-secondary);
-  text-align: center;
-  margin: 0;
-}
-
-/* Upload Actions */
-.upload-actions {
-  padding-top: clamp(0.5rem, 1.5vw, 1rem);
+/* Hidden File Input */
+.hidden-file-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
 }
 
 /* Playback Modal Content (Issue #59) */
