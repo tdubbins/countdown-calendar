@@ -620,24 +620,24 @@ onUnmounted(() => {
 /* Day Grid - Intrinsic Responsive Design */
 .day-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(4rem, 15vw, 8rem), 1fr));
-  gap: clamp(0.5rem, 2vw, 1rem);
-  padding: clamp(0.5rem, 2vw, 1rem);
+  grid-template-columns: repeat(auto-fill, minmax(clamp(7rem, 22vw, 12rem), 1fr));
+  gap: clamp(0.75rem, 2.5vw, 1.5rem);
+  padding: clamp(0.75rem, 2.5vw, 1.5rem);
 }
 
 /* Container query for very small containers */
 @container (max-width: 20rem) {
   .day-grid {
-    grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+    gap: 0.75rem;
   }
 }
 
 /* Container query for medium containers */
 @container (min-width: 40rem) {
   .day-grid {
-    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+    gap: 1rem;
   }
 }
 

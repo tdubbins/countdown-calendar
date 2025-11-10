@@ -137,9 +137,9 @@ const handleClick = () => {
 .day-card {
   position: relative;
   aspect-ratio: 1; /* Square cards */
-  min-width: clamp(4rem, 15vw, 8rem);
-  min-height: clamp(4rem, 15vw, 8rem);
-  padding: clamp(0.5rem, 2vw, 0.75rem);
+  min-width: clamp(7rem, 22vw, 12rem);
+  min-height: clamp(7rem, 22vw, 12rem);
+  padding: clamp(0.75rem, 2.5vw, 1rem);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   border: 2px solid var(--color-border);
