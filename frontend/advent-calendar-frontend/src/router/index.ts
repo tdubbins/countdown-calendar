@@ -27,6 +27,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/dashboard/create-calendar',
     component: () => import('@/views/CalendarCreatePage.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/dashboard/calendar/:id',
+    component: () => import('@/views/CalendarDetailPage.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

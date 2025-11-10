@@ -44,12 +44,13 @@ import {
   IonContent,
   IonButtons,
   IonBackButton,
-  IonSpinner,
-  alertController
+  IonSpinner
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useCalendar } from '@/composables/useCalendar';
 import { useResponsive } from '@/composables/useResponsive';
+import { useToast } from '@/composables/useToast';
+import { useAlert } from '@/composables/useAlert';
 import CalendarForm from '@/components/CalendarForm.vue';
 import type { CalendarCreateData } from '@/types/calendar';
 
@@ -59,6 +60,8 @@ const route = useRoute();
 const { isAuthenticated, redirectToLogin } = useAuth();
 const { createCalendar } = useCalendar();
 const { isMobile } = useResponsive();
+const { showSuccess } = useToast();
+const { showError } = useAlert();
 
 // Reactive state
 const isLoading = ref(false);
@@ -75,66 +78,39 @@ const handleFormSubmit = async (formData: CalendarCreateData) => {
     const result = await createCalendar(formData);
     
     if (result.success && result.data) {
-      // Show success alert (NFR [U4]: Clear success feedback)
-      const alert = await alertController.create({
-        header: 'Success! 🎉',
-        message: `Your calendar "${result.data.title}" has been created successfully!`,
-        buttons: [
-          {
-            text: 'View Calendar',
-            handler: () => {
-              // TODO: Navigate to the specific calendar view
-              console.log('Navigate to calendar view for ID:', result.data?.id);
-              // Use setTimeout to ensure proper focus management
-              setTimeout(() => router.push('/dashboard'), 100);
-            }
-          },
-          {
-            text: 'Back to Dashboard',
-            handler: () => {
-              // Use setTimeout to ensure proper focus management
-              setTimeout(() => router.push('/dashboard'), 100);
-            }
-          }
-        ]
-      });
+      // Show success toast (NFR [U4]: Clear success feedback)
+      await showSuccess(`Calendar "${result.data.title}" created successfully!`);
 
-      await alert.present();
-      
+      // Auto-navigate to calendar detail page (day grid) for immediate editing
+      // Use router.replace() instead of router.push() to replace history entry
+      // This ensures back button goes to dashboard, not back to create page
+      console.log('Auto-navigating to calendar view for ID:', result.data.id);
+      setTimeout(() => router.replace(`/dashboard/calendar/${result.data.id}`), 100);
+
     } else {
       // Enhanced error handling with specific messaging for uniqueness errors
       const isUniquenessError = result.error?.toLowerCase().includes('already have a calendar named');
-      
-      const alert = await alertController.create({
-        header: isUniquenessError ? 'Calendar Name Already Used' : 'Creation Failed',
-        message: result.error || 'Sorry, we couldn\'t create your calendar. Please try again.',
-        buttons: [
-          {
-            text: isUniquenessError ? 'Choose Different Name' : 'Try Again',
-            role: 'cancel'
-          }
-        ]
-      });
-      
-      await alert.present();
+
+      await showError(
+        result.error || 'Sorry, we couldn\'t create your calendar. Please try again.',
+        {
+          header: isUniquenessError ? 'Calendar Name Already Used' : 'Creation Failed',
+          buttonText: isUniquenessError ? 'Choose Different Name' : 'Try Again'
+        }
+      );
     }
     
   } catch (error) {
     console.error('Failed to create calendar:', error);
-    
+
     // Show generic error alert (NFR [U4]: Clear error feedback)
-    const alert = await alertController.create({
-      header: 'Creation Failed',
-      message: 'Sorry, we couldn\'t create your calendar. Please check your connection and try again.',
-      buttons: [
-        {
-          text: 'Try Again',
-          role: 'cancel'
-        }
-      ]
-    });
-    
-    await alert.present();
+    await showError(
+      'Sorry, we couldn\'t create your calendar. Please check your connection and try again.',
+      {
+        header: 'Creation Failed',
+        buttonText: 'Try Again'
+      }
+    );
   } finally {
     isLoading.value = false;
   }

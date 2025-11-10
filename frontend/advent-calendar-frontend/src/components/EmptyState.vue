@@ -40,7 +40,7 @@ import type { EmptyStateProps } from '@/types/calendar';
 import ActionButton from '@/components/ActionButton.vue';
 
 // Props with defaults
-const props = withDefaults(defineProps<EmptyStateProps>(), {
+withDefaults(defineProps<EmptyStateProps>(), {
   description: undefined,
   actionText: undefined,
   onAction: undefined
