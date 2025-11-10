@@ -178,12 +178,13 @@ import {
   IonFab,
   IonFabButton,
   IonIcon,
-  IonSpinner,
-  alertController
+  IonSpinner
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useCalendar } from '@/composables/useCalendar';
 import { useResponsive } from '@/composables/useResponsive';
+import { useToast } from '@/composables/useToast';
+import { useAlert } from '@/composables/useAlert';
 import ActionButton from '@/components/ActionButton.vue';
 import CalendarCard from '@/components/CalendarCard.vue';
 import CalendarForm from '@/components/CalendarForm.vue';
@@ -196,6 +197,8 @@ const route = useRoute();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
 const { calendars, isLoading, hasCalendars, loadCalendars, getCalendar, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
+const { showSuccess } = useToast();
+const { showError } = useAlert();
 
 // Error state for dashboard
 const loadError = ref<string>('');
@@ -277,21 +280,11 @@ const handleEditCalendar = async (calendarId: string) => {
       selectedCalendar.value = result.data;
       isEditModalOpen.value = true;
     } else {
-      const alert = await alertController.create({
-        header: 'Error',
-        message: 'Failed to load calendar data',
-        buttons: ['OK']
-      });
-      await alert.present();
+      await showError('Failed to load calendar data');
     }
   } catch (error) {
     console.error('Failed to load calendar:', error);
-    const alert = await alertController.create({
-      header: 'Error',
-      message: 'An unexpected error occurred',
-      buttons: ['OK']
-    });
-    await alert.present();
+    await showError('An unexpected error occurred');
   }
 };
 
@@ -307,34 +300,19 @@ const handleEditSubmit = async (data: CalendarCreateData, calendarId?: string) =
     const result = await updateCalendar(calendarId, data);
 
     if (result.success) {
-      // Show success alert
-      const alert = await alertController.create({
-        header: 'Success',
-        message: 'Calendar updated successfully!',
-        buttons: ['OK']
-      });
-      await alert.present();
+      // Show success toast (consistent with calendar creation)
+      await showSuccess('Calendar updated successfully!');
 
       // Close modal and reload calendars
       closeEditModal();
       await loadUserCalendars();
     } else {
       // Show error alert
-      const alert = await alertController.create({
-        header: 'Error',
-        message: result.error || 'Failed to update calendar',
-        buttons: ['OK']
-      });
-      await alert.present();
+      await showError(result.error || 'Failed to update calendar');
     }
   } catch (error) {
     console.error('Failed to update calendar:', error);
-    const alert = await alertController.create({
-      header: 'Error',
-      message: 'An unexpected error occurred',
-      buttons: ['OK']
-    });
-    await alert.present();
+    await showError('An unexpected error occurred');
   } finally {
     isSubmitting.value = false;
   }

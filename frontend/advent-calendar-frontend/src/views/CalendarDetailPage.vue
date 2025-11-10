@@ -73,19 +73,20 @@ import {
   IonButtons,
   IonBackButton,
   IonIcon,
-  IonSpinner,
-  toastController
+  IonSpinner
 } from '@ionic/vue';
 import { alertCircleOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import { useCalendar } from '@/composables/useCalendar';
+import { useToast } from '@/composables/useToast';
 import type { Calendar } from '@/types/calendar';
 
 // Router
 const route = useRoute();
 
-// Composable
+// Composables
 const { getCalendar } = useCalendar();
+const { showSuccess, showError } = useToast();
 
 // State
 const calendarId = ref<string>(route.params.id as string);
@@ -122,13 +123,7 @@ const loadCalendarData = async () => {
 const handleUploadComplete = async (day: number) => {
   console.log(`Upload complete for day ${day}`);
 
-  const toast = await toastController.create({
-    message: `Day ${day} video uploaded successfully!`,
-    duration: 2000,
-    color: 'success',
-    position: 'top'
-  });
-  await toast.present();
+  await showSuccess(`Day ${day} video uploaded successfully!`);
 
   // Reload calendar to update video count
   await loadCalendarData();
@@ -140,13 +135,7 @@ const handleUploadComplete = async (day: number) => {
 const handleUploadError = async (day: number, error: string) => {
   console.error(`Upload error for day ${day}:`, error);
 
-  const toast = await toastController.create({
-    message: `Failed to upload day ${day}: ${error}`,
-    duration: 3000,
-    color: 'danger',
-    position: 'top'
-  });
-  await toast.present();
+  await showError(`Failed to upload day ${day}: ${error}`);
 };
 
 /**
@@ -155,13 +144,7 @@ const handleUploadError = async (day: number, error: string) => {
 const handleVideoDeleted = async (day: number) => {
   console.log(`Video deleted for day ${day}`);
 
-  const toast = await toastController.create({
-    message: `Day ${day} video deleted`,
-    duration: 2000,
-    color: 'success',
-    position: 'top'
-  });
-  await toast.present();
+  await showSuccess(`Day ${day} video deleted`);
 
   // Reload calendar to update video count
   await loadCalendarData();

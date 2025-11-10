@@ -129,6 +129,7 @@ import {
   closeCircleOutline,
   alertCircleOutline
 } from 'ionicons/icons';
+import { formatFileSize, formatDuration } from '@/utils/mediaUtils';
 
 // Constants for validation
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes (1024MB) - allows 1080p 60fps videos
@@ -169,22 +170,6 @@ const errorMessage = ref<string>('');
 const isValidFile = computed(() => {
   return selectedFile.value !== null && !errorMessage.value;
 });
-
-// Utility functions
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-};
-
-const formatDuration = (seconds: number): string => {
-  if (seconds === 0) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
 
 // Validation functions
 const validateFileType = (file: File): boolean => {
