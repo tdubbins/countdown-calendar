@@ -4,6 +4,7 @@
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
           <ion-back-button
+            color="light"
             default-href="/dashboard"
             text="Dashboard"
             aria-label="Back to dashboard"
@@ -157,6 +158,38 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Back Button Visibility - Ensure it's visible on both web and mobile */
+ion-back-button {
+  --color: var(--ion-color-light);
+  --icon-font-size: 1.5rem;
+  --min-width: 44px;
+  --min-height: 44px;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure back button is touch-friendly on mobile (NFR: U2) */
+ion-back-button::part(native) {
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Make back button text visible on web */
+@media (min-width: 768px) {
+  ion-back-button {
+    --icon-margin-end: 0.5rem;
+  }
+}
+
+/* Hide text on mobile, keep icon */
+@media (max-width: 767px) {
+  ion-back-button {
+    --icon-margin-end: 0;
+  }
+}
+
 .calendar-detail-container {
   max-width: 1200px;
   margin: 0 auto;
