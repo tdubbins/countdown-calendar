@@ -95,7 +95,6 @@ import FormField from '@/components/FormField.vue';
 import type { CalendarCreateData, Calendar } from '@/types/calendar';
 import {
   calculateDaysBetween,
-  formatCalendarSummary,
   validateDateRange,
   isDateInPast,
   CALENDAR_CONSTANTS
