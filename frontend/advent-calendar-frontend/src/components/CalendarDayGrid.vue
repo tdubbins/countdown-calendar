@@ -218,7 +218,6 @@ import VideoUpload from '@/components/VideoUpload.vue';
 import { useVideoManagement, type VideoMetadata } from '@/composables/useVideoManagement';
 import { useToast } from '@/composables/useToast';
 import { formatDuration, formatFileSizeMB } from '@/utils/mediaUtils';
-import API_CONFIG from '@/config/api';
 
 // Props
 interface Props {
@@ -237,7 +236,6 @@ const emit = defineEmits<{
 
 // Composable
 const {
-  dayStatuses,
   isLoading,
   uploadProgress,
   isUploading,

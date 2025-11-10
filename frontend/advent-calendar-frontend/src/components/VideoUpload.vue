@@ -266,12 +266,12 @@ const processFile = async (file: File) => {
 };
 
 // Event handlers
-const handleDragEnter = (e: DragEvent) => {
+const handleDragEnter = () => {
   if (props.disabled) return;
   isDragging.value = true;
 };
 
-const handleDragOver = (e: DragEvent) => {
+const handleDragOver = () => {
   if (props.disabled) return;
   isDragging.value = true;
 };

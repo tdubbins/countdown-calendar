@@ -173,10 +173,6 @@ const calculatedDuration = computed(() => {
   return calculateDaysBetween(formData.value.startDate, formData.value.endDate);
 });
 
-const formattedSummary = computed(() => {
-  return formatCalendarSummary(formData.value.startDate, formData.value.endDate);
-});
-
 const isFormValid = computed(() => {
   return formData.value.title.trim().length >= 3 &&
          formData.value.startDate &&
