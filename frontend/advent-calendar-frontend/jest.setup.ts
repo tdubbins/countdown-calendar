@@ -5,8 +5,8 @@
  * It sets up global mocks for browser APIs.
  */
 
-// No global type declarations needed - we'll use type assertions in tests
-// This file is kept for future setup needs
+// Initialize global fetch mock
+(global as any).fetch = jest.fn();
 
 // Export to make this a module
 export {};
