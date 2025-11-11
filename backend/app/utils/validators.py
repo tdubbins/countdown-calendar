@@ -4,8 +4,16 @@ import os
 import subprocess
 from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+# Valid door ordering options for calendar sharing
+VALID_DOOR_ORDERS = ['sequential', 'random']
 
 def validate_email_address(email: str) -> Tuple[bool, str, str]:
     """Validate email address format"""
@@ -50,19 +58,27 @@ def validate_passwords_match(password: str, confirm_password: str) -> Tuple[bool
         return False, "Passwords do not match"
     return True, ""
 
-def validate_calendar_title(title: str) -> Tuple[bool, str]:
-    """Validate calendar title meets requirements"""
+def validate_calendar_title(title: str) -> Tuple[bool, str, str]:
+    """
+    Validate calendar title meets requirements
+
+    Args:
+        title: Calendar title string
+
+    Returns:
+        Tuple of (is_valid, clean_title, error_message)
+    """
     if not title or not title.strip():
-        return False, "Title is required"
-    
+        return False, "", "Title is required"
+
     title = title.strip()
     if len(title) < 1:
-        return False, "Title cannot be empty"
-    
+        return False, "", "Title cannot be empty"
+
     if len(title) > 100:
-        return False, "Title must be 100 characters or less"
-    
-    return True, title
+        return False, "", "Title must be 100 characters or less"
+
+    return True, title, ""
 
 def validate_uniqueness_in_collection(
     collection: list, 
@@ -145,17 +161,144 @@ def validate_calendar_start_date(start_date: str) -> Tuple[bool, str, str]:
     """Validate start date format and value"""
     if not start_date or not start_date.strip():
         return False, "", "Start date is required"
-    
+
     # Validate ISO date format (YYYY-MM-DD)
     if not re.match(r'^\d{4}-\d{2}-\d{2}$', start_date.strip()):
         return False, "", "Start date must be in YYYY-MM-DD format"
-    
+
     try:
         # Validate date is parseable
         datetime.strptime(start_date.strip(), '%Y-%m-%d')
         return True, start_date.strip(), ""
     except ValueError:
         return False, "", "Invalid date provided"
+
+
+def validate_door_order(door_order: str) -> Tuple[bool, str, str]:
+    """
+    Validate door order is a valid option.
+
+    NFR Compliance:
+        - [S4] Input validation for enum values
+
+    Args:
+        door_order: Door ordering option ("sequential" or "random")
+
+    Returns:
+        Tuple of (is_valid, clean_door_order, error_message)
+    """
+    if not door_order or not door_order.strip():
+        return False, "", "Door order is required"
+
+    clean_door_order = door_order.strip().lower()
+
+    if clean_door_order not in VALID_DOOR_ORDERS:
+        return False, "", f"Invalid door order. Must be one of: {', '.join(VALID_DOOR_ORDERS)}"
+
+    return True, clean_door_order, ""
+
+
+def validate_timezone(timezone: str) -> Tuple[bool, str, str]:
+    """
+    Validate timezone is a valid IANA timezone identifier.
+
+    NFR Compliance:
+        - [S4] Input validation for timezone strings
+
+    Args:
+        timezone: IANA timezone identifier (e.g., "Europe/Berlin", "America/New_York")
+
+    Returns:
+        Tuple of (is_valid, clean_timezone, error_message)
+    """
+    if not timezone or not timezone.strip():
+        return False, "", "Timezone is required"
+
+    clean_timezone = timezone.strip()
+
+    # Validate against IANA timezone database
+    try:
+        # Try to create a ZoneInfo object - this will raise ZoneInfoNotFoundError if invalid
+        ZoneInfo(clean_timezone)
+        return True, clean_timezone, ""
+    except ZoneInfoNotFoundError:
+        return False, "", f"Invalid timezone '{clean_timezone}'. Must be a valid IANA timezone identifier (e.g., 'Europe/Berlin')"
+    except (KeyError, ValueError) as e:
+        # Handle edge cases like malformed timezone strings
+        return False, "", f"Invalid timezone format: {str(e)}"
+
+
+def validate_theme(theme: str) -> Tuple[bool, str, str]:
+    """
+    Validate theme is a non-empty string.
+
+    Note: For Phase 2, only "christmas" theme is used, but validation is lenient
+    to support future theme additions without code changes.
+
+    Args:
+        theme: Theme identifier string
+
+    Returns:
+        Tuple of (is_valid, clean_theme, error_message)
+    """
+    if not theme or not theme.strip():
+        return False, "", "Theme is required"
+
+    clean_theme = theme.strip().lower()
+
+    if len(clean_theme) < 1:
+        return False, "", "Theme cannot be empty"
+
+    if len(clean_theme) > 50:
+        return False, "", "Theme name must be 50 characters or less"
+
+    return True, clean_theme, ""
+
+
+def validate_door_positions(door_positions: Optional[List[int]], duration: int) -> Tuple[bool, Optional[List[int]], str]:
+    """
+    Validate door positions array for random door ordering.
+
+    NFR Compliance:
+        - [S4] Input validation for array structure and contents
+
+    Args:
+        door_positions: Array of shuffled door positions (1-indexed day numbers)
+        duration: Calendar duration (number of days)
+
+    Returns:
+        Tuple of (is_valid, clean_door_positions, error_message)
+
+    Examples:
+        >>> validate_door_positions([3, 1, 2], 3)
+        (True, [3, 1, 2], "")
+
+        >>> validate_door_positions([1, 1, 3], 3)
+        (False, None, "Door positions must contain each day number from 1 to duration exactly once")
+
+        >>> validate_door_positions([1, 2], 3)
+        (False, None, "Door positions array length (2) must match duration (3)")
+    """
+    # None is valid for sequential ordering
+    if door_positions is None:
+        return True, None, ""
+
+    # Validate type
+    if not isinstance(door_positions, list):
+        return False, None, "Door positions must be an array"
+
+    # Validate length matches duration
+    if len(door_positions) != duration:
+        return False, None, f"Door positions array length ({len(door_positions)}) must match duration ({duration})"
+
+    # Verify all positions are valid day numbers (1 to duration, no duplicates)
+    expected_positions = set(range(1, duration + 1))
+    actual_positions = set(door_positions)
+
+    if expected_positions != actual_positions:
+        return False, None, "Door positions must contain each day number from 1 to duration exactly once"
+
+    return True, door_positions, ""
 
 
 # ============================================================================

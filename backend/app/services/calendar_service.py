@@ -9,7 +9,11 @@ from app.utils.validators import (
     validate_calendar_title_uniqueness,
     validate_calendar_duration,
     validate_calendar_start_date,
-    validate_required_fields
+    validate_required_fields,
+    validate_door_order,
+    validate_timezone,
+    validate_theme,
+    validate_door_positions
 )
 from app.utils.storage import delete_calendar_files
 
@@ -26,11 +30,9 @@ def _validate_title_with_uniqueness(user_id: str, title: str, calendar_id: str =
         Tuple of (is_valid, clean_title, error_message)
     """
     # Validate title format first
-    title_valid, title_result = validate_calendar_title(title)
+    title_valid, clean_title, title_error = validate_calendar_title(title)
     if not title_valid:
-        return False, "", title_result
-    
-    clean_title = title_result
+        return False, "", title_error
     
     # Check title uniqueness for this user
     user_calendars_success, user_calendars_list, user_calendars_error = get_user_calendars(user_id)
@@ -45,10 +47,22 @@ def _validate_title_with_uniqueness(user_id: str, title: str, calendar_id: str =
     
     return True, clean_title_final, ""
 
-def create_calendar(user_id: str, title: str, start_date: str, duration: int) -> Tuple[bool, Dict[str, Any], str]:
+def create_calendar(user_id: str, title: str, start_date: str, duration: int,
+                   door_order: str = 'sequential', door_positions: list = None,
+                   theme: str = 'christmas', tz: str = 'Europe/Berlin') -> Tuple[bool, Dict[str, Any], str]:
     """
     Create a new calendar for the authenticated user
-    
+
+    Args:
+        user_id: The user ID creating the calendar
+        title: Calendar title
+        start_date: Calendar start date in YYYY-MM-DD format
+        duration: Calendar duration in days (1-31)
+        door_order: Door ordering ("sequential" or "random", default: "sequential")
+        door_positions: Array of shuffled door positions for random ordering (optional)
+        theme: Calendar theme identifier (default: "christmas")
+        tz: IANA timezone identifier (default: "Europe/Berlin")
+
     Returns:
         - success: bool
         - calendar_data: Dict with calendar info or empty dict
@@ -75,10 +89,33 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int) ->
         duration_valid, clean_duration, duration_error = validate_calendar_duration(duration)
         if not duration_valid:
             return False, {}, duration_error
-        
-        # Generate unique calendar ID and share token (NFR [S3]: Cryptographically secure)
+
+        # Validate door order (NFR [S4]: Input validation for enum values)
+        door_order_valid, clean_door_order, door_order_error = validate_door_order(door_order)
+        if not door_order_valid:
+            return False, {}, door_order_error
+
+        # Validate timezone (NFR [S4]: Input validation for timezone strings)
+        timezone_valid, clean_timezone, timezone_error = validate_timezone(tz)
+        if not timezone_valid:
+            return False, {}, timezone_error
+
+        # Validate theme
+        theme_valid, clean_theme, theme_error = validate_theme(theme)
+        if not theme_valid:
+            return False, {}, theme_error
+
+        # Validate door_positions (NFR [S4]: Input validation for array structure)
+        positions_valid, clean_door_positions, positions_error = validate_door_positions(door_positions, clean_duration)
+        if not positions_valid:
+            return False, {}, positions_error
+
+        # Generate unique calendar ID (NFR [S3]: Cryptographically secure)
         calendar_id = str(uuid.uuid4())
-        share_token = str(uuid.uuid4())
+
+        # Share token is null by default (lazy generation - privacy by default)
+        # Token will be generated when user clicks "Share" button (Issue #75)
+        share_token = None
         
         # Calculate end date and date range
         start_datetime = datetime.strptime(clean_start_date, '%Y-%m-%d')
@@ -86,7 +123,7 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int) ->
         end_date = end_datetime.strftime('%Y-%m-%d')
         date_range = f"{clean_start_date} to {end_date}"
         
-        # Create calendar object according to schema
+        # Create calendar object according to schema (NFR [SC3]: Modular architecture)
         now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         calendar_data = {
             'id': calendar_id,
@@ -97,12 +134,17 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int) ->
             'dateRange': date_range,
             'videoCount': 0,
             'status': 'draft',
-            'shareToken': share_token,
+            'shareToken': share_token,  # null by default (lazy generation)
             'createdAt': now,
             'updatedAt': now,
             'userId': user_id,
             'videoStorageUsed': 0,
-            'videos': {}
+            'videos': {},
+            # New fields for sharing feature (Issue #74)
+            'doorOrder': clean_door_order,        # "sequential" or "random"
+            'doorPositions': clean_door_positions, # array of integers or null
+            'theme': clean_theme,                  # theme identifier (e.g., "christmas")
+            'timezone': clean_timezone             # IANA timezone (e.g., "Europe/Berlin")
         }
         
         # Save to database (NFR [SC3]: Modular architecture)
@@ -172,23 +214,29 @@ def get_calendar_by_id(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str, 
         print(f"Get calendar by ID error: {str(e)}")
         return False, {}, "Internal server error retrieving calendar"
 
-def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None, 
-                   start_date: Optional[str] = None, duration: Optional[int] = None) -> Tuple[bool, Dict[str, Any], str]:
+def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
+                   start_date: Optional[str] = None, duration: Optional[int] = None,
+                   door_order: Optional[str] = None, door_positions: Optional[list] = None,
+                   theme: Optional[str] = None, tz: Optional[str] = None) -> Tuple[bool, Dict[str, Any], str]:
     """
     Update a specific calendar for the authenticated user
-    
+
     NFR Compliance:
         - [S4] Input Validation: All inputs validated using existing validation functions
         - [SC3] Modular Architecture: Service layer separation of concerns
         - [P3] Calendar Rendering: Optimized updates for <3 second response time
-    
+
     Args:
         calendar_id: str - The calendar ID to update
         user_id: str - The authenticated user ID
         title: Optional[str] - New calendar title
         start_date: Optional[str] - New start date in YYYY-MM-DD format
         duration: Optional[int] - New duration in days (1-31)
-    
+        door_order: Optional[str] - Door ordering ("sequential" or "random")
+        door_positions: Optional[list] - Array of shuffled door positions for random ordering
+        theme: Optional[str] - Calendar theme identifier
+        tz: Optional[str] - IANA timezone identifier
+
     Returns:
         - success: bool
         - calendar_data: Dict with updated calendar info or empty dict
@@ -223,7 +271,38 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
             if not duration_valid:
                 return False, {}, duration_error
             update_data['duration'] = clean_duration
-        
+
+        # Validate and process door order if provided (NFR [S4]: Input validation)
+        if door_order is not None:
+            door_order_valid, clean_door_order, door_order_error = validate_door_order(door_order)
+            if not door_order_valid:
+                return False, {}, door_order_error
+            update_data['doorOrder'] = clean_door_order
+
+        # Validate and process timezone if provided (NFR [S4]: Input validation)
+        if tz is not None:
+            timezone_valid, clean_timezone, timezone_error = validate_timezone(tz)
+            if not timezone_valid:
+                return False, {}, timezone_error
+            update_data['timezone'] = clean_timezone
+
+        # Validate and process theme if provided
+        if theme is not None:
+            theme_valid, clean_theme, theme_error = validate_theme(theme)
+            if not theme_valid:
+                return False, {}, theme_error
+            update_data['theme'] = clean_theme
+
+        # Validate and process door positions if provided (NFR [S4]: Input validation)
+        if door_positions is not None:
+            # Get the duration (either from update or existing calendar)
+            final_duration = update_data.get('duration', existing_calendar.get('duration'))
+
+            positions_valid, clean_door_positions, positions_error = validate_door_positions(door_positions, final_duration)
+            if not positions_valid:
+                return False, {}, positions_error
+            update_data['doorPositions'] = clean_door_positions
+
         # If no updates provided, return error
         if not update_data:
             return False, {}, "No valid update fields provided"
