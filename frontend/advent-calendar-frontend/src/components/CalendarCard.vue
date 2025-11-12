@@ -8,8 +8,11 @@
     role="button"
     :aria-label="`Open calendar ${calendar.title}. ${videoProgress}. Status: ${calendar.status}`"
   >
-    <!-- Three Dots Menu Button - positioned in top-right corner -->
+    <!-- Action Button - Top-right corner -->
+    <!-- Draft (not shared): Three dots menu with Edit + Delete -->
+    <!-- Active (shared): Only trash bin icon for delete -->
     <ion-button
+      v-if="!isShared"
       @click.stop="openContextMenu"
       ref="contextMenuTrigger"
       class="context-menu-button"
@@ -18,6 +21,18 @@
       :aria-label="`Options for ${calendar.title}`"
     >
       <ion-icon slot="icon-only" :icon="ellipsisVertical"></ion-icon>
+    </ion-button>
+
+    <!-- Shared calendars: Direct delete button (no edit option) -->
+    <ion-button
+      v-else
+      @click.stop="showDeleteConfirmation"
+      class="context-menu-button delete-button"
+      fill="clear"
+      size="small"
+      :aria-label="`Delete ${calendar.title}`"
+    >
+      <ion-icon slot="icon-only" :icon="trashOutline" color="danger"></ion-icon>
     </ion-button>
     
     <div class="calendar-header">
@@ -139,28 +154,42 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateMobileView);
 });
 
+// Check if calendar is shared (has shareToken) - shared calendars cannot be edited
+const isShared = computed(() => !!props.calendar.shareToken);
+
 // Context menu buttons configuration
-const contextMenuButtons = computed(() => [
-  {
-    text: 'Edit',
-    icon: pencilOutline,
-    handler: () => {
-      handleEdit();
-    }
-  },
-  {
+const contextMenuButtons = computed(() => {
+  const buttons = [];
+
+  // Only show Edit button if calendar is NOT shared
+  if (!isShared.value) {
+    buttons.push({
+      text: 'Edit',
+      icon: pencilOutline,
+      handler: () => {
+        handleEdit();
+      }
+    });
+  }
+
+  // Always show Delete button
+  buttons.push({
     text: 'Delete',
     icon: trashOutline,
     role: 'destructive',
     handler: () => {
       showDeleteConfirmation();
     }
-  },
-  {
+  });
+
+  // Always show Cancel button
+  buttons.push({
     text: 'Cancel',
     role: 'cancel'
-  }
-]);
+  });
+
+  return buttons;
+});
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -309,6 +338,16 @@ const handleDelete = async () => {
 
 .context-menu-button ion-icon {
   font-size: 1.5rem;
+}
+
+/* Delete button for shared/active calendars */
+.context-menu-button.delete-button {
+  color: var(--ion-color-danger);
+}
+
+.context-menu-button.delete-button:hover {
+  color: var(--ion-color-danger);
+  opacity: 0.8;
 }
 
 /* Popover Content Styling - Desktop only */

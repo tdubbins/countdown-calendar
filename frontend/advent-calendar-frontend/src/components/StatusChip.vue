@@ -63,9 +63,9 @@ const displayText = computed(() => {
 }
 
 .status-chip--active {
-  background-color: rgba(var(--ion-color-primary-rgb), 0.1);
-  color: var(--ion-color-primary-shade);
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.2);
+  background-color: rgba(var(--ion-color-success-rgb), 0.1);
+  color: var(--ion-color-success-shade);
+  border: 1px solid rgba(var(--ion-color-success-rgb), 0.2);
 }
 
 .status-chip--completed {
@@ -95,8 +95,8 @@ const displayText = computed(() => {
   }
   
   .status-chip--active {
-    background-color: rgba(var(--ion-color-primary-rgb), 0.2);
-    color: var(--ion-color-primary-tint);
+    background-color: rgba(var(--ion-color-success-rgb), 0.2);
+    color: var(--ion-color-success-tint);
   }
   
   .status-chip--completed {
@@ -119,9 +119,9 @@ const displayText = computed(() => {
   }
   
   .status-chip--active {
-    background-color: var(--ion-color-primary);
+    background-color: var(--ion-color-success);
     color: white;
-    border-color: var(--ion-color-primary-shade);
+    border-color: var(--ion-color-success-shade);
   }
   
   .status-chip--completed {

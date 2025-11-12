@@ -107,7 +107,8 @@ export const useCalendar = () => {
           title: calendarData.title,
           dateRange: calendarData.dateRange,
           videoCount: calendarData.videoCount,
-          status: calendarData.status
+          status: calendarData.status,
+          shareToken: calendarData.shareToken
         };
         
         calendars.value.unshift(newCalendarSummary); // Add to beginning of list
@@ -147,7 +148,8 @@ export const useCalendar = () => {
           title: calendar.title,
           dateRange: calendar.dateRange,
           videoCount: calendar.videoCount,
-          status: calendar.status
+          status: calendar.status,
+          shareToken: calendar.shareToken  // Include shareToken to determine if calendar is shared/locked
         }));
         
         calendars.value = calendarSummaries;
@@ -218,7 +220,8 @@ export const useCalendar = () => {
             title: result.data.calendar.title,
             dateRange: result.data.calendar.dateRange,
             videoCount: result.data.calendar.videoCount,
-            status: result.data.calendar.status
+            status: result.data.calendar.status,
+            shareToken: result.data.calendar.shareToken
           };
         }
         

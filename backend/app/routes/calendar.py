@@ -535,12 +535,21 @@ def list_videos(calendar_id):
 
         # Get videos from calendar data
         videos_dict = calendar_data.get('videos', {})
+        calendar_duration = calendar_data.get('duration', 31)
 
         # Convert to list format with metadata
+        # BUG FIX: Only include videos within current calendar duration
+        # When duration is reduced (e.g., 5 days → 4 days), exclude videos beyond new duration
         videos_list = []
         for day_str, video_info in videos_dict.items():
+            day_number = int(day_str)
+
+            # Skip videos that exceed current calendar duration
+            if day_number > calendar_duration:
+                continue
+
             video_metadata = {
-                'day': int(day_str),
+                'day': day_number,
                 'filename': video_info.get('filename'),
                 'thumbnail': video_info.get('thumbnail'),
                 'size': video_info.get('size', 0),

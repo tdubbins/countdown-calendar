@@ -38,19 +38,35 @@
           <div class="calendar-header-card">
             <h1 class="calendar-title">{{ calendar.title }}</h1>
 
-            <!-- Info Chips -->
+            <!-- Info Chips - Clickable to edit (before sharing only) -->
             <div class="info-chips">
-              <ion-chip color="primary" outline>
+              <ion-chip
+                color="primary"
+                outline
+                :class="calendar.shareToken ? 'info-chip-readonly' : 'info-chip-clickable'"
+                @click="!calendar.shareToken && openEditModal()"
+                :aria-label="calendar.shareToken ? 'Calendar dates: ' + dateRangeFormatted : 'Edit calendar dates: ' + dateRangeFormatted"
+              >
                 <ion-icon :icon="calendarOutline" aria-hidden="true"></ion-icon>
-                <ion-label>{{ formatEuropeanDate(calendar.startDate) }}</ion-label>
+                <ion-label>{{ dateRangeFormatted }}</ion-label>
               </ion-chip>
 
-              <ion-chip color="secondary" outline>
+              <ion-chip
+                color="secondary"
+                outline
+                :class="calendar.shareToken ? 'info-chip-readonly' : 'info-chip-clickable'"
+                @click="!calendar.shareToken && openEditModal()"
+                :aria-label="calendar.shareToken ? 'Calendar duration: ' + calendar.duration + ' days' : 'Edit calendar duration: ' + calendar.duration + ' days'"
+              >
                 <ion-icon :icon="timeOutline" aria-hidden="true"></ion-icon>
                 <ion-label>{{ calendar.duration }} {{ calendar.duration === 1 ? 'day' : 'days' }}</ion-label>
               </ion-chip>
 
-              <ion-chip :color="isCalendarComplete ? 'success' : 'medium'" outline>
+              <ion-chip
+                :color="isCalendarComplete ? 'success' : 'medium'"
+                outline
+                class="info-chip-readonly"
+              >
                 <ion-icon :icon="videocamOutline" aria-hidden="true"></ion-icon>
                 <ion-label>{{ calendar.videoCount }}/{{ calendar.duration }}</ion-label>
               </ion-chip>
@@ -65,17 +81,20 @@
               @update="handleDoorOrderUpdate"
             />
 
-            <!-- Share Button - Minimal -->
-            <ion-button
+            <!-- Share Button - Using ActionButton component -->
+            <ActionButton
               expand="block"
               :disabled="!isCalendarComplete"
               @click="handleShareButtonClick"
-              class="share-button"
+              :class="{ 'share-button--ready': isCalendarComplete }"
               :aria-label="isCalendarComplete ? 'Share calendar' : 'Complete all videos to enable sharing'"
+              :fill="isCalendarComplete ? 'solid' : 'outline'"
+              :color="isCalendarComplete ? 'success' : 'medium'"
+              :icon="shareSocialOutline"
+              icon-slot="start"
             >
-              <ion-icon slot="start" :icon="shareSocialOutline"></ion-icon>
               {{ isCalendarComplete ? 'Share Calendar' : 'Upload all videos to share' }}
-            </ion-button>
+            </ActionButton>
           </div>
 
           <!-- Day Grid Component (Issue #57, #58, #59) -->
@@ -103,6 +122,29 @@
       @close="shareModal.close()"
       @token-generated="handleTokenGeneration"
     />
+
+    <!-- Edit Calendar Modal - Same pattern as Dashboard -->
+    <ion-modal :is-open="editModal.isOpen.value" @didDismiss="editModal.close()">
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>Edit Calendar</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="editModal.close()" color="light">
+              <strong>Close</strong>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="modal-content">
+        <CalendarForm
+          v-if="calendar"
+          :calendar="calendar"
+          :is-submitting="isSubmittingEdit"
+          @submit="handleEditSubmit"
+          @cancel="editModal.close()"
+        />
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -119,17 +161,21 @@ import {
   IonButtons,
   IonBackButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  IonChip,
+  IonLabel,
+  IonModal
 } from '@ionic/vue';
-import { alertCircleOutline, shareSocialOutline, calendarOutline, timeOutline, videocamOutline } from 'ionicons/icons';
-import { IonChip } from '@ionic/vue';
+import { alertCircleOutline, shareSocialOutline, calendarOutline, timeOutline, videocamOutline, closeOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import ShareModal from '@/components/ShareModal.vue';
 import DoorOrderToggle from '@/components/DoorOrderToggle.vue';
+import ActionButton from '@/components/ActionButton.vue';
+import CalendarForm from '@/components/CalendarForm.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import { useModal } from '@/composables/useModal';
 import { useToast } from '@/composables/useToast';
-import type { Calendar, DoorOrder } from '@/types/calendar';
+import type { Calendar, DoorOrder, CalendarCreateData } from '@/types/calendar';
 
 // Router
 const route = useRoute();
@@ -138,12 +184,14 @@ const route = useRoute();
 const { getCalendar, updateCalendar, generateShareToken } = useCalendar();
 const { showSuccess, showError } = useToast();
 const shareModal = useModal();
+const editModal = useModal();
 
 // State
 const calendarId = ref<string>(route.params.id as string);
 const calendar = ref<Calendar | null>(null);
 const isLoading = ref(true);
 const loadError = ref<string>('');
+const isSubmittingEdit = ref(false);
 
 // Share Modal Reference (Issue #78)
 const shareModalRef = ref<InstanceType<typeof ShareModal> | null>(null);
@@ -161,6 +209,18 @@ const formatEuropeanDate = (dateString: string): string => {
   const year = date.getFullYear();
   return `${day}.${month}.${year}`;
 };
+
+/**
+ * Computed: Format date range with European format
+ * Uses backend-provided startDate and endDate, formats to DD.MM.YYYY - DD.MM.YYYY
+ * @returns Formatted date range string
+ */
+const dateRangeFormatted = computed(() => {
+  if (!calendar.value) return '';
+  const startFormatted = formatEuropeanDate(calendar.value.startDate);
+  const endFormatted = formatEuropeanDate(calendar.value.endDate);
+  return `${startFormatted} - ${endFormatted}`;
+});
 
 /**
  * Computed: Check if calendar is complete (all videos uploaded)
@@ -303,6 +363,42 @@ const handleTokenGeneration = async () => {
     if (shareModalRef.value) {
       shareModalRef.value.setGenerationError();
     }
+  }
+};
+
+/**
+ * Open edit calendar modal
+ */
+const openEditModal = () => {
+  editModal.open();
+};
+
+/**
+ * Handle edit form submission
+ * Same pattern as Dashboard
+ */
+const handleEditSubmit = async (data: CalendarCreateData) => {
+  try {
+    isSubmittingEdit.value = true;
+
+    const result = await updateCalendar(calendarId.value, data);
+
+    if (result.success) {
+      // Show success toast
+      await showSuccess('Calendar updated successfully!');
+
+      // Close modal and reload calendar data
+      editModal.close();
+      await loadCalendarData();
+    } else {
+      // Show error toast
+      await showError(result.error || 'Failed to update calendar');
+    }
+  } catch (error) {
+    console.error('Failed to update calendar:', error);
+    await showError('An unexpected error occurred');
+  } finally {
+    isSubmittingEdit.value = false;
   }
 };
 
@@ -458,14 +554,56 @@ ion-back-button::part(native) {
   margin-bottom: var(--spacing-md);
 }
 
-/* Share Button - Minimal */
-.share-button {
-  --min-height: 44px; /* NFR [U2]: Touch-friendly */
-  margin-top: var(--spacing-sm);
+/* Clickable info chips - date and duration */
+.info-chip-clickable {
+  cursor: pointer !important;
+  transition: all 0.2s ease;
 }
 
-.share-button--disabled ion-icon {
-  opacity: 0.8;
+.info-chip-clickable:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.info-chip-clickable:active {
+  transform: translateY(0);
+}
+
+/* Read-only chip - video count (non-interactive) */
+.info-chip-readonly {
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* Edit modal content */
+.modal-content {
+  --padding-top: var(--spacing-md);
+  --padding-bottom: var(--spacing-md);
+  --padding-start: var(--spacing-md);
+  --padding-end: var(--spacing-md);
+}
+
+/* Share Button - Extends ActionButton with ready state animation */
+.share-button--ready {
+  animation: pulse-glow 2s ease-in-out infinite;
+  margin-top: var(--spacing-md);
+}
+
+/* Pulse glow animation for ready state */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(var(--ion-color-success-rgb), 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(var(--ion-color-success-rgb), 0.5);
+  }
+}
+
+/* Remove animation on mobile to conserve battery */
+@media (prefers-reduced-motion: reduce) {
+  .share-button--ready {
+    animation: none;
+  }
 }
 
 /* Day Grid Section */

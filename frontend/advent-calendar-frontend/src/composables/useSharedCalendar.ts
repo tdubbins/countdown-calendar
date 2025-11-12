@@ -3,22 +3,22 @@ import { API_ENDPOINTS } from '@/config/api';
 
 // Shared Calendar Types
 export interface SharedCalendarDay {
-  day_number: number;
-  is_unlocked: boolean;
-  video_path?: string;
-  thumbnail_path?: string;
+  dayNumber: number;
+  isUnlocked: boolean;
+  videoPath?: string;
+  thumbnailPath?: string;
 }
 
 export interface SharedCalendar {
   id: string;
   title: string;
-  start_date: string;
+  startDate: string;
   duration: number;
   description?: string; // Optional calendar description/message
   theme: string;
   timezone: string;
-  door_order: 'sequential' | 'random';
-  door_positions?: number[];
+  doorOrder: 'sequential' | 'random';
+  doorPositions?: number[];
   days: SharedCalendarDay[];
 }
 
@@ -111,8 +111,8 @@ export function useSharedCalendar() {
     if (!calendar.value) return [];
 
     // Issue #81: Check if random ordering is enabled with shuffled positions
-    if (calendar.value.door_order === 'random' && calendar.value.door_positions) {
-      return calendar.value.door_positions;
+    if (calendar.value.doorOrder === 'random' && calendar.value.doorPositions) {
+      return calendar.value.doorPositions;
     }
 
     // Default: Sequential order 1, 2, 3, ..., duration

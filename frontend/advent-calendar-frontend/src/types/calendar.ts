@@ -32,6 +32,7 @@ export interface CalendarSummary {
   dateRange: string;
   videoCount: number;
   status: string;
+  shareToken?: string;  // Added to determine if calendar is shared/locked
 }
 
 export interface CalendarCreateData {

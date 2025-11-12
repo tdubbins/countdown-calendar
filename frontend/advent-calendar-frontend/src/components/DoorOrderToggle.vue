@@ -1,29 +1,29 @@
 <template>
   <div class="door-order-toggle">
-    <!-- Compact Label -->
-    <label class="toggle-label">
-      Door Order
-      <ion-chip v-if="isLocked" color="warning" class="lock-chip">
+    <!-- Unlocked: Interactive segment control -->
+    <template v-if="!isLocked">
+      <ion-segment
+        :value="localDoorOrder"
+        @ionChange="handleOrderChange"
+      >
+        <ion-segment-button value="sequential">
+          <ion-label>Sequential</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="random">
+          <ion-label>Random</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </template>
+
+    <!-- Locked: Read-only display with lock indicator -->
+    <template v-else>
+      <ion-chip color="warning" outline class="locked-chip">
         <ion-icon :icon="lockClosedOutline" aria-hidden="true"></ion-icon>
-        <ion-label>Locked</ion-label>
+        <ion-label>
+          Door Order: {{ localDoorOrder === 'sequential' ? 'Sequential' : 'Random' }} (locked after sharing)
+        </ion-label>
       </ion-chip>
-    </label>
-
-    <!-- Minimal Segment -->
-    <ion-segment
-      :value="localDoorOrder"
-      @ionChange="handleOrderChange"
-      :disabled="isLocked"
-      mode="md"
-    >
-      <ion-segment-button value="sequential">
-        <ion-label>Sequential</ion-label>
-      </ion-segment-button>
-
-      <ion-segment-button value="random">
-        <ion-label>Random</ion-label>
-      </ion-segment-button>
-    </ion-segment>
+    </template>
   </div>
 </template>
 
@@ -154,35 +154,27 @@ const handleShuffleAgain = () => {
 </script>
 
 <style scoped>
-/* Minimal container */
+/* Container */
 .door-order-toggle {
   margin-bottom: var(--spacing-md);
 }
 
-/* Label with inline lock chip */
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-xs);
-}
-
-.lock-chip {
-  font-size: var(--font-size-xs);
-  height: 24px;
-}
-
-/* Minimal segment styling */
+/* Ionic Segment Styling (Unlocked state) */
 ion-segment {
-  min-height: 36px; /* NFR [U2]: Touch-friendly */
+  min-height: 40px; /* NFR [U2]: Touch-friendly */
+  max-width: 300px;
 }
 
-/* Disabled state (NFR [U5]: Accessibility) */
-ion-segment[disabled] {
-  opacity: 0.5;
-  pointer-events: none;
+/* Segment buttons - ensure touch-friendly size */
+ion-segment-button {
+  min-height: 40px; /* NFR [U2]: Touch-friendly */
+  font-size: var(--font-size-base);
+}
+
+/* Locked chip - single chip with all info (non-interactive) */
+.locked-chip {
+  cursor: default !important;
+  pointer-events: none !important; /* Disable all hover/click effects */
+  font-size: var(--font-size-sm);
 }
 </style>
