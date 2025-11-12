@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { API_ENDPOINTS } from '@/config/api';
-import type { Calendar, CalendarSummary, CalendarCreateData, CalendarCreateResponse, CalendarListResponse, CalendarGetResponse, CalendarUpdateResponse } from '@/types/calendar';
+import type { Calendar, CalendarSummary, CalendarCreateData, CalendarUpdateData, CalendarCreateResponse, CalendarListResponse, CalendarGetResponse, CalendarUpdateResponse } from '@/types/calendar';
 
 // Global calendar state
 const calendars = ref<CalendarSummary[]>([]);
@@ -107,7 +107,8 @@ export const useCalendar = () => {
           title: calendarData.title,
           dateRange: calendarData.dateRange,
           videoCount: calendarData.videoCount,
-          status: calendarData.status
+          status: calendarData.status,
+          shareToken: calendarData.shareToken
         };
         
         calendars.value.unshift(newCalendarSummary); // Add to beginning of list
@@ -147,7 +148,8 @@ export const useCalendar = () => {
           title: calendar.title,
           dateRange: calendar.dateRange,
           videoCount: calendar.videoCount,
-          status: calendar.status
+          status: calendar.status,
+          shareToken: calendar.shareToken  // Include shareToken to determine if calendar is shared/locked
         }));
         
         calendars.value = calendarSummaries;
@@ -199,8 +201,8 @@ export const useCalendar = () => {
     }
   };
   
-  // Update a calendar
-  const updateCalendar = async (calendarId: string, updateData: Partial<CalendarCreateData>): Promise<ApiResponse<Calendar>> => {
+  // Update a calendar (Issue #81: Now accepts door ordering fields)
+  const updateCalendar = async (calendarId: string, updateData: CalendarUpdateData): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
     try {
@@ -218,7 +220,8 @@ export const useCalendar = () => {
             title: result.data.calendar.title,
             dateRange: result.data.calendar.dateRange,
             videoCount: result.data.calendar.videoCount,
-            status: result.data.calendar.status
+            status: result.data.calendar.status,
+            shareToken: result.data.calendar.shareToken
           };
         }
         

@@ -90,17 +90,33 @@ export function useSharedCalendar() {
   };
 
   /**
-   * Get the display order of days based on doorOrder setting
+   * Get the display order of days based on door_order setting (Issue #81)
+   *
+   * This function determines how doors appear to viewers in the shared calendar:
+   * - Random: Returns shuffled door_positions array (e.g., [15, 3, 24, 1, ...])
+   * - Sequential: Returns ordered array [1, 2, 3, ..., duration]
+   *
+   * The display order is set by the calendar creator via DoorOrderToggle component
+   * and locked after sharing to ensure consistent viewer experience.
+   *
    * @returns Array of day numbers in display order
+   *
+   * @example
+   * // Sequential order (default)
+   * getDoorDisplayOrder() // [1, 2, 3, 4, ..., 24]
+   *
+   * // Random order (shuffled by creator)
+   * getDoorDisplayOrder() // [15, 3, 24, 1, 7, ...] (based on door_positions)
    */
   const getDoorDisplayOrder = (): number[] => {
     if (!calendar.value) return [];
 
+    // Issue #81: Check if random ordering is enabled with shuffled positions
     if (calendar.value.doorOrder === 'random' && calendar.value.doorPositions) {
       return calendar.value.doorPositions;
     }
 
-    // Sequential: 1, 2, 3, ..., duration
+    // Default: Sequential order 1, 2, 3, ..., duration
     return Array.from({ length: calendar.value.duration }, (_, i) => i + 1);
   };
 

@@ -1,11 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-
-// Breakpoint constants
-export const BREAKPOINTS = {
-  MOBILE: 768,
-  TABLET: 1024,
-  DESKTOP: 1200
-} as const;
+import { BREAKPOINTS } from '@/utils/constants';
 
 // Screen size type
 export type ScreenSize = 'mobile' | 'tablet' | 'desktop';

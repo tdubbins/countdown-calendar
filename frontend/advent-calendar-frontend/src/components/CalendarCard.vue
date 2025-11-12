@@ -8,8 +8,11 @@
     role="button"
     :aria-label="`Open calendar ${calendar.title}. ${videoProgress}. Status: ${calendar.status}`"
   >
-    <!-- Three Dots Menu Button - positioned in top-right corner -->
+    <!-- Action Button - Top-right corner -->
+    <!-- Draft (not shared): Three dots menu with Edit + Delete -->
+    <!-- Active (shared): Only trash bin icon for delete -->
     <ion-button
+      v-if="!isShared"
       @click.stop="openContextMenu"
       ref="contextMenuTrigger"
       class="context-menu-button"
@@ -18,6 +21,18 @@
       :aria-label="`Options for ${calendar.title}`"
     >
       <ion-icon slot="icon-only" :icon="ellipsisVertical"></ion-icon>
+    </ion-button>
+
+    <!-- Shared calendars: Direct delete button (no edit option) -->
+    <ion-button
+      v-else
+      @click.stop="showDeleteConfirmation"
+      class="context-menu-button delete-button"
+      fill="clear"
+      size="small"
+      :aria-label="`Delete ${calendar.title}`"
+    >
+      <ion-icon slot="icon-only" :icon="trashOutline" color="danger"></ion-icon>
     </ion-button>
     
     <div class="calendar-header">
@@ -36,37 +51,14 @@
     </div>
   </div>
 
-  <!-- Context Menu - Mobile: Action Sheet, Desktop: Popover -->
-  <!-- Mobile Action Sheet (< 768px) -->
-  <ion-action-sheet
-    v-if="isMobileView"
+  <!-- Context Menu - Using reusable ContextMenu component -->
+  <ContextMenu
     :is-open="isContextMenuOpen"
+    :trigger-event="popoverEvent"
+    :items="contextMenuItems"
     :header="`${calendar.title} Options`"
-    :buttons="contextMenuButtons"
-    @didDismiss="closeContextMenu"
-  ></ion-action-sheet>
-
-  <!-- Desktop Popover (>= 768px) -->
-  <ion-popover
-    v-else
-    :is-open="isContextMenuOpen"
-    :event="popoverEvent"
-    :dismiss-on-select="true"
-    @didDismiss="closeContextMenu"
-  >
-    <ion-content class="popover-content">
-      <ion-list lines="none">
-        <ion-item button @click="handleEdit" detail="false">
-          <ion-icon :icon="pencilOutline" slot="start" color="primary"></ion-icon>
-          <ion-label>Edit</ion-label>
-        </ion-item>
-        <ion-item button @click="showDeleteConfirmation" detail="false" class="delete-item">
-          <ion-icon :icon="trashOutline" slot="start" color="danger"></ion-icon>
-          <ion-label color="danger">Delete</ion-label>
-        </ion-item>
-      </ion-list>
-    </ion-content>
-  </ion-popover>
+    @dismiss="closeContextMenu"
+  />
 
   <!-- Delete Confirmation Dialog -->
   <ion-alert
@@ -96,11 +88,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { IonAlert, IonActionSheet, IonPopover, IonButton, IonIcon, IonContent, IonList, IonItem, IonLabel } from '@ionic/vue';
+import { computed, ref } from 'vue';
+import { IonAlert, IonButton, IonIcon } from '@ionic/vue';
 import { ellipsisVertical, pencilOutline, trashOutline } from 'ionicons/icons';
 import StatusChip from '@/components/StatusChip.vue';
+import ContextMenu, { type ContextMenuItem } from '@/components/ContextMenu.vue';
 import { useCalendar } from '@/composables/useCalendar';
+import { useAlert } from '@/composables/useAlert';
 import type { CalendarCardProps } from '@/types/calendar';
 
 // Props
@@ -115,6 +109,7 @@ const emit = defineEmits<{
 
 // Composables
 const { deleteCalendar } = useCalendar();
+const { showError } = useAlert();
 
 // Reactive state for context menu and delete functionality
 const isContextMenuOpen = ref(false);
@@ -123,44 +118,40 @@ const isDeleting = ref(false);
 const popoverEvent = ref<Event | undefined>(undefined);
 const contextMenuTrigger = ref<HTMLElement | null>(null);
 
-// Responsive detection for mobile vs desktop
-const isMobileView = ref(window.innerWidth < 768);
+// Check if calendar is shared (has shareToken) - shared calendars cannot be edited
+const isShared = computed(() => !!props.calendar.shareToken);
 
-// Update mobile view on window resize
-const updateMobileView = () => {
-  isMobileView.value = window.innerWidth < 768;
-};
+// Context menu items configuration (for ContextMenu component)
+const contextMenuItems = computed<ContextMenuItem[]>(() => {
+  const items: ContextMenuItem[] = [];
 
-onMounted(() => {
-  window.addEventListener('resize', updateMobileView);
-});
+  // Only show Edit button if calendar is NOT shared
+  if (!isShared.value) {
+    items.push({
+      text: 'Edit',
+      icon: pencilOutline,
+      handler: handleEdit
+    });
+  }
 
-onUnmounted(() => {
-  window.removeEventListener('resize', updateMobileView);
-});
-
-// Context menu buttons configuration
-const contextMenuButtons = computed(() => [
-  {
-    text: 'Edit',
-    icon: pencilOutline,
-    handler: () => {
-      handleEdit();
-    }
-  },
-  {
+  // Always show Delete button
+  items.push({
     text: 'Delete',
     icon: trashOutline,
     role: 'destructive',
-    handler: () => {
-      showDeleteConfirmation();
-    }
-  },
-  {
+    handler: showDeleteConfirmation
+  });
+
+  // Always show Cancel button
+  items.push({
     text: 'Cancel',
-    role: 'cancel'
-  }
-]);
+    role: 'cancel',
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    handler: () => {} // No-op, ContextMenu will just dismiss
+  });
+
+  return items;
+});
 
 // Computed properties for professional data display
 const videoProgress = computed(() => {
@@ -220,22 +211,14 @@ const handleClick = () => {
 // Context menu functionality
 const openContextMenu = (event: Event) => {
   event.stopPropagation(); // Prevent card click
-
-  // For desktop popover, we need the event to position it
-  if (!isMobileView.value) {
-    popoverEvent.value = event;
-  }
+  popoverEvent.value = event; // Store event for popover positioning
   isContextMenuOpen.value = true;
 };
 
 // Close context menu with proper cleanup
 const closeContextMenu = () => {
   isContextMenuOpen.value = false;
-
-  // Clear event reference to prevent memory leaks and popover errors
-  if (!isMobileView.value) {
-    popoverEvent.value = undefined;
-  }
+  popoverEvent.value = undefined; // Clear event reference to prevent memory leaks
 };
 
 const handleEdit = () => {
@@ -253,20 +236,23 @@ const handleDelete = async () => {
   try {
     isDeleteDialogOpen.value = false;
     isDeleting.value = true;
-    
+
     const result = await deleteCalendar(props.calendar.id);
-    
+
     if (result.success) {
       // Emit delete event so parent can handle any additional logic
       emit('delete', props.calendar.id);
     } else {
-      // Show error message - could be improved with a toast notification
-      console.error('Delete failed:', result.error);
-      alert(`Failed to delete calendar: ${result.error}`);
+      // Show error using consistent useAlert composable
+      await showError(result.error || 'Failed to delete calendar', {
+        header: 'Delete Failed'
+      });
     }
   } catch (error) {
     console.error('Delete error:', error);
-    alert('An unexpected error occurred while deleting the calendar');
+    await showError('An unexpected error occurred while deleting the calendar', {
+      header: 'Delete Failed'
+    });
   } finally {
     isDeleting.value = false;
   }
@@ -311,6 +297,17 @@ const handleDelete = async () => {
   font-size: 1.5rem;
 }
 
+<<<<<<< HEAD
+/* Delete button for shared/active calendars */
+.context-menu-button.delete-button {
+  color: var(--ion-color-danger);
+}
+
+.context-menu-button.delete-button:hover {
+  color: var(--ion-color-danger);
+  opacity: 0.8;
+}
+
 /* Popover Content Styling - Desktop only */
 .popover-content {
   --padding-top: 0;
@@ -350,6 +347,8 @@ const handleDelete = async () => {
   font-weight: var(--font-weight-medium);
 }
 
+=======
+>>>>>>> 38f30de (Refactor: Extract ContextMenu component and improve code reusability)
 /* Hover and focus states following theme patterns */
 .calendar-card:hover {
   transform: translateY(-2px);
@@ -475,29 +474,6 @@ const handleDelete = async () => {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-</style>
-
-<style>
-/* Mobile Action Sheet Improvements - Global styles (not scoped) */
-/* Better spacing and visual hierarchy for touch-friendly interaction */
-ion-action-sheet.action-sheet-destructive {
-  --button-background-selected: rgba(var(--ion-color-danger-rgb), 0.1);
-}
-
-/* Increase spacing between action buttons for better touch targets */
-ion-action-sheet button[role="destructive"] {
-  margin-top: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  padding-top: 16px !important;
-  padding-bottom: 16px !important;
-}
-
-/* Dark mode support for action sheet divider */
-@media (prefers-color-scheme: dark) {
-  ion-action-sheet button[role="destructive"] {
-    border-top-color: rgba(255, 255, 255, 0.1);
   }
 }
 </style>

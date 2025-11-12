@@ -34,27 +34,67 @@
 
         <!-- Calendar Content -->
         <div v-else-if="calendar" class="calendar-content">
-          <!-- Calendar Info -->
-          <div class="calendar-info">
-            <h2>{{ calendar.title }}</h2>
-            <p class="date-range">{{ calendar.dateRange }}</p>
-            <p class="duration">{{ calendar.duration }} days</p>
-            <p class="video-count">
-              Videos: {{ calendar.videoCount }} / {{ calendar.duration }}
-            </p>
+          <!-- Calendar Info Header -->
+          <div class="calendar-header-card">
+            <h1 class="calendar-title">{{ calendar.title }}</h1>
 
-            <!-- Share Calendar Button (Issue #78) -->
-            <ion-button
+            <!-- Info Chips - Clickable to edit (before sharing only) -->
+            <div class="info-chips">
+              <ion-chip
+                color="primary"
+                outline
+                :class="calendar.shareToken ? 'info-chip-readonly' : 'info-chip-clickable'"
+                @click="!calendar.shareToken && openEditModal()"
+                :aria-label="calendar.shareToken ? 'Calendar dates: ' + dateRangeFormatted : 'Edit calendar dates: ' + dateRangeFormatted"
+              >
+                <ion-icon :icon="calendarOutline" aria-hidden="true"></ion-icon>
+                <ion-label>{{ dateRangeFormatted }}</ion-label>
+              </ion-chip>
+
+              <ion-chip
+                color="secondary"
+                outline
+                :class="calendar.shareToken ? 'info-chip-readonly' : 'info-chip-clickable'"
+                @click="!calendar.shareToken && openEditModal()"
+                :aria-label="calendar.shareToken ? 'Calendar duration: ' + calendar.duration + ' days' : 'Edit calendar duration: ' + calendar.duration + ' days'"
+              >
+                <ion-icon :icon="timeOutline" aria-hidden="true"></ion-icon>
+                <ion-label>{{ calendar.duration }} {{ calendar.duration === 1 ? 'day' : 'days' }}</ion-label>
+              </ion-chip>
+
+              <ion-chip
+                :color="isCalendarComplete ? 'success' : 'medium'"
+                outline
+                class="info-chip-readonly"
+              >
+                <ion-icon :icon="videocamOutline" aria-hidden="true"></ion-icon>
+                <ion-label>{{ calendar.videoCount }}/{{ calendar.duration }}</ion-label>
+              </ion-chip>
+            </div>
+
+            <!-- Door Ordering Toggle (Issue #81) -->
+            <DoorOrderToggle
+              :door-order="calendar.doorOrder"
+              :door-positions="calendar.doorPositions"
+              :duration="calendar.duration"
+              :is-locked="!!calendar.shareToken"
+              @update="handleDoorOrderUpdate"
+            />
+
+            <!-- Share Button - Using ActionButton component -->
+            <ActionButton
               expand="block"
-              :color="isCalendarComplete ? 'primary' : 'medium'"
+              :disabled="!isCalendarComplete"
               @click="handleShareButtonClick"
-              class="share-button"
-              :class="{ 'share-button--disabled': !isCalendarComplete }"
+              :class="{ 'share-button--ready': isCalendarComplete }"
               :aria-label="isCalendarComplete ? 'Share calendar' : 'Complete all videos to enable sharing'"
+              :fill="isCalendarComplete ? 'solid' : 'outline'"
+              :color="isCalendarComplete ? 'success' : 'medium'"
+              :icon="shareSocialOutline"
+              icon-slot="start"
             >
-              <ion-icon slot="start" :icon="shareSocialOutline"></ion-icon>
-              Share Calendar
-            </ion-button>
+              {{ isCalendarComplete ? 'Share Calendar' : 'Upload all videos to share' }}
+            </ActionButton>
           </div>
 
           <!-- Day Grid Component (Issue #57, #58, #59) -->
@@ -82,6 +122,29 @@
       @close="shareModal.close()"
       @token-generated="handleTokenGeneration"
     />
+
+    <!-- Edit Calendar Modal - Same pattern as Dashboard -->
+    <ion-modal :is-open="editModal.isOpen.value" @didDismiss="editModal.close()">
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>Edit Calendar</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="editModal.close()" color="light">
+              <strong>Close</strong>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="modal-content">
+        <CalendarForm
+          v-if="calendar"
+          :calendar="calendar"
+          :is-submitting="isSubmittingEdit"
+          @submit="handleEditSubmit"
+          @cancel="editModal.close()"
+        />
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -98,32 +161,66 @@ import {
   IonButtons,
   IonBackButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  IonChip,
+  IonLabel,
+  IonModal
 } from '@ionic/vue';
-import { alertCircleOutline, shareSocialOutline } from 'ionicons/icons';
+import { alertCircleOutline, shareSocialOutline, calendarOutline, timeOutline, videocamOutline, closeOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import ShareModal from '@/components/ShareModal.vue';
+import DoorOrderToggle from '@/components/DoorOrderToggle.vue';
+import ActionButton from '@/components/ActionButton.vue';
+import CalendarForm from '@/components/CalendarForm.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import { useModal } from '@/composables/useModal';
 import { useToast } from '@/composables/useToast';
-import type { Calendar } from '@/types/calendar';
+import type { Calendar, DoorOrder, CalendarCreateData } from '@/types/calendar';
 
 // Router
 const route = useRoute();
 
 // Composables
-const { getCalendar, generateShareToken } = useCalendar();
+const { getCalendar, updateCalendar, generateShareToken } = useCalendar();
 const { showSuccess, showError } = useToast();
 const shareModal = useModal();
+const editModal = useModal();
 
 // State
 const calendarId = ref<string>(route.params.id as string);
 const calendar = ref<Calendar | null>(null);
 const isLoading = ref(true);
 const loadError = ref<string>('');
+const isSubmittingEdit = ref(false);
 
 // Share Modal Reference (Issue #78)
 const shareModalRef = ref<InstanceType<typeof ShareModal> | null>(null);
+
+/**
+ * Format date to European format (DD.MM.YYYY)
+ * @param dateString ISO date string (YYYY-MM-DD)
+ * @returns Formatted date string
+ */
+const formatEuropeanDate = (dateString: string): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+};
+
+/**
+ * Computed: Format date range with European format
+ * Uses backend-provided startDate and endDate, formats to DD.MM.YYYY - DD.MM.YYYY
+ * @returns Formatted date range string
+ */
+const dateRangeFormatted = computed(() => {
+  if (!calendar.value) return '';
+  const startFormatted = formatEuropeanDate(calendar.value.startDate);
+  const endFormatted = formatEuropeanDate(calendar.value.endDate);
+  return `${startFormatted} - ${endFormatted}`;
+});
 
 /**
  * Computed: Check if calendar is complete (all videos uploaded)
@@ -269,6 +366,85 @@ const handleTokenGeneration = async () => {
   }
 };
 
+/**
+ * Open edit calendar modal
+ */
+const openEditModal = () => {
+  editModal.open();
+};
+
+/**
+ * Handle edit form submission
+ * Same pattern as Dashboard
+ */
+const handleEditSubmit = async (data: CalendarCreateData) => {
+  try {
+    isSubmittingEdit.value = true;
+
+    const result = await updateCalendar(calendarId.value, data);
+
+    if (result.success) {
+      // Show success toast
+      await showSuccess('Calendar updated successfully!');
+
+      // Close modal and reload calendar data
+      editModal.close();
+      await loadCalendarData();
+    } else {
+      // Show error toast
+      await showError(result.error || 'Failed to update calendar');
+    }
+  } catch (error) {
+    console.error('Failed to update calendar:', error);
+    await showError('An unexpected error occurred');
+  } finally {
+    isSubmittingEdit.value = false;
+  }
+};
+
+/**
+ * Handle door order update (Issue #81)
+ * Called when user changes door ordering settings via DoorOrderToggle component
+ * Updates calendar's doorOrder and doorPositions fields
+ *
+ * @param data Object containing doorOrder and doorPositions
+ */
+const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions: number[] | null }) => {
+  if (!calendar.value) return;
+
+  try {
+    console.log('Updating door order:', data);
+
+    // Call API to update calendar with new door ordering
+    const result = await updateCalendar(calendarId.value, {
+      doorOrder: data.doorOrder,
+      doorPositions: data.doorPositions
+    });
+
+    if (result.success && result.data) {
+      // Update local calendar state with new values
+      calendar.value.doorOrder = result.data.doorOrder;
+      calendar.value.doorPositions = result.data.doorPositions;
+
+      // Show success feedback
+      await showSuccess(
+        data.doorOrder === 'sequential'
+          ? 'Door ordering set to sequential'
+          : 'Door ordering shuffled successfully'
+      );
+
+      console.log('Door order updated successfully:', result.data);
+    } else {
+      // Show error feedback
+      await showError(result.error || 'Failed to update door ordering');
+      console.error('Door order update failed:', result.error);
+    }
+  } catch (error) {
+    console.error('Failed to update door ordering:', error);
+    await showError('An unexpected error occurred while updating door ordering');
+  }
+};
+
 // Lifecycle
 onMounted(async () => {
   await loadCalendarData();
@@ -357,58 +533,77 @@ ion-back-button::part(native) {
 }
 
 /* Calendar Info */
-.calendar-info {
-  margin-bottom: clamp(1.5rem, 4vw, 2rem);
-  padding: clamp(1rem, 3vw, 1.5rem);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+/* Calendar Header Card - Minimal Design */
+.calendar-header-card {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
-.calendar-info h2 {
+.calendar-title {
   font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-  margin: 0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
-.date-range,
-.duration,
-.video-count {
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  color: var(--color-text-secondary);
-  margin: clamp(0.25rem, 1vw, 0.5rem) 0;
+/* Info Chips - Horizontal Layout */
+.info-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
 }
 
-.video-count {
-  font-weight: var(--font-weight-semibold);
-  color: var(--ion-color-primary);
+/* Clickable info chips - date and duration */
+.info-chip-clickable {
+  cursor: pointer !important;
+  transition: all 0.2s ease;
 }
 
-/* Share Button (Issue #78) - Touch-friendly (NFR: U2) */
-.share-button {
-  --min-height: 48px;
-  margin-top: clamp(1rem, 2vw, 1.5rem);
-  font-weight: var(--font-weight-semibold);
+.info-chip-clickable:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
 }
 
-.share-button ion-icon {
-  font-size: 1.25rem;
+.info-chip-clickable:active {
+  transform: translateY(0);
 }
 
-/* Share button - dynamic color based on completion state */
-.share-button {
-  transition: all 0.3s ease;
+/* Read-only chip - video count (non-interactive) */
+.info-chip-readonly {
+  cursor: default !important;
+  pointer-events: none !important;
 }
 
-/* Visual disabled state - less prominent when incomplete */
-.share-button--disabled {
-  opacity: 0.7;
-  cursor: pointer; /* Still clickable to show toast */
+/* Edit modal content */
+.modal-content {
+  --padding-top: var(--spacing-md);
+  --padding-bottom: var(--spacing-md);
+  --padding-start: var(--spacing-md);
+  --padding-end: var(--spacing-md);
 }
 
-.share-button--disabled ion-icon {
-  opacity: 0.8;
+/* Share Button - Extends ActionButton with ready state animation */
+.share-button--ready {
+  animation: pulse-glow 2s ease-in-out infinite;
+  margin-top: var(--spacing-md);
+}
+
+/* Pulse glow animation for ready state */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(var(--ion-color-success-rgb), 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(var(--ion-color-success-rgb), 0.5);
+  }
+}
+
+/* Remove animation on mobile to conserve battery */
+@media (prefers-reduced-motion: reduce) {
+  .share-button--ready {
+    animation: none;
+  }
 }
 
 /* Day Grid Section */

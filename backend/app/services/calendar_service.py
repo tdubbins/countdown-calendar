@@ -247,7 +247,12 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
         calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
         if not calendar_exists:
             return False, {}, error_msg
-        
+
+        # Prevent editing if calendar is already shared (status is "active")
+        # Once a calendar is shared, it should be immutable to ensure viewers have consistent experience
+        if existing_calendar.get('shareToken'):
+            return False, {}, "Cannot edit calendar after it has been shared. Calendar is locked."
+
         # Prepare update data - only include provided fields
         update_data = {}
         
@@ -429,9 +434,11 @@ def generate_share_token(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str
         # UUID v4 uses random generation (128-bit, very low collision probability)
         new_token = str(uuid.uuid4())
 
-        # Update calendar with new share token
+        # Update calendar with new share token and change status from "draft" to "active"
+        # Status change: Once shared, calendar becomes "active" and should be locked from editing
         update_data = {
             'shareToken': new_token,
+            'status': 'active',  # Change from "draft" to "active" when sharing
             'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         }
 
