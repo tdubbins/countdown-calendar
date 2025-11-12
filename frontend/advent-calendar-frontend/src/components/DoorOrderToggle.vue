@@ -9,55 +9,34 @@
       </ion-chip>
     </label>
 
-    <!-- Chip-based Selection -->
-    <div class="chip-group" role="radiogroup" aria-label="Door order selection">
-      <!-- Sequential Chip -->
-      <ion-chip
-        :color="localDoorOrder === 'sequential' ? 'primary' : 'medium'"
-        :outline="localDoorOrder !== 'sequential'"
-        :disabled="isLocked"
-        @click="selectOrder('sequential')"
-        class="order-chip"
-        role="radio"
-        :aria-checked="localDoorOrder === 'sequential'"
-        :aria-label="isLocked ? 'Sequential order (locked)' : 'Sequential order - doors appear in order 1, 2, 3'"
-        tabindex="0"
-        @keydown.enter="selectOrder('sequential')"
-        @keydown.space.prevent="selectOrder('sequential')"
-      >
-        <ion-icon :icon="listOutline" aria-hidden="true"></ion-icon>
+    <!-- Minimal Segment -->
+    <ion-segment
+      :value="localDoorOrder"
+      @ionChange="handleOrderChange"
+      :disabled="isLocked"
+      mode="md"
+    >
+      <ion-segment-button value="sequential">
         <ion-label>Sequential</ion-label>
-      </ion-chip>
+      </ion-segment-button>
 
-      <!-- Random Chip -->
-      <ion-chip
-        :color="localDoorOrder === 'random' ? 'primary' : 'medium'"
-        :outline="localDoorOrder !== 'random'"
-        :disabled="isLocked"
-        @click="selectOrder('random')"
-        class="order-chip"
-        role="radio"
-        :aria-checked="localDoorOrder === 'random'"
-        :aria-label="isLocked ? 'Random order (locked)' : 'Random order - doors appear shuffled'"
-        tabindex="0"
-        @keydown.enter="selectOrder('random')"
-        @keydown.space.prevent="selectOrder('random')"
-      >
-        <ion-icon :icon="shuffleOutline" aria-hidden="true"></ion-icon>
+      <ion-segment-button value="random">
         <ion-label>Random</ion-label>
-      </ion-chip>
-    </div>
+      </ion-segment-button>
+    </ion-segment>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import {
+  IonSegment,
+  IonSegmentButton,
   IonChip,
   IonLabel,
   IonIcon
 } from '@ionic/vue';
-import { listOutline, shuffleOutline, lockClosedOutline } from 'ionicons/icons';
+import { lockClosedOutline } from 'ionicons/icons';
 import { generateShuffledPositions } from '@/utils/shuffle';
 import type { DoorOrder } from '@/types/calendar';
 
@@ -121,17 +100,16 @@ watch(() => props.doorPositions, (newPositions) => {
 });
 
 /**
- * Handle door order selection (chip click)
+ * Handle door order change (segment selection)
  *
  * When user selects sequential: Clear door positions
  * When user selects random: Generate new shuffled positions
  */
-const selectOrder = (order: DoorOrder) => {
-  if (props.isLocked || localDoorOrder.value === order) return;
+const handleOrderChange = (event: CustomEvent) => {
+  const newOrder = event.detail.value as DoorOrder;
+  localDoorOrder.value = newOrder;
 
-  localDoorOrder.value = order;
-
-  if (order === 'sequential') {
+  if (newOrder === 'sequential') {
     // Sequential: No positions array needed
     localDoorPositions.value = null;
     emit('update', { doorOrder: 'sequential', doorPositions: null });
@@ -197,50 +175,14 @@ const handleShuffleAgain = () => {
   height: 24px;
 }
 
-/* Chip group - horizontal layout */
-.chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  align-items: center;
-}
-
-/* Order chips - clickable selection */
-.order-chip {
-  cursor: pointer;
-  transition: transform 0.2s ease;
+/* Minimal segment styling */
+ion-segment {
   min-height: 36px; /* NFR [U2]: Touch-friendly */
 }
 
-.order-chip:not([disabled]):hover {
-  transform: scale(1.05);
-}
-
-.order-chip:not([disabled]):active {
-  transform: scale(0.98);
-}
-
 /* Disabled state (NFR [U5]: Accessibility) */
-ion-chip[disabled] {
+ion-segment[disabled] {
   opacity: 0.5;
   pointer-events: none;
-  cursor: not-allowed;
-}
-
-/* Focus indicators for keyboard navigation (NFR [U5]) */
-.order-chip:focus {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-}
-
-/* Responsive - ensure chips don't get too small */
-@media (max-width: 480px) {
-  .chip-group {
-    gap: var(--spacing-xxs, 4px);
-  }
-
-  ion-chip {
-    font-size: var(--font-size-xs);
-  }
 }
 </style>
