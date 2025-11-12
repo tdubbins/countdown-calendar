@@ -190,8 +190,8 @@ const emit = defineEmits<{
 // Composable
 const {
   isLoading,
-  uploadProgress,
-  isUploading,
+  // uploadProgress, // Reserved for future use
+  // isUploading, // Reserved for future use
   initializeDayStatuses,
   loadVideoStatuses,
   stopPolling,

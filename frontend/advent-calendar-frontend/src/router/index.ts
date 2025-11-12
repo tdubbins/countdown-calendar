@@ -32,6 +32,12 @@ const routes: Array<RouteRecordRaw> = [
     path: '/dashboard/calendar/:id',
     component: () => import('@/views/CalendarDetailPage.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/shared/:token',
+    name: 'SharedCalendar',
+    component: () => import('@/views/SharedCalendarPage.vue'),
+    meta: { requiresAuth: false }
   }
 ]
 

@@ -196,12 +196,14 @@ const handleVideoDeleted = async (day: number) => {
  * Auto-generates share token on first share for streamlined UX
  */
 const handleShareButtonClick = async () => {
-  if (!isCalendarComplete.value) {
+  if (!isCalendarComplete.value || !calendar.value) {
     // Show informative toast explaining requirement
-    const missingCount = calendar.value!.duration - calendar.value!.videoCount;
-    showError(
-      `Upload all videos first. ${missingCount} video${missingCount !== 1 ? 's' : ''} remaining.`
-    );
+    if (calendar.value) {
+      const missingCount = calendar.value.duration - calendar.value.videoCount;
+      showError(
+        `Upload all videos first. ${missingCount} video${missingCount !== 1 ? 's' : ''} remaining.`
+      );
+    }
     return;
   }
 
