@@ -7,18 +7,19 @@ export interface SharedCalendarDay {
   isUnlocked: boolean;
   videoPath?: string;
   thumbnailPath?: string;
+  thumbnailUrl?: string | null;
 }
 
 export interface SharedCalendar {
-  id: string;
+  id?: string;
   title: string;
-  startDate: string;
+  startDate?: string;
   duration: number;
   description?: string; // Optional calendar description/message
   theme: string;
-  timezone: string;
+  timezone?: string;
   doorOrder: 'sequential' | 'random';
-  doorPositions?: number[];
+  doorPositions?: number[] | null;
   days: SharedCalendarDay[];
 }
 

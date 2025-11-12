@@ -29,18 +29,15 @@
 
         <!-- Door Grid -->
         <div class="door-grid" role="grid" aria-label="Calendar days grid">
-          <div
+          <DoorCard
             v-for="dayNumber in doorDisplayOrder"
             :key="dayNumber"
-            class="door-card"
+            :day="getDayData(dayNumber)"
+            :start-date="calendar?.startDate"
+            :is-day-opened="isDayOpened"
+            @door-click="handleDoorClick"
             role="gridcell"
-            :aria-label="`Day ${dayNumber}`"
-          >
-            <div class="door-number">{{ dayNumber }}</div>
-            <div class="door-placeholder">
-              <ion-icon :icon="giftOutline" class="door-icon" aria-hidden="true"></ion-icon>
-            </div>
-          </div>
+          />
         </div>
       </div>
     </ion-content>
@@ -51,18 +48,66 @@
 import { onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { IonPage, IonContent, IonSpinner, IonIcon } from '@ionic/vue';
-import { alertCircleOutline, giftOutline } from 'ionicons/icons';
-import { useSharedCalendar } from '@/composables/useSharedCalendar';
+import { alertCircleOutline } from 'ionicons/icons';
+import { useSharedCalendar, SharedCalendarDay } from '@/composables/useSharedCalendar';
+import { useOpenedTracking } from '@/composables/useOpenedTracking';
+import DoorCard from '@/components/sharing/DoorCard.vue';
 
 const route = useRoute();
 const { calendar, loading, error, fetchSharedCalendar, getDoorDisplayOrder } = useSharedCalendar();
 
+// Get share token from route
+const shareToken = computed(() => route.params.token as string);
+
+// Initialize opened tracking with share token
+const { isDayOpened, markDayAsOpened } = useOpenedTracking(shareToken.value);
+
 // Computed: Door display order based on sequential or random
 const doorDisplayOrder = computed(() => getDoorDisplayOrder());
 
+/**
+ * Get day data for a specific day number
+ * @param dayNumber - The day number to retrieve
+ * @returns SharedCalendarDay object
+ */
+const getDayData = (dayNumber: number): SharedCalendarDay => {
+  if (!calendar.value) {
+    // Return a default locked day if calendar not loaded
+    return {
+      dayNumber: dayNumber,
+      isUnlocked: false
+    };
+  }
+
+  // Find the day in the calendar's days array
+  const day = calendar.value.days.find(d => d.dayNumber === dayNumber);
+
+  if (!day) {
+    // If day not found, return a default locked day
+    return {
+      dayNumber: dayNumber,
+      isUnlocked: false
+    };
+  }
+
+  return day;
+};
+
+/**
+ * Handle door click event
+ * @param dayNumber - The day number that was clicked
+ */
+const handleDoorClick = (dayNumber: number) => {
+  // Mark day as opened in LocalStorage
+  markDayAsOpened(dayNumber);
+
+  // TODO (Issue #85): Open video modal with day's video
+  console.log(`Door ${dayNumber} clicked - video modal will be implemented in Issue #85`);
+};
+
 // Lifecycle: Fetch shared calendar on mount
 onMounted(async () => {
-  const token = route.params.token as string;
+  const token = shareToken.value;
   if (token) {
     await fetchSharedCalendar(token);
   } else {
@@ -202,90 +247,13 @@ onMounted(async () => {
   }
 }
 
-/* Door Card - Basic placeholder for Issue #79 */
-.door-card {
-  position: relative;
-  aspect-ratio: 1;
-  min-height: 9rem;
-  background: var(--color-surface);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-md);
-  transition: transform var(--transition-base);
-
-  /* NFR [U2]: Touch-friendly minimum size */
-  min-width: 44px;
-  min-height: 44px;
-}
-
-/* Door Number */
-.door-number {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  font-size: clamp(0.85rem, 2.5vw, 1rem);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.9);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  z-index: 2;
-}
-
-@media (prefers-color-scheme: dark) {
-  .door-number {
-    background: rgba(0, 0, 0, 0.7);
-  }
-}
-
-/* Door Placeholder Content */
-.door-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-
-.door-icon {
-  font-size: clamp(2rem, 6vw, 3rem);
-  color: var(--ion-color-medium);
-  opacity: 0.4;
-}
+/* Door cards are now handled by DoorCard.vue component */
 
 /* Accessibility - NFR [U5]: Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-  .door-card,
   .loading-spinner {
     animation: none;
     transition: none;
-  }
-}
-
-/* High contrast mode - NFR [U5] */
-@media (prefers-contrast: high) {
-  .door-card {
-    border-width: 3px;
-  }
-
-  .door-number {
-    font-weight: var(--font-weight-black);
-  }
-}
-
-/* Container queries for very small screens */
-@container (max-width: 20rem) {
-  .door-number {
-    font-size: 0.75rem;
-    padding: 0.15rem 0.35rem;
-  }
-
-  .door-icon {
-    font-size: 1.5rem;
   }
 }
 </style>
