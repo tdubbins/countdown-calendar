@@ -34,14 +34,27 @@
 
         <!-- Calendar Content -->
         <div v-else-if="calendar" class="calendar-content">
-          <!-- Calendar Info -->
-          <div class="calendar-info">
-            <h2>{{ calendar.title }}</h2>
-            <p class="date-range">{{ calendar.dateRange }}</p>
-            <p class="duration">{{ calendar.duration }} days</p>
-            <p class="video-count">
-              Videos: {{ calendar.videoCount }} / {{ calendar.duration }}
-            </p>
+          <!-- Calendar Info Header -->
+          <div class="calendar-header-card">
+            <h1 class="calendar-title">{{ calendar.title }}</h1>
+
+            <!-- Info Chips -->
+            <div class="info-chips">
+              <ion-chip color="primary" outline>
+                <ion-icon :icon="calendarOutline" aria-hidden="true"></ion-icon>
+                <ion-label>{{ formatEuropeanDate(calendar.startDate) }}</ion-label>
+              </ion-chip>
+
+              <ion-chip color="secondary" outline>
+                <ion-icon :icon="timeOutline" aria-hidden="true"></ion-icon>
+                <ion-label>{{ calendar.duration }} {{ calendar.duration === 1 ? 'day' : 'days' }}</ion-label>
+              </ion-chip>
+
+              <ion-chip :color="isCalendarComplete ? 'success' : 'medium'" outline>
+                <ion-icon :icon="videocamOutline" aria-hidden="true"></ion-icon>
+                <ion-label>{{ calendar.videoCount }}/{{ calendar.duration }}</ion-label>
+              </ion-chip>
+            </div>
 
             <!-- Door Ordering Toggle (Issue #81) -->
             <DoorOrderToggle
@@ -52,17 +65,16 @@
               @update="handleDoorOrderUpdate"
             />
 
-            <!-- Share Calendar Button (Issue #78) -->
+            <!-- Share Button - Minimal -->
             <ion-button
               expand="block"
-              :color="isCalendarComplete ? 'primary' : 'medium'"
+              :disabled="!isCalendarComplete"
               @click="handleShareButtonClick"
               class="share-button"
-              :class="{ 'share-button--disabled': !isCalendarComplete }"
               :aria-label="isCalendarComplete ? 'Share calendar' : 'Complete all videos to enable sharing'"
             >
               <ion-icon slot="start" :icon="shareSocialOutline"></ion-icon>
-              Share Calendar
+              {{ isCalendarComplete ? 'Share Calendar' : 'Upload all videos to share' }}
             </ion-button>
           </div>
 
@@ -109,7 +121,8 @@ import {
   IonIcon,
   IonSpinner
 } from '@ionic/vue';
-import { alertCircleOutline, shareSocialOutline } from 'ionicons/icons';
+import { alertCircleOutline, shareSocialOutline, calendarOutline, timeOutline, videocamOutline } from 'ionicons/icons';
+import { IonChip } from '@ionic/vue';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import ShareModal from '@/components/ShareModal.vue';
 import DoorOrderToggle from '@/components/DoorOrderToggle.vue';
@@ -134,6 +147,20 @@ const loadError = ref<string>('');
 
 // Share Modal Reference (Issue #78)
 const shareModalRef = ref<InstanceType<typeof ShareModal> | null>(null);
+
+/**
+ * Format date to European format (DD.MM.YYYY)
+ * @param dateString ISO date string (YYYY-MM-DD)
+ * @returns Formatted date string
+ */
+const formatEuropeanDate = (dateString: string): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+};
 
 /**
  * Computed: Check if calendar is complete (all videos uploaded)
@@ -410,54 +437,31 @@ ion-back-button::part(native) {
 }
 
 /* Calendar Info */
-.calendar-info {
-  margin-bottom: clamp(1.5rem, 4vw, 2rem);
-  padding: clamp(1rem, 3vw, 1.5rem);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+/* Calendar Header Card - Minimal Design */
+.calendar-header-card {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
-.calendar-info h2 {
+.calendar-title {
   font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-  margin: 0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
-.date-range,
-.duration,
-.video-count {
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  color: var(--color-text-secondary);
-  margin: clamp(0.25rem, 1vw, 0.5rem) 0;
+/* Info Chips - Horizontal Layout */
+.info-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
 }
 
-.video-count {
-  font-weight: var(--font-weight-semibold);
-  color: var(--ion-color-primary);
-}
-
-/* Share Button (Issue #78) - Touch-friendly (NFR: U2) */
+/* Share Button - Minimal */
 .share-button {
-  --min-height: 48px;
-  margin-top: clamp(1rem, 2vw, 1.5rem);
-  font-weight: var(--font-weight-semibold);
-}
-
-.share-button ion-icon {
-  font-size: 1.25rem;
-}
-
-/* Share button - dynamic color based on completion state */
-.share-button {
-  transition: all 0.3s ease;
-}
-
-/* Visual disabled state - less prominent when incomplete */
-.share-button--disabled {
-  opacity: 0.7;
-  cursor: pointer; /* Still clickable to show toast */
+  --min-height: 44px; /* NFR [U2]: Touch-friendly */
+  margin-top: var(--spacing-sm);
 }
 
 .share-button--disabled ion-icon {
