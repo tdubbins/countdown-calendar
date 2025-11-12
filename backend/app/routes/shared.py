@@ -3,23 +3,25 @@
 Public API endpoints for viewing shared calendars without authentication.
 
 These endpoints enable public access to calendars via their unique share tokens.
-No authentication is required, but endpoints will have rate limiting added in Issue #77.
+No authentication is required. Rate limiting protects against abuse.
 
 NFR Compliance:
     - [S4] Input Validation: All inputs validated before processing
+    - [S4] Rate Limiting: IP-based rate limiting prevents abuse (20-30 req/min)
     - [SC3] RESTful API Design: Follows REST conventions for public resources
     - [P3] Performance: Optimized for <3 second calendar rendering
     - Privacy: Does not expose user information or sensitive data
 
 Endpoints:
-    - GET /api/shared/<share_token> - Get calendar data with unlock status
-    - GET /api/shared/<share_token>/day/<day_number> - Get day's video (if unlocked)
-    - GET /api/shared/<share_token>/day/<day_number>/thumbnail - Get day's thumbnail
-    - GET /api/shared/<share_token>/day/<day_number>/stream - Stream video file
+    - GET /api/shared/<share_token> - Get calendar data with unlock status (20/min)
+    - GET /api/shared/<share_token>/day/<day_number> - Get day's video (30/min)
+    - GET /api/shared/<share_token>/day/<day_number>/thumbnail - Get day's thumbnail (30/min)
+    - GET /api/shared/<share_token>/day/<day_number>/stream - Stream video file (30/min)
 """
 
 from flask import Blueprint, request, jsonify, send_file
 
+from app import limiter  # Import global limiter instance
 from app.services.calendar_service import get_calendar_by_share_token, get_shared_calendar_data
 from app.utils.unlock_logic import is_day_unlocked
 from app.utils.storage import get_video_path, get_thumbnail_path
@@ -28,6 +30,7 @@ shared_bp = Blueprint('shared', __name__)
 
 
 @shared_bp.route('/shared/<share_token>', methods=['GET'])
+@limiter.limit("20 per minute")
 def get_shared_calendar(share_token):
     """
     Get shared calendar data with unlock status for all days (public access)
@@ -39,6 +42,7 @@ def get_shared_calendar(share_token):
     NFR Compliance:
         - [P3] Performance: <3 second response time for calendar data
         - [S4] Input Validation: Share token format validated
+        - [S4] Rate Limiting: 20 requests/minute per IP address
         - [SC3] RESTful Design: Public GET endpoint, idempotent
         - Privacy: No user data exposed
 
@@ -72,10 +76,10 @@ def get_shared_calendar(share_token):
         }
 
     Response 404: Calendar not found or no longer shared
+    Response 429: Rate limit exceeded (too many requests)
     Response 500: Internal server error
 
-    Rate Limiting: Will be added in Issue #77
-        - 20 requests/minute per IP
+    Rate Limiting: 20 requests/minute per IP address
     """
     try:
         # Get formatted shared calendar data using service layer
@@ -106,6 +110,7 @@ def get_shared_calendar(share_token):
 
 
 @shared_bp.route('/shared/<share_token>/day/<int:day_number>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_shared_day(share_token, day_number):
     """
     Get video metadata for a specific day (public access, requires unlock)
@@ -116,6 +121,7 @@ def get_shared_day(share_token, day_number):
 
     NFR Compliance:
         - [S4] Input Validation: Token and day number validated
+        - [S4] Rate Limiting: 30 requests/minute per IP address
         - [SC3] RESTful Design: Public GET endpoint for sub-resource
         - Privacy: Only returns data if day is unlocked
 
@@ -132,10 +138,10 @@ def get_shared_day(share_token, day_number):
 
     Response 403: Day is locked (not yet unlocked based on date)
     Response 404: Calendar or day not found
+    Response 429: Rate limit exceeded (too many requests)
     Response 500: Internal server error
 
-    Rate Limiting: Will be added in Issue #77
-        - 30 requests/minute per IP
+    Rate Limiting: 30 requests/minute per IP address
     """
     try:
         # Find calendar by share token
@@ -193,6 +199,7 @@ def get_shared_day(share_token, day_number):
 
 
 @shared_bp.route('/shared/<share_token>/day/<int:day_number>/thumbnail', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_shared_thumbnail(share_token, day_number):
     """
     Get thumbnail image for a shared calendar day (public access, requires unlock)
@@ -203,6 +210,7 @@ def get_shared_thumbnail(share_token, day_number):
     NFR Compliance:
         - [P3] Performance: Fast thumbnail delivery for door grid rendering
         - [S4] Input Validation: Token and day validated
+        - [S4] Rate Limiting: 30 requests/minute per IP address
         - Privacy: Only accessible if day is unlocked
 
     URL: GET /api/shared/<share_token>/day/<day_number>/thumbnail
@@ -210,10 +218,10 @@ def get_shared_thumbnail(share_token, day_number):
     Response 200: Thumbnail image file (image/jpeg)
     Response 403: Day is locked
     Response 404: Calendar or thumbnail not found
+    Response 429: Rate limit exceeded (too many requests)
     Response 500: Internal server error
 
-    Rate Limiting: Will be added in Issue #77
-        - 30 requests/minute per IP
+    Rate Limiting: 30 requests/minute per IP address
     """
     try:
         # Find calendar by share token
@@ -268,6 +276,7 @@ def get_shared_thumbnail(share_token, day_number):
 
 
 @shared_bp.route('/shared/<share_token>/day/<int:day_number>/stream', methods=['GET'])
+@limiter.limit("30 per minute")
 def stream_shared_video(share_token, day_number):
     """
     Stream video file for a shared calendar day (public access, requires unlock)
@@ -278,6 +287,7 @@ def stream_shared_video(share_token, day_number):
     NFR Compliance:
         - [P3] Performance: Efficient video delivery
         - [S4] Input Validation: Token and day validated
+        - [S4] Rate Limiting: 30 requests/minute per IP address
         - Privacy: Only accessible if day is unlocked
         - Video Protection: controlsList attribute set in frontend
 
@@ -286,10 +296,10 @@ def stream_shared_video(share_token, day_number):
     Response 200: Video file (video/mp4)
     Response 403: Day is locked
     Response 404: Calendar or video not found
+    Response 429: Rate limit exceeded (too many requests)
     Response 500: Internal server error
 
-    Rate Limiting: Will be added in Issue #77
-        - 30 requests/minute per IP
+    Rate Limiting: 30 requests/minute per IP address
     """
     try:
         # Find calendar by share token

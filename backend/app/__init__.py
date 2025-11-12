@@ -1,8 +1,20 @@
 # Flask Application Factory
 from flask import Flask
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import config
 import os
+
+# Initialize rate limiter globally (will be bound to app in create_app)
+# NFR [S4]: Protect public endpoints from abuse with IP-based rate limiting
+limiter = Limiter(
+    get_remote_address,  # key_func as first positional argument (Flask-Limiter 4.0 requirement)
+    default_limits=["200 per hour"],
+    storage_uri="memory://",  # In-memory storage for development
+    strategy="fixed-window",  # Simple fixed-window rate limiting
+    headers_enabled=True      # Enable X-RateLimit-* headers in responses
+)
 
 def create_app(config_name=None):
     """Create and configure Flask application"""
@@ -16,6 +28,9 @@ def create_app(config_name=None):
 
     # Initialize extensions
     CORS(app)
+
+    # Bind rate limiter to this application instance
+    limiter.init_app(app)
 
     # Initialize upload directories for video storage
     from app.utils.storage import ensure_upload_directories
