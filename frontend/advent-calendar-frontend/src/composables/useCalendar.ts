@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { API_ENDPOINTS } from '@/config/api';
-import type { Calendar, CalendarSummary, CalendarCreateData, CalendarCreateResponse, CalendarListResponse, CalendarGetResponse, CalendarUpdateResponse } from '@/types/calendar';
+import type { Calendar, CalendarSummary, CalendarCreateData, CalendarUpdateData, CalendarCreateResponse, CalendarListResponse, CalendarGetResponse, CalendarUpdateResponse } from '@/types/calendar';
 
 // Global calendar state
 const calendars = ref<CalendarSummary[]>([]);
@@ -199,8 +199,8 @@ export const useCalendar = () => {
     }
   };
   
-  // Update a calendar
-  const updateCalendar = async (calendarId: string, updateData: Partial<CalendarCreateData>): Promise<ApiResponse<Calendar>> => {
+  // Update a calendar (Issue #81: Now accepts door ordering fields)
+  const updateCalendar = async (calendarId: string, updateData: CalendarUpdateData): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
     try {

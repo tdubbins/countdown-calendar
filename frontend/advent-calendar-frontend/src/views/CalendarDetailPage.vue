@@ -43,6 +43,15 @@
               Videos: {{ calendar.videoCount }} / {{ calendar.duration }}
             </p>
 
+            <!-- Door Ordering Toggle (Issue #81) -->
+            <DoorOrderToggle
+              :door-order="calendar.doorOrder"
+              :door-positions="calendar.doorPositions"
+              :duration="calendar.duration"
+              :is-locked="!!calendar.shareToken"
+              @update="handleDoorOrderUpdate"
+            />
+
             <!-- Share Calendar Button (Issue #78) -->
             <ion-button
               expand="block"
@@ -103,16 +112,17 @@ import {
 import { alertCircleOutline, shareSocialOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import ShareModal from '@/components/ShareModal.vue';
+import DoorOrderToggle from '@/components/DoorOrderToggle.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import { useModal } from '@/composables/useModal';
 import { useToast } from '@/composables/useToast';
-import type { Calendar } from '@/types/calendar';
+import type { Calendar, DoorOrder } from '@/types/calendar';
 
 // Router
 const route = useRoute();
 
 // Composables
-const { getCalendar, generateShareToken } = useCalendar();
+const { getCalendar, updateCalendar, generateShareToken } = useCalendar();
 const { showSuccess, showError } = useToast();
 const shareModal = useModal();
 
@@ -266,6 +276,49 @@ const handleTokenGeneration = async () => {
     if (shareModalRef.value) {
       shareModalRef.value.setGenerationError();
     }
+  }
+};
+
+/**
+ * Handle door order update (Issue #81)
+ * Called when user changes door ordering settings via DoorOrderToggle component
+ * Updates calendar's doorOrder and doorPositions fields
+ *
+ * @param data Object containing doorOrder and doorPositions
+ */
+const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions: number[] | null }) => {
+  if (!calendar.value) return;
+
+  try {
+    console.log('Updating door order:', data);
+
+    // Call API to update calendar with new door ordering
+    const result = await updateCalendar(calendarId.value, {
+      doorOrder: data.doorOrder,
+      doorPositions: data.doorPositions
+    });
+
+    if (result.success && result.data) {
+      // Update local calendar state with new values
+      calendar.value.doorOrder = result.data.doorOrder;
+      calendar.value.doorPositions = result.data.doorPositions;
+
+      // Show success feedback
+      await showSuccess(
+        data.doorOrder === 'sequential'
+          ? 'Door ordering set to sequential'
+          : 'Door ordering shuffled successfully'
+      );
+
+      console.log('Door order updated successfully:', result.data);
+    } else {
+      // Show error feedback
+      await showError(result.error || 'Failed to update door ordering');
+      console.error('Door order update failed:', result.error);
+    }
+  } catch (error) {
+    console.error('Failed to update door ordering:', error);
+    await showError('An unexpected error occurred while updating door ordering');
   }
 };
 
