@@ -205,3 +205,22 @@ export const Z_INDEX = {
   POPOVER: 1060,
   TOOLTIP: 1070
 } as const;
+
+/**
+ * Calendar Themes
+ * Available themes for shared calendar customization (Issue #82)
+ * NFR [SC3]: Modular architecture prepared for future theme expansion
+ */
+export const THEME_OPTIONS = {
+  /** Christmas theme - festive red and green color palette */
+  CHRISTMAS: 'christmas'
+  // Future themes:
+  // BIRTHDAY: 'birthday',
+  // HOLIDAY: 'holiday',
+  // CUSTOM: 'custom'
+} as const;
+
+/**
+ * Default calendar theme
+ */
+export const DEFAULT_THEME = THEME_OPTIONS.CHRISTMAS;

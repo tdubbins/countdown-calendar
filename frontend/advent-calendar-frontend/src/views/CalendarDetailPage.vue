@@ -81,6 +81,13 @@
               @update="handleDoorOrderUpdate"
             />
 
+            <!-- Theme Selector (Issue #82) -->
+            <ThemeSelector
+              :theme="calendar.theme"
+              :is-locked="!!calendar.shareToken"
+              @update="handleThemeUpdate"
+            />
+
             <!-- Share Button - Using ActionButton component -->
             <ActionButton
               expand="block"
@@ -170,6 +177,7 @@ import { alertCircleOutline, shareSocialOutline, calendarOutline, timeOutline, v
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import ShareModal from '@/components/ShareModal.vue';
 import DoorOrderToggle from '@/components/DoorOrderToggle.vue';
+import ThemeSelector from '@/components/ThemeSelector.vue';
 import ActionButton from '@/components/ActionButton.vue';
 import CalendarForm from '@/components/CalendarForm.vue';
 import { useCalendar } from '@/composables/useCalendar';
@@ -442,6 +450,43 @@ const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions
   } catch (error) {
     console.error('Failed to update door ordering:', error);
     await showError('An unexpected error occurred while updating door ordering');
+  }
+};
+
+/**
+ * Handle theme update (Issue #82)
+ * Called when user changes theme via ThemeSelector component
+ * Updates calendar's theme field
+ *
+ * @param theme Theme identifier (e.g., "christmas")
+ */
+const handleThemeUpdate = async (theme: string) => {
+  if (!calendar.value) return;
+
+  try {
+    console.log('Updating theme:', theme);
+
+    // Call API to update calendar with new theme
+    const result = await updateCalendar(calendarId.value, {
+      theme: theme
+    });
+
+    if (result.success && result.data) {
+      // Update local calendar state with new value
+      calendar.value.theme = result.data.theme;
+
+      // Show success feedback
+      await showSuccess(`Theme updated to ${theme}`);
+
+      console.log('Theme updated successfully:', result.data);
+    } else {
+      // Show error feedback
+      await showError(result.error || 'Failed to update theme');
+      console.error('Theme update failed:', result.error);
+    }
+  } catch (error) {
+    console.error('Failed to update theme:', error);
+    await showError('An unexpected error occurred while updating theme');
   }
 };
 
