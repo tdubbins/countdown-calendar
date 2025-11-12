@@ -1,77 +1,68 @@
 <template>
   <div class="door-order-toggle">
-    <!-- Section Header -->
-    <div class="section-header">
-      <h3>Door Ordering for Viewers</h3>
-      <p v-if="!isLocked" class="help-text">
-        Choose how doors appear in your shared calendar
-      </p>
-      <p v-if="isLocked" class="locked-message">
-        🔒 Locked after sharing to ensure consistent viewer experience
-      </p>
-    </div>
+    <!-- Compact Label -->
+    <label class="toggle-label">
+      Door Order
+      <ion-chip v-if="isLocked" color="warning" class="lock-chip">
+        <ion-icon :icon="lockClosedOutline" aria-hidden="true"></ion-icon>
+        <ion-label>Locked</ion-label>
+      </ion-chip>
+    </label>
 
-    <!-- Toggle Segment (Sequential vs Random) -->
-    <ion-segment
-      :value="localDoorOrder"
-      @ionChange="handleOrderChange"
-      :disabled="isLocked"
-      mode="md"
-      class="door-order-segment"
-    >
-      <ion-segment-button
-        value="sequential"
+    <!-- Chip-based Selection -->
+    <div class="chip-group" role="radiogroup" aria-label="Door order selection">
+      <!-- Sequential Chip -->
+      <ion-chip
+        :color="localDoorOrder === 'sequential' ? 'primary' : 'medium'"
+        :outline="localDoorOrder !== 'sequential'"
+        :disabled="isLocked"
+        @click="selectOrder('sequential')"
+        class="order-chip"
+        role="radio"
+        :aria-checked="localDoorOrder === 'sequential'"
         :aria-label="isLocked ? 'Sequential order (locked)' : 'Sequential order - doors appear in order 1, 2, 3'"
+        tabindex="0"
+        @keydown.enter="selectOrder('sequential')"
+        @keydown.space.prevent="selectOrder('sequential')"
       >
-        <ion-label>
-          <div class="segment-content">
-            <ion-icon :icon="listOutline" aria-hidden="true"></ion-icon>
-            <span>Sequential</span>
-            <small>(1, 2, 3...)</small>
-          </div>
-        </ion-label>
-      </ion-segment-button>
+        <ion-icon :icon="listOutline" aria-hidden="true"></ion-icon>
+        <ion-label>Sequential</ion-label>
+      </ion-chip>
 
-      <ion-segment-button
-        value="random"
+      <!-- Random Chip -->
+      <ion-chip
+        :color="localDoorOrder === 'random' ? 'primary' : 'medium'"
+        :outline="localDoorOrder !== 'random'"
+        :disabled="isLocked"
+        @click="selectOrder('random')"
+        class="order-chip"
+        role="radio"
+        :aria-checked="localDoorOrder === 'random'"
         :aria-label="isLocked ? 'Random order (locked)' : 'Random order - doors appear shuffled'"
+        tabindex="0"
+        @keydown.enter="selectOrder('random')"
+        @keydown.space.prevent="selectOrder('random')"
       >
-        <ion-label>
-          <div class="segment-content">
-            <ion-icon :icon="shuffleOutline" aria-hidden="true"></ion-icon>
-            <span>Random</span>
-            <small>(Shuffled)</small>
-          </div>
-        </ion-label>
-      </ion-segment-button>
-    </ion-segment>
+        <ion-icon :icon="shuffleOutline" aria-hidden="true"></ion-icon>
+        <ion-label>Random</ion-label>
+      </ion-chip>
 
-    <!-- Shuffle Again Button (only visible for random order) -->
-    <ion-button
-      v-if="localDoorOrder === 'random' && !isLocked"
-      expand="block"
-      fill="outline"
-      @click="handleShuffleAgain"
-      class="shuffle-button"
-      :disabled="isShuffling"
-      aria-label="Generate new random order for doors"
-    >
-      <ion-icon slot="start" :icon="shuffleOutline" aria-hidden="true"></ion-icon>
-      {{ isShuffling ? 'Shuffling...' : '🎲 Shuffle Again' }}
-    </ion-button>
-
-    <!-- Optional: Preview of first few door positions -->
-    <div v-if="showPreview && localDoorOrder === 'random' && localDoorPositions" class="positions-preview">
-      <small>Door order preview (first 5):</small>
-      <div class="preview-chips">
-        <span
-          v-for="(day, index) in previewPositions"
-          :key="index"
-          class="preview-chip"
-        >
-          Door #{{ index + 1 }} → Day {{ day }}
-        </span>
-      </div>
+      <!-- Shuffle Button (only for random) -->
+      <ion-chip
+        v-if="localDoorOrder === 'random' && !isLocked"
+        color="secondary"
+        outline
+        @click="handleShuffleAgain"
+        :disabled="isShuffling"
+        class="shuffle-chip"
+        aria-label="Generate new random order for doors"
+        tabindex="0"
+        @keydown.enter="handleShuffleAgain"
+        @keydown.space.prevent="handleShuffleAgain"
+      >
+        <ion-icon :icon="shuffleOutline" aria-hidden="true"></ion-icon>
+        <ion-label>{{ isShuffling ? 'Shuffling...' : 'Shuffle' }}</ion-label>
+      </ion-chip>
     </div>
   </div>
 </template>
@@ -79,13 +70,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import {
-  IonSegment,
-  IonSegmentButton,
+  IonChip,
   IonLabel,
-  IonButton,
   IonIcon
 } from '@ionic/vue';
-import { listOutline, shuffleOutline } from 'ionicons/icons';
+import { listOutline, shuffleOutline, lockClosedOutline } from 'ionicons/icons';
 import { generateShuffledPositions } from '@/utils/shuffle';
 import type { DoorOrder } from '@/types/calendar';
 
@@ -149,16 +138,17 @@ watch(() => props.doorPositions, (newPositions) => {
 });
 
 /**
- * Handle door order change (sequential <-> random toggle)
+ * Handle door order selection (chip click)
  *
  * When user selects sequential: Clear door positions
  * When user selects random: Generate new shuffled positions
  */
-const handleOrderChange = (event: CustomEvent) => {
-  const newOrder = event.detail.value as DoorOrder;
-  localDoorOrder.value = newOrder;
+const selectOrder = (order: DoorOrder) => {
+  if (props.isLocked || localDoorOrder.value === order) return;
 
-  if (newOrder === 'sequential') {
+  localDoorOrder.value = order;
+
+  if (order === 'sequential') {
     // Sequential: No positions array needed
     localDoorPositions.value = null;
     emit('update', { doorOrder: 'sequential', doorPositions: null });
@@ -203,201 +193,87 @@ const handleShuffleAgain = () => {
 </script>
 
 <style scoped>
-/* Container styling */
+/* Minimal container */
 .door-order-toggle {
-  padding: var(--spacing-md);
-  background: var(--color-surface);
-  border-radius: var(--border-radius-lg);
-  border: 1px solid var(--color-border);
   margin-bottom: var(--spacing-md);
 }
 
-/* Section header */
-.section-header {
-  margin-bottom: var(--spacing-md);
-}
-
-.section-header h3 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-xs) 0;
-}
-
-.help-text {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0;
-  line-height: 1.5;
-}
-
-.locked-message {
-  font-size: var(--font-size-sm);
-  color: var(--color-warning);
-  margin: 0;
-  font-weight: var(--font-weight-medium);
-  line-height: 1.5;
-}
-
-/* Segment styling */
-.door-order-segment {
-  margin-bottom: var(--spacing-md);
-  --background: var(--color-background);
-}
-
-.segment-content {
+/* Label with inline lock chip */
+.toggle-label {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-xs) 0;
-  min-height: 44px; /* NFR [U2]: Touch-friendly */
-  justify-content: center;
-}
-
-.segment-content ion-icon {
-  font-size: 24px;
-  color: var(--color-text-secondary);
-}
-
-.segment-content span {
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-base);
-  color: var(--color-text-primary);
-}
-
-.segment-content small {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-
-/* Active segment styling */
-ion-segment-button::part(indicator-background) {
-  background: var(--ion-color-primary);
-}
-
-ion-segment-button.segment-button-checked .segment-content ion-icon {
-  color: var(--ion-color-primary);
-}
-
-ion-segment-button.segment-button-checked .segment-content span {
-  color: var(--ion-color-primary);
-  font-weight: var(--font-weight-bold);
-}
-
-/* Shuffle button */
-.shuffle-button {
-  --padding-top: 12px;
-  --padding-bottom: 12px;
-  --border-radius: var(--border-radius-md);
-  font-weight: var(--font-weight-medium);
-  margin-top: var(--spacing-sm);
-  min-height: 44px; /* NFR [U2]: Touch-friendly */
-}
-
-.shuffle-button ion-icon {
-  margin-right: var(--spacing-xs);
-}
-
-/* Positions preview */
-.positions-preview {
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-sm);
-  background: var(--color-background);
-  border-radius: var(--border-radius-md);
-  border: 1px dashed var(--color-border);
-}
-
-.positions-preview small {
-  display: block;
-  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xs);
-  font-weight: var(--font-weight-medium);
 }
 
-.preview-chips {
+.lock-chip {
+  font-size: var(--font-size-xs);
+  height: 24px;
+}
+
+/* Chip group - horizontal layout */
+.chip-group {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
+  align-items: center;
 }
 
-.preview-chip {
-  display: inline-block;
-  padding: 4px 8px;
-  background: var(--ion-color-primary-tint);
-  color: var(--ion-color-primary);
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
+/* Order chips - clickable selection */
+.order-chip {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  min-height: 36px; /* NFR [U2]: Touch-friendly */
 }
 
-/* Accessibility - disabled state (NFR [U5]) */
-ion-segment[disabled] {
+.order-chip:not([disabled]):hover {
+  transform: scale(1.05);
+}
+
+.order-chip:not([disabled]):active {
+  transform: scale(0.98);
+}
+
+/* Shuffle chip */
+.shuffle-chip {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  min-height: 36px; /* NFR [U2]: Touch-friendly */
+}
+
+.shuffle-chip:not([disabled]):hover {
+  transform: scale(1.05);
+}
+
+.shuffle-chip:not([disabled]):active {
+  transform: scale(0.98);
+}
+
+/* Disabled state (NFR [U5]: Accessibility) */
+ion-chip[disabled] {
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;
 }
 
-ion-segment-button[disabled] {
-  opacity: 0.5;
+/* Focus indicators for keyboard navigation (NFR [U5]) */
+.order-chip:focus,
+.shuffle-chip:focus {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
 }
 
-/* Responsive design (NFR [U1]: 320px+ screens) */
+/* Responsive - ensure chips don't get too small */
 @media (max-width: 480px) {
-  .door-order-toggle {
-    padding: var(--spacing-sm);
+  .chip-group {
+    gap: var(--spacing-xxs, 4px);
   }
 
-  .segment-content {
-    padding: var(--spacing-xs);
-  }
-
-  .segment-content ion-icon {
-    font-size: 20px;
-  }
-
-  .segment-content span {
-    font-size: var(--font-size-sm);
-  }
-
-  .segment-content small {
-    font-size: 10px;
-  }
-
-  .preview-chips {
-    font-size: 11px;
-  }
-}
-
-@media (min-width: 768px) {
-  .door-order-toggle {
-    padding: var(--spacing-lg);
-  }
-}
-
-/* Focus indicators for keyboard navigation (NFR [U5]: Accessibility) */
-ion-segment-button:focus {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-}
-
-.shuffle-button:focus {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-}
-
-/* Dark theme support */
-@media (prefers-color-scheme: dark) {
-  .door-order-toggle {
-    background: var(--ion-color-step-50);
-    border-color: var(--ion-color-step-150);
-  }
-
-  .positions-preview {
-    background: var(--ion-color-step-100);
-    border-color: var(--ion-color-step-200);
+  ion-chip {
+    font-size: var(--font-size-xs);
   }
 }
 </style>
