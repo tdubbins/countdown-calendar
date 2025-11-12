@@ -46,23 +46,6 @@
         <ion-icon :icon="shuffleOutline" aria-hidden="true"></ion-icon>
         <ion-label>Random</ion-label>
       </ion-chip>
-
-      <!-- Shuffle Button (only for random) -->
-      <ion-chip
-        v-if="localDoorOrder === 'random' && !isLocked"
-        color="secondary"
-        outline
-        @click="handleShuffleAgain"
-        :disabled="isShuffling"
-        class="shuffle-chip"
-        aria-label="Generate new random order for doors"
-        tabindex="0"
-        @keydown.enter="handleShuffleAgain"
-        @keydown.space.prevent="handleShuffleAgain"
-      >
-        <ion-icon :icon="shuffleOutline" aria-hidden="true"></ion-icon>
-        <ion-label>{{ isShuffling ? 'Shuffling...' : 'Shuffle' }}</ion-label>
-      </ion-chip>
     </div>
   </div>
 </template>
@@ -237,21 +220,6 @@ const handleShuffleAgain = () => {
   transform: scale(0.98);
 }
 
-/* Shuffle chip */
-.shuffle-chip {
-  cursor: pointer;
-  transition: transform 0.2s ease;
-  min-height: 36px; /* NFR [U2]: Touch-friendly */
-}
-
-.shuffle-chip:not([disabled]):hover {
-  transform: scale(1.05);
-}
-
-.shuffle-chip:not([disabled]):active {
-  transform: scale(0.98);
-}
-
 /* Disabled state (NFR [U5]: Accessibility) */
 ion-chip[disabled] {
   opacity: 0.5;
@@ -260,8 +228,7 @@ ion-chip[disabled] {
 }
 
 /* Focus indicators for keyboard navigation (NFR [U5]) */
-.order-chip:focus,
-.shuffle-chip:focus {
+.order-chip:focus {
   outline: 2px solid var(--ion-color-primary);
   outline-offset: 2px;
 }
