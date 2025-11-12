@@ -29,9 +29,11 @@ def create_app(config_name=None):
     from app.routes.auth import auth_bp
     from app.routes.health import health_bp
     from app.routes.calendar import calendar_bp
+    from app.routes.shared import shared_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(calendar_bp, url_prefix='/api')
+    app.register_blueprint(shared_bp, url_prefix='/api')  # Public endpoints for shared calendars
 
     return app

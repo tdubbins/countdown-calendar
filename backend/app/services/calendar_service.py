@@ -453,3 +453,162 @@ def generate_share_token(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str
     except Exception as e:
         print(f"Share token generation error: {str(e)}")
         return False, {}, "Internal server error during share token generation"
+
+
+def get_calendar_by_share_token(share_token: str) -> Tuple[bool, Dict[str, Any], str]:
+    """
+    Find a calendar by its share token (public access, no authentication required)
+
+    This function enables public access to shared calendars via their unique share token.
+    Unlike get_calendar_by_id, this does NOT verify user ownership since it's for
+    public viewing.
+
+    NFR Compliance:
+        - [S4] Input validation: Validates share token format (UUID)
+        - [SC3] Modular architecture: Service layer separation
+        - [P3] Performance: O(n) lookup across all calendars
+        - Privacy: Does not return user_id or other sensitive data
+
+    Args:
+        share_token: str - The UUID share token to look up
+
+    Returns:
+        - success: bool
+        - calendar_data: Dict with calendar info or empty dict
+        - error_message: str with error details or empty string
+
+    Notes:
+        - Returns error if calendar is deleted (not found)
+        - Returns error if share_token is null (calendar not shared)
+        - Does not verify ownership (public endpoint)
+    """
+    try:
+        # Validate share token format (should be a UUID)
+        if not share_token or not share_token.strip():
+            return False, {}, "Invalid share token"
+
+        share_token = share_token.strip()
+
+        # Validate UUID format (basic check)
+        if len(share_token) != 36:  # UUID v4 format: 8-4-4-4-12 characters with hyphens
+            return False, {}, "Invalid share token format"
+
+        # Find calendar by share token (NFR [P3]: O(n) lookup)
+        # This searches all calendars for matching shareToken field
+        calendars_list = calendars_db.list_by_field('calendars', 'shareToken', share_token)
+
+        if not calendars_list or len(calendars_list) == 0:
+            # No calendar found with this share token
+            # Could mean: token is invalid, calendar was deleted, or calendar was never shared
+            return False, {}, "Calendar not found or no longer shared"
+
+        # Should only be one calendar with this token (tokens are unique)
+        calendar = calendars_list[0]
+
+        return True, calendar, ""
+
+    except Exception as e:
+        print(f"Get calendar by share token error: {str(e)}")
+        return False, {}, "Internal server error retrieving shared calendar"
+
+
+def get_shared_calendar_data(share_token: str) -> Tuple[bool, Dict[str, Any], str]:
+    """
+    Get formatted calendar data for public sharing view
+
+    This function prepares calendar data for public consumption by:
+    1. Finding calendar by share token
+    2. Calculating unlock status for all days
+    3. Formatting response with only public-safe information
+    4. Including thumbnail URLs for unlocked days
+
+    NFR Compliance:
+        - [S4] Privacy: Does not expose user_id, email, or sensitive data
+        - [P3] Performance: Single database lookup + O(n) unlock calculation
+        - [SC3] Modular: Uses unlock_logic utility for consistency
+        - [U5] Accessibility: Clear data structure for frontend
+
+    Args:
+        share_token: str - The UUID share token
+
+    Returns:
+        - success: bool
+        - data: Dict with formatted calendar data for public view
+        - error_message: str with error details or empty string
+
+    Response Format:
+        {
+            'title': 'My Advent Calendar',
+            'duration': 24,
+            'doorOrder': 'random',
+            'doorPositions': [3, 1, 24, ...],
+            'theme': 'christmas',
+            'days': [
+                {
+                    'dayNumber': 1,
+                    'isUnlocked': True,
+                    'thumbnailUrl': '/api/shared/<token>/day/1/thumbnail'
+                },
+                {
+                    'dayNumber': 2,
+                    'isUnlocked': False,
+                    'thumbnailUrl': None
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        # Import unlock logic utility
+        from app.utils.unlock_logic import get_all_unlock_statuses
+
+        # Find calendar by share token
+        calendar_found, calendar, error_msg = get_calendar_by_share_token(share_token)
+        if not calendar_found:
+            return False, {}, error_msg
+
+        # Calculate unlock status for all days (NFR [P3]: O(n) where n = duration)
+        unlock_statuses = get_all_unlock_statuses(calendar)
+
+        # Format days array with unlock status and thumbnail URLs
+        days_data = []
+        videos_dict = calendar.get('videos', {})
+
+        for day_number in range(1, calendar['duration'] + 1):
+            is_unlocked = unlock_statuses.get(day_number, False)
+
+            # Only include thumbnail URL if day is unlocked AND video exists
+            thumbnail_url = None
+            if is_unlocked and str(day_number) in videos_dict:
+                thumbnail_url = f"/api/shared/{share_token}/day/{day_number}/thumbnail"
+
+            day_data = {
+                'dayNumber': day_number,
+                'isUnlocked': is_unlocked,
+                'thumbnailUrl': thumbnail_url
+            }
+
+            days_data.append(day_data)
+
+        # Prepare public-safe calendar data (NFR [S4]: Privacy protection)
+        public_calendar_data = {
+            'title': calendar['title'],
+            'duration': calendar['duration'],
+            'doorOrder': calendar.get('doorOrder', 'sequential'),
+            'doorPositions': calendar.get('doorPositions'),  # null if sequential
+            'theme': calendar.get('theme', 'christmas'),
+            'days': days_data
+        }
+
+        # NOTE: We intentionally DO NOT include:
+        # - userId (privacy)
+        # - startDate (privacy - prevents calculating end date)
+        # - createdAt/updatedAt (not relevant for viewers)
+        # - videoStorageUsed (internal metric)
+        # - shareToken itself (already known by viewer)
+
+        return True, public_calendar_data, ""
+
+    except Exception as e:
+        print(f"Get shared calendar data error: {str(e)}")
+        return False, {}, "Internal server error preparing shared calendar data"
