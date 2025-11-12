@@ -205,6 +205,11 @@ Thumbs.db
 # Development instructions (keep internal to project team)
 CLAUDE.md
 
+# Project planning and design documents (internal use only)
+SHARING_FEATURE_DESIGN.md
+EPIC_4_5_ISSUES.md
+PR_DESCRIPTIONS.md
+
 # Test output and temp files
 backend/test_*.py.log
 backend/temp_test_*
