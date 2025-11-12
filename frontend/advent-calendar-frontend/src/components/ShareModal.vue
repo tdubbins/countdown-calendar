@@ -2,11 +2,23 @@
   <ion-modal
     :is-open="isOpen"
     @didDismiss="handleClose"
-    :initial-breakpoint="0.5"
-    :breakpoints="[0, 0.5, 0.75]"
-    class="share-modal"
   >
-    <ion-content class="ion-padding share-modal-content">
+    <ion-page>
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>Share Calendar</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              @click="handleClose"
+              aria-label="Close share modal"
+            >
+              <ion-icon :icon="close" slot="icon-only"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="ion-padding">
         <!-- Loading State -->
         <div v-if="isGenerating" class="loading-state">
           <ion-spinner name="crescent" color="primary"></ion-spinner>
@@ -52,7 +64,8 @@
             Link copied to clipboard!
           </p>
         </div>
-    </ion-content>
+      </ion-content>
+    </ion-page>
   </ion-modal>
 </template>
 
@@ -60,13 +73,21 @@
 import { ref, computed, watch } from 'vue';
 import {
   IonModal,
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
   IonContent,
   IonButton,
+  IonButtons,
   IonIcon,
   IonInput,
   IonSpinner
 } from '@ionic/vue';
 import {
+  close,
+  // shareSocialOutline, // Reserved for future social sharing feature
+  // linkOutline, // Reserved for future use
   checkmarkCircle,
   copyOutline,
   checkmarkOutline
@@ -217,22 +238,23 @@ defineExpose({
 </script>
 
 <style scoped>
-/* Compact Bottom Sheet Modal */
+/* Modal Container */
 .share-modal {
-  --border-radius: 16px 16px 0 0;
-  --box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+  --width: 90%;
+  --max-width: 500px;
+  --height: auto;
+  --max-height: 80vh;
+  --border-radius: 16px;
 }
 
 /* Content Container */
 .share-modal-content {
-  --padding-top: 1.5rem;
-  --padding-bottom: 2rem;
-  --padding-start: 1.5rem;
-  --padding-end: 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  min-height: 300px;
 }
 
 /* State Containers */
