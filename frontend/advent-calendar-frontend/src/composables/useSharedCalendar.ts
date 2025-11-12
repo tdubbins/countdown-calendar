@@ -3,22 +3,23 @@ import { API_ENDPOINTS } from '@/config/api';
 
 // Shared Calendar Types
 export interface SharedCalendarDay {
-  day_number: number;
-  is_unlocked: boolean;
-  video_path?: string;
-  thumbnail_path?: string;
+  dayNumber: number;
+  isUnlocked: boolean;
+  videoPath?: string;
+  thumbnailPath?: string;
+  thumbnailUrl?: string | null;
 }
 
 export interface SharedCalendar {
-  id: string;
+  id?: string;
   title: string;
-  start_date: string;
+  startDate?: string;
   duration: number;
   description?: string; // Optional calendar description/message
   theme: string;
-  timezone: string;
-  door_order: 'sequential' | 'random';
-  door_positions?: number[];
+  timezone?: string;
+  doorOrder: 'sequential' | 'random';
+  doorPositions?: number[] | null;
   days: SharedCalendarDay[];
 }
 
@@ -89,14 +90,14 @@ export function useSharedCalendar() {
   };
 
   /**
-   * Get the display order of days based on door_order setting
+   * Get the display order of days based on doorOrder setting
    * @returns Array of day numbers in display order
    */
   const getDoorDisplayOrder = (): number[] => {
     if (!calendar.value) return [];
 
-    if (calendar.value.door_order === 'random' && calendar.value.door_positions) {
-      return calendar.value.door_positions;
+    if (calendar.value.doorOrder === 'random' && calendar.value.doorPositions) {
+      return calendar.value.doorPositions;
     }
 
     // Sequential: 1, 2, 3, ..., duration
