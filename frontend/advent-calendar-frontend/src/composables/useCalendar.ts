@@ -284,13 +284,55 @@ export const useCalendar = () => {
     }
   };
   
+  // Generate share token for a calendar (Issue #78)
+  const generateShareToken = async (calendarId: string): Promise<ApiResponse<{ shareToken: string; shareUrl: string }>> => {
+    isLoading.value = true;
+
+    try {
+      const result = await makeApiCall<{ success: boolean; share_token: string; share_url: string }>(
+        API_ENDPOINTS.CALENDAR_GENERATE_SHARE_TOKEN(calendarId),
+        {
+          method: 'POST',
+        }
+      );
+
+      if (result.success && result.data) {
+        // Update current calendar with share token if it's loaded
+        if (currentCalendar.value?.id === calendarId) {
+          currentCalendar.value.shareToken = result.data.share_token;
+        }
+
+        return {
+          success: true,
+          data: {
+            shareToken: result.data.share_token,
+            shareUrl: result.data.share_url
+          }
+        };
+      } else {
+        return {
+          success: false,
+          error: result.error || 'Failed to generate share token'
+        };
+      }
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to generate share token'
+      };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   // Clear all calendar data (for logout)
   const clearCalendarData = () => {
     calendars.value = [];
     currentCalendar.value = null;
     isLoading.value = false;
   };
-  
+
   return {
     // State
     calendars: computed(() => calendars.value),
@@ -298,13 +340,14 @@ export const useCalendar = () => {
     isLoading: computed(() => isLoading.value),
     hasCalendars,
     calendarCount,
-    
+
     // Actions
     createCalendar,
     loadCalendars,
     getCalendar,
     updateCalendar,
     deleteCalendar,
+    generateShareToken,
     clearCalendarData
   };
 };
