@@ -41,7 +41,10 @@ export const API_ENDPOINTS = {
   CALENDARS_CREATE: () => buildApiUrl(API_CONFIG.CALENDARS.CREATE),
   CALENDAR_BY_ID: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}`),
   CALENDAR_UPDATE: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.UPDATE}/${id}`),
-  CALENDAR_DELETE: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.DELETE}/${id}`)
+  CALENDAR_DELETE: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.DELETE}/${id}`),
+
+  // Calendar Sharing (Issue #78)
+  CALENDAR_GENERATE_SHARE_TOKEN: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}/generate-share-token`)
 };
 
 export default API_CONFIG;

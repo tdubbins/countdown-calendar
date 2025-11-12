@@ -42,6 +42,19 @@
             <p class="video-count">
               Videos: {{ calendar.videoCount }} / {{ calendar.duration }}
             </p>
+
+            <!-- Share Calendar Button (Issue #78) -->
+            <ion-button
+              expand="block"
+              :color="isCalendarComplete ? 'primary' : 'medium'"
+              @click="handleShareButtonClick"
+              class="share-button"
+              :class="{ 'share-button--disabled': !isCalendarComplete }"
+              :aria-label="isCalendarComplete ? 'Share calendar' : 'Complete all videos to enable sharing'"
+            >
+              <ion-icon slot="start" :icon="shareSocialOutline"></ion-icon>
+              Share Calendar
+            </ion-button>
           </div>
 
           <!-- Day Grid Component (Issue #57, #58, #59) -->
@@ -58,11 +71,22 @@
         </div>
       </div>
     </ion-content>
+
+    <!-- Share Modal (Issue #78) -->
+    <ShareModal
+      v-if="calendar"
+      ref="shareModalRef"
+      :is-open="shareModal.isOpen.value"
+      :calendar-id="calendarId"
+      :existing-share-token="calendar.shareToken || null"
+      @close="shareModal.close()"
+      @token-generated="handleTokenGeneration"
+    />
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   IonPage,
@@ -76,9 +100,11 @@ import {
   IonIcon,
   IonSpinner
 } from '@ionic/vue';
-import { alertCircleOutline } from 'ionicons/icons';
+import { alertCircleOutline, shareSocialOutline } from 'ionicons/icons';
 import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
+import ShareModal from '@/components/ShareModal.vue';
 import { useCalendar } from '@/composables/useCalendar';
+import { useModal } from '@/composables/useModal';
 import { useToast } from '@/composables/useToast';
 import type { Calendar } from '@/types/calendar';
 
@@ -86,14 +112,27 @@ import type { Calendar } from '@/types/calendar';
 const route = useRoute();
 
 // Composables
-const { getCalendar } = useCalendar();
+const { getCalendar, generateShareToken } = useCalendar();
 const { showSuccess, showError } = useToast();
+const shareModal = useModal();
 
 // State
 const calendarId = ref<string>(route.params.id as string);
 const calendar = ref<Calendar | null>(null);
 const isLoading = ref(true);
 const loadError = ref<string>('');
+
+// Share Modal Reference (Issue #78)
+const shareModalRef = ref<InstanceType<typeof ShareModal> | null>(null);
+
+/**
+ * Computed: Check if calendar is complete (all videos uploaded)
+ * Required for enabling share functionality
+ */
+const isCalendarComplete = computed(() => {
+  if (!calendar.value) return false;
+  return calendar.value.videoCount === calendar.value.duration;
+});
 
 /**
  * Load calendar data
@@ -149,6 +188,83 @@ const handleVideoDeleted = async (day: number) => {
 
   // Reload calendar to update video count
   await loadCalendarData();
+};
+
+/**
+ * Handle share button click (Issue #78)
+ * Checks if calendar is complete before opening modal
+ * Auto-generates share token on first share for streamlined UX
+ */
+const handleShareButtonClick = async () => {
+  if (!isCalendarComplete.value) {
+    // Show informative toast explaining requirement
+    const missingCount = calendar.value!.duration - calendar.value!.videoCount;
+    showError(
+      `Upload all videos first. ${missingCount} video${missingCount !== 1 ? 's' : ''} remaining.`
+    );
+    return;
+  }
+
+  // Open modal immediately
+  shareModal.open();
+
+  // Auto-generate token if not already shared
+  if (!calendar.value?.shareToken) {
+    await handleTokenGeneration();
+  }
+};
+
+/**
+ * Handle share token generation (Issue #78)
+ * Auto-called when opening share modal for first time
+ */
+const handleTokenGeneration = async () => {
+  try {
+    console.log('Generating share token for calendar:', calendarId.value);
+
+    // Trigger loading state in modal
+    if (shareModalRef.value) {
+      shareModalRef.value.startGenerating();
+    }
+
+    const result = await generateShareToken(calendarId.value);
+
+    if (result.success && result.data) {
+      // The generateShareToken composable updates currentCalendar.shareToken
+      // This automatically updates the existingShareToken prop in ShareModal
+      // The computed shareUrl in ShareModal will automatically recalculate
+
+      // Reload calendar data to get the updated shareToken
+      await loadCalendarData();
+
+      // Stop loading state
+      if (shareModalRef.value) {
+        shareModalRef.value.stopGenerating();
+      }
+
+      // Show success toast
+      await showSuccess('Share link generated successfully!');
+
+      console.log('Share token generated:', result.data.shareToken);
+      console.log('Share URL:', result.data.shareUrl);
+    } else {
+      // Show error toast
+      await showError(result.error || 'Failed to generate share link');
+
+      // Notify modal of error
+      if (shareModalRef.value) {
+        shareModalRef.value.setGenerationError();
+      }
+    }
+  } catch (error: any) {
+    console.error('Error generating share token:', error);
+    await showError('An unexpected error occurred');
+
+    // Notify modal of error
+    if (shareModalRef.value) {
+      shareModalRef.value.setGenerationError();
+    }
+  }
 };
 
 // Lifecycle
@@ -265,6 +381,32 @@ ion-back-button::part(native) {
 .video-count {
   font-weight: var(--font-weight-semibold);
   color: var(--ion-color-primary);
+}
+
+/* Share Button (Issue #78) - Touch-friendly (NFR: U2) */
+.share-button {
+  --min-height: 48px;
+  margin-top: clamp(1rem, 2vw, 1.5rem);
+  font-weight: var(--font-weight-semibold);
+}
+
+.share-button ion-icon {
+  font-size: 1.25rem;
+}
+
+/* Share button - dynamic color based on completion state */
+.share-button {
+  transition: all 0.3s ease;
+}
+
+/* Visual disabled state - less prominent when incomplete */
+.share-button--disabled {
+  opacity: 0.7;
+  cursor: pointer; /* Still clickable to show toast */
+}
+
+.share-button--disabled ion-icon {
+  opacity: 0.8;
 }
 
 /* Day Grid Section */
