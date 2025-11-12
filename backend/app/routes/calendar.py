@@ -127,7 +127,24 @@ def get_calendar(calendar_id):
 @calendar_bp.route('/calendars/<calendar_id>', methods=['PUT'])
 @token_required
 def update_calendar(calendar_id):
-    """Update a specific calendar for the authenticated user"""
+    """
+    Update a specific calendar for the authenticated user
+
+    Issue #81: Extended to support door ordering customization for shared calendars
+
+    Accepts optional fields:
+        - title: str - Calendar title
+        - startDate: str - Start date (YYYY-MM-DD)
+        - duration: int - Number of days (1-31)
+        - doorOrder: str - "sequential" or "random" (Issue #81)
+        - doorPositions: list - Shuffled day positions for random order (Issue #81)
+        - theme: str - Theme identifier like "christmas" (Issue #81)
+        - timezone: str - IANA timezone like "Europe/Berlin" (Issue #81)
+
+    NFR Compliance:
+        - [S4] Input validation via service layer
+        - [SC3] Modular architecture with service separation
+    """
     try:
         # Get JSON data from request
         data = request.get_json()
@@ -140,20 +157,30 @@ def update_calendar(calendar_id):
         title = data.get('title')
         start_date = data.get('startDate')
         duration = data.get('duration')
-        
+        # Issue #81: Add door ordering fields for shared calendar customization
+        door_order = data.get('doorOrder')           # "sequential" or "random"
+        door_positions = data.get('doorPositions')   # Array of shuffled positions
+        theme = data.get('theme')                    # Theme identifier (e.g., "christmas")
+        timezone = data.get('timezone')              # IANA timezone (e.g., "Europe/Berlin")
+
         # Validate calendar ID format
         if not calendar_id or not calendar_id.strip():
             return jsonify({
                 'error': 'Invalid calendar ID'
             }), 400
-        
+
         # Update calendar using service layer
+        # Service layer handles validation for all fields including door ordering
         success, calendar_data, error_message = update_calendar_service(
             calendar_id=calendar_id.strip(),
             user_id=request.current_user['user_id'],
             title=title,
             start_date=start_date,
-            duration=duration
+            duration=duration,
+            door_order=door_order,           # Issue #81: Pass door ordering
+            door_positions=door_positions,   # Issue #81: Pass door positions
+            theme=theme,                     # Issue #81: Pass theme
+            tz=timezone                      # Issue #81: Pass timezone
         )
         
         if not success:
