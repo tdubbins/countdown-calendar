@@ -376,3 +376,80 @@ def delete_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
     except Exception as e:
         print(f"Calendar deletion error: {str(e)}")
         return False, "Internal server error during calendar deletion"
+
+def generate_share_token(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str, Any], str]:
+    """
+    Generate a unique share token for a calendar (lazy generation)
+
+    This function implements the lazy generation pattern:
+    - If calendar already has a share token, returns existing token (idempotent)
+    - If calendar doesn't have a share token, generates new UUID v4 token
+    - Updates calendar with share token and timestamp
+
+    NFR Compliance:
+        - [S3] Multi-tenant isolation: Verifies calendar ownership before generation
+        - [S4] Input validation: Validates calendar ID format
+        - [SC3] Modular architecture: Service layer separation of concerns
+        - Privacy by default: Only generates token when explicitly requested
+
+    Args:
+        calendar_id: str - The calendar ID to generate share token for
+        user_id: str - The authenticated user ID
+
+    Returns:
+        - success: bool
+        - data: Dict with share_token and share_url, or empty dict
+        - error_message: str with error details or empty string
+
+    Example Response:
+        {
+            'share_token': 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+            'share_url': 'https://advent-app.com/shared/a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6'
+        }
+    """
+    try:
+        # Get calendar and verify ownership (NFR [S3]: Multi-tenant security)
+        calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
+        if not calendar_exists:
+            return False, {}, error_msg
+
+        # Check if calendar already has a share token (idempotent operation)
+        existing_token = existing_calendar.get('shareToken')
+        if existing_token:
+            # Calendar already has a share token - return existing token
+            # This makes the operation idempotent (safe to call multiple times)
+            share_url = f"/shared/{existing_token}"
+
+            return True, {
+                'share_token': existing_token,
+                'share_url': share_url
+            }, ""
+
+        # Generate new UUID v4 token (NFR [S4]: Cryptographically secure)
+        # UUID v4 uses random generation (128-bit, very low collision probability)
+        new_token = str(uuid.uuid4())
+
+        # Update calendar with new share token
+        update_data = {
+            'shareToken': new_token,
+            'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        }
+
+        # Update calendar in database (NFR [SC3]: Modular architecture)
+        updated_calendar = calendars_db.update('calendars', calendar_id, update_data)
+
+        if not updated_calendar:
+            return False, {}, "Failed to update calendar with share token"
+
+        # Construct share URL for frontend (relative URL)
+        share_url = f"/shared/{new_token}"
+
+        # Return success with token and URL
+        return True, {
+            'share_token': new_token,
+            'share_url': share_url
+        }, ""
+
+    except Exception as e:
+        print(f"Share token generation error: {str(e)}")
+        return False, {}, "Internal server error during share token generation"

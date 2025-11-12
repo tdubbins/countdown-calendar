@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
 from app.utils.decorators import token_required
-from app.services.calendar_service import create_calendar as create_calendar_service, get_user_calendars, get_calendar_by_id, update_calendar as update_calendar_service, delete_calendar as delete_calendar_service
+from app.services.calendar_service import create_calendar as create_calendar_service, get_user_calendars, get_calendar_by_id, update_calendar as update_calendar_service, delete_calendar as delete_calendar_service, generate_share_token
 from app.utils.validators import validate_video_file_type, validate_video_file_size, validate_video_day_number, validate_video_duration
 from app.utils.storage import check_storage_quota, get_video_path, get_thumbnail_path, delete_video_file
 from app.utils.json_db import calendars_db
@@ -192,29 +192,108 @@ def delete_calendar(calendar_id):
             return jsonify({
                 'error': 'Invalid calendar ID'
             }), 400
-        
+
         # Delete calendar using service layer
         success, error_message = delete_calendar_service(
             calendar_id.strip(),
             request.current_user['user_id']
         )
-        
+
         if not success:
             # Determine appropriate HTTP status code based on error
             if "not found" in error_message.lower():
                 status_code = 404
             else:
                 status_code = 500
-                
+
             return jsonify({
                 'error': error_message
             }), status_code
-        
+
         # Return 204 No Content for successful deletion (RESTful convention)
         return '', 204
 
     except Exception as e:
         print(f"Delete calendar error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/generate-share-token', methods=['POST'])
+@token_required
+def generate_calendar_share_token(calendar_id):
+    """
+    Generate a unique share token for a calendar (Epic 4 - Issue #75)
+
+    This endpoint implements lazy token generation:
+    - If calendar already has a share token, returns existing token (idempotent)
+    - If calendar doesn't have a share token, generates new UUID v4 token
+    - Verifies calendar ownership before generation
+
+    NFR Compliance:
+        - [S2] JWT authentication required - user authenticated via @token_required
+        - [S3] Multi-tenant isolation - ownership verified in service layer
+        - [S4] Input validation - calendar ID validated
+        - [SC3] RESTful API design - follows REST conventions
+
+    Request:
+        POST /api/calendars/<calendar_id>/generate-share-token
+        Headers: Authorization: Bearer <jwt_token>
+
+    Returns:
+        200: Share token generated/retrieved successfully
+        {
+            "success": true,
+            "message": "Share token generated successfully",
+            "share_token": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
+            "share_url": "/shared/a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6"
+        }
+
+        400: Invalid calendar ID
+        403: User doesn't own calendar
+        404: Calendar not found
+        500: Internal server error
+    """
+    try:
+        # Extract user ID from JWT token (NFR [S2]: Authenticated request)
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID format (NFR [S4]: Input validation)
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({
+                'error': 'Invalid calendar ID'
+            }), 400
+
+        # Generate share token using service layer (NFR [SC3]: Modular architecture)
+        success, token_data, error_message = generate_share_token(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            # Determine appropriate HTTP status code based on error
+            if "not found" in error_message.lower():
+                status_code = 404
+            elif "access denied" in error_message.lower() or "ownership" in error_message.lower():
+                status_code = 403
+            else:
+                status_code = 500
+
+            return jsonify({
+                'error': error_message
+            }), status_code
+
+        # Return success response with token and URL
+        return jsonify({
+            'success': True,
+            'message': 'Share token generated successfully',
+            'share_token': token_data['share_token'],
+            'share_url': token_data['share_url']
+        }), 200
+
+    except Exception as e:
+        print(f"Generate share token error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
