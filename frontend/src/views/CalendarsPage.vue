@@ -70,7 +70,6 @@
               :key="calendar.id"
               :calendar="calendar"
               @click="openCalendar"
-              @edit="handleEditCalendar"
             />
           </div>
         </div>
@@ -268,24 +267,6 @@ const goToProfile = () => {
 const goToHelp = () => {
   // TODO: Implement help section
   console.log('Navigate to help');
-};
-
-// Edit calendar functionality
-const handleEditCalendar = async (calendarId: string) => {
-  try {
-    // Fetch the full calendar object with all fields (including endDate)
-    const result = await getCalendar(calendarId);
-
-    if (result.success && result.data) {
-      selectedCalendar.value = result.data;
-      isEditModalOpen.value = true;
-    } else {
-      await showError('Failed to load calendar data');
-    }
-  } catch (error) {
-    console.error('Failed to load calendar:', error);
-    await showError('An unexpected error occurred');
-  }
 };
 
 const handleEditSubmit = async (data: CalendarCreateData, calendarId?: string) => {

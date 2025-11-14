@@ -55,14 +55,14 @@
               </h1>
             </div>
 
-            <!-- Info Chips - Clickable to edit (before publishing only) -->
+            <!-- Info Chips - Always clickable to edit -->
             <div class="info-chips">
               <ion-chip
                 color="primary"
                 outline
-                :class="isPublished ? 'info-chip-readonly' : 'info-chip-clickable'"
-                @click="!isPublished && openEditModal()"
-                :aria-label="isPublished ? 'Calendar dates: ' + dateRangeFormatted : 'Edit calendar dates: ' + dateRangeFormatted"
+                class="info-chip-clickable"
+                @click="openEditModal()"
+                :aria-label="'Edit calendar dates: ' + dateRangeFormatted"
               >
                 <ion-icon :icon="calendarOutline" aria-hidden="true"></ion-icon>
                 <ion-label>{{ dateRangeFormatted }}</ion-label>
@@ -71,9 +71,9 @@
               <ion-chip
                 color="secondary"
                 outline
-                :class="isPublished ? 'info-chip-readonly' : 'info-chip-clickable'"
-                @click="!isPublished && openEditModal()"
-                :aria-label="isPublished ? 'Calendar duration: ' + calendar.duration + ' days' : 'Edit calendar duration: ' + calendar.duration + ' days'"
+                class="info-chip-clickable"
+                @click="openEditModal()"
+                :aria-label="'Edit calendar duration: ' + calendar.duration + ' days'"
               >
                 <ion-icon :icon="timeOutline" aria-hidden="true"></ion-icon>
                 <ion-label>{{ calendar.duration }} {{ calendar.duration === 1 ? 'day' : 'days' }}</ion-label>
@@ -89,19 +89,19 @@
               </ion-chip>
             </div>
 
-            <!-- Door Ordering Toggle (Issue #81) -->
+            <!-- Door Ordering Toggle (Issue #81) - Always editable -->
             <DoorOrderToggle
               :door-order="calendar.doorOrder"
               :door-positions="calendar.doorPositions"
               :duration="calendar.duration"
-              :is-locked="isPublished"
+              :is-locked="false"
               @update="handleDoorOrderUpdate"
             />
 
-            <!-- Theme Selector (Issue #82) -->
+            <!-- Theme Selector (Issue #82) - Always editable -->
             <ThemeSelector
               :theme="calendar.theme"
-              :is-locked="isPublished"
+              :is-locked="false"
               @update="handleThemeUpdate"
             />
 
