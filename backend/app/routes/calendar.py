@@ -6,10 +6,20 @@ from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
 from app.utils.decorators import token_required
-from app.services.calendar_service import create_calendar as create_calendar_service, get_user_calendars, get_calendar_by_id, update_calendar as update_calendar_service, delete_calendar as delete_calendar_service, generate_share_token
+from app.services.calendar_service import (
+    create_calendar as create_calendar_service,
+    get_user_calendars,
+    get_calendar_by_id,
+    update_calendar as update_calendar_service,
+    delete_calendar as delete_calendar_service,
+    publish_calendar,
+    unpublish_calendar,
+    get_public_calendar
+)
+from app.services.auth_service import AuthService
 from app.utils.validators import validate_video_file_type, validate_video_file_size, validate_video_day_number, validate_video_duration
 from app.utils.storage import check_storage_quota, get_video_path, get_thumbnail_path, delete_video_file
-from app.utils.json_db import calendars_db
+from app.utils.json_db import calendars_db, get_user_calendar_ids
 from app.tasks import VideoCompressionTask, TaskQueue
 
 calendar_bp = Blueprint('calendar', __name__)
@@ -84,20 +94,38 @@ def create_calendar():
         }), 500
 
 @calendar_bp.route('/calendars/<calendar_id>', methods=['GET'])
-@token_required
 def get_calendar(calendar_id):
-    """Get a specific calendar by ID for the authenticated user"""
+    """
+    Get a specific calendar by ID (public endpoint with optional authentication)
+
+    Access control:
+    - If calendar is published: Anyone can view
+    - If calendar is not published: Only owner can view
+    - Returns isOwner flag if viewer owns calendar
+    """
     try:
         # Validate calendar ID format
         if not calendar_id or not calendar_id.strip():
             return jsonify({
                 'error': 'Invalid calendar ID'
             }), 400
-        
-        # Get calendar using service layer
-        success, calendar_data, error_message = get_calendar_by_id(
+
+        # Get optional authentication - extract user_id from JWT
+        viewer_user_id = None
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            try:
+                token = auth_header.split(" ")[1]
+                payload, error = AuthService.verify_jwt_token(token)
+                if not error and payload:
+                    viewer_user_id = payload.get('user_id')
+            except Exception:
+                pass  # Invalid auth is okay, just treat as unauthenticated
+
+        # Get calendar using public access service layer
+        success, calendar_data, error_message = get_public_calendar(
             calendar_id.strip(),
-            request.current_user['user_id']
+            viewer_user_id
         )
         
         if not success:
@@ -247,34 +275,30 @@ def delete_calendar(calendar_id):
         }), 500
 
 
-@calendar_bp.route('/calendars/<calendar_id>/generate-share-token', methods=['POST'])
+@calendar_bp.route('/calendars/<calendar_id>/publish', methods=['POST'])
 @token_required
-def generate_calendar_share_token(calendar_id):
+def publish_calendar_route(calendar_id):
     """
-    Generate a unique share token for a calendar (Epic 4 - Issue #75)
+    Publish calendar (make it publicly accessible)
 
-    This endpoint implements lazy token generation:
-    - If calendar already has a share token, returns existing token (idempotent)
-    - If calendar doesn't have a share token, generates new UUID v4 token
-    - Verifies calendar ownership before generation
+    Sets published: true in calendar meta.json, making it accessible via
+    direct link /calendar/<calendar_id>
 
     NFR Compliance:
-        - [S2] JWT authentication required - user authenticated via @token_required
-        - [S3] Multi-tenant isolation - ownership verified in service layer
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership verified
         - [S4] Input validation - calendar ID validated
-        - [SC3] RESTful API design - follows REST conventions
+        - [SC3] RESTful API design
 
     Request:
-        POST /api/calendars/<calendar_id>/generate-share-token
+        POST /api/calendars/<calendar_id>/publish
         Headers: Authorization: Bearer <jwt_token>
 
     Returns:
-        200: Share token generated/retrieved successfully
+        200: Calendar published successfully
         {
             "success": true,
-            "message": "Share token generated successfully",
-            "share_token": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
-            "share_url": "/shared/a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6"
+            "message": "Calendar published successfully"
         }
 
         400: Invalid calendar ID
@@ -283,44 +307,106 @@ def generate_calendar_share_token(calendar_id):
         500: Internal server error
     """
     try:
-        # Extract user ID from JWT token (NFR [S2]: Authenticated request)
         user_id = request.current_user['user_id']
 
-        # Validate calendar ID format (NFR [S4]: Input validation)
+        # Validate calendar ID format
         if not calendar_id or not calendar_id.strip():
             return jsonify({
                 'error': 'Invalid calendar ID'
             }), 400
 
-        # Generate share token using service layer (NFR [SC3]: Modular architecture)
-        success, token_data, error_message = generate_share_token(
+        # Publish calendar using service layer
+        success, error_message = publish_calendar(
             calendar_id.strip(),
             user_id
         )
 
         if not success:
-            # Determine appropriate HTTP status code based on error
+            # Determine appropriate HTTP status code
             if "not found" in error_message.lower():
                 status_code = 404
-            elif "access denied" in error_message.lower() or "ownership" in error_message.lower():
-                status_code = 403
             else:
-                status_code = 500
+                status_code = 403
 
             return jsonify({
                 'error': error_message
             }), status_code
 
-        # Return success response with token and URL
         return jsonify({
             'success': True,
-            'message': 'Share token generated successfully',
-            'share_token': token_data['share_token'],
-            'share_url': token_data['share_url']
+            'message': 'Calendar published successfully'
         }), 200
 
     except Exception as e:
-        print(f"Generate share token error: {str(e)}")
+        print(f"Publish calendar error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/unpublish', methods=['POST'])
+@token_required
+def unpublish_calendar_route(calendar_id):
+    """
+    Unpublish calendar (make it private again)
+
+    Sets published: false in calendar meta.json, removing public access
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership verified
+        - [S4] Input validation - calendar ID validated
+        - [SC3] RESTful API design
+
+    Request:
+        POST /api/calendars/<calendar_id>/unpublish
+        Headers: Authorization: Bearer <jwt_token>
+
+    Returns:
+        200: Calendar unpublished successfully
+        {
+            "success": true,
+            "message": "Calendar unpublished successfully"
+        }
+
+        400: Invalid calendar ID
+        403: User doesn't own calendar
+        404: Calendar not found
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID format
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({
+                'error': 'Invalid calendar ID'
+            }), 400
+
+        # Unpublish calendar using service layer
+        success, error_message = unpublish_calendar(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            # Determine appropriate HTTP status code
+            if "not found" in error_message.lower():
+                status_code = 404
+            else:
+                status_code = 403
+
+            return jsonify({
+                'error': error_message
+            }), status_code
+
+        return jsonify({
+            'success': True,
+            'message': 'Calendar unpublished successfully'
+        }), 200
+
+    except Exception as e:
+        print(f"Unpublish calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -436,13 +522,14 @@ def upload_video(calendar_id):
                 'error': quota_error
             }), 413  # 413 Payload Too Large
 
-        # Create temp directory if it doesn't exist
-        temp_dir = 'uploads/temp'
+        # Create temp directory within calendar folder (NFR [P1]: Fast upload processing)
+        from app.utils.constants import StoragePaths
+        temp_dir = os.path.join(StoragePaths.CALENDARS_DIR, calendar_id, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Save to temporary storage (NFR [P1]: Fast upload processing)
-        # Path format: uploads/temp/{user_id}_{calendar_id}_{day}.mp4
-        temp_filename = f"{user_id}_{calendar_id}_{day}.mp4"
+        # Save to temporary storage
+        # Path format: data/calendars/{calendar_id}/temp/{day}.mp4
+        temp_filename = f"{day}.mp4"
         temp_path = os.path.join(temp_dir, temp_filename)
 
         video_file.save(temp_path)
@@ -735,41 +822,67 @@ def get_video_status(calendar_id, day):
 
 
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/thumbnail', methods=['GET'])
-@token_required
 def get_video_thumbnail(calendar_id, day):
     """
     Get thumbnail image for a video (RESTful nested endpoint)
 
     Returns the actual image file for display.
 
+    Access Control (NEW):
+        - If authenticated and owner: Access all thumbnails regardless of lock state
+        - If not owner (or not authenticated): Only access unlocked days (403 for locked)
+
     NFR Compliance:
-        - [S2] JWT authentication required
+        - [S2] Optional JWT authentication (owner gets full access)
         - [S3] Multi-tenant isolation - ownership validation
         - [P3] Fast thumbnail delivery
 
     Returns:
         200: Thumbnail image file (image/jpeg)
-        404: Thumbnail not found
+        403: Day is locked (for non-owners)
+        404: Thumbnail not found or calendar not published
         500: Internal server error
     """
     try:
-        user_id = request.current_user['user_id']
-
         # Validate calendar ID
         if not calendar_id or not calendar_id.strip():
             return jsonify({'error': 'Invalid calendar ID'}), 400
 
-        # Get calendar and verify ownership
-        success, calendar_data, error_message = get_calendar_by_id(
+        # Get optional authentication to check ownership
+        viewer_user_id = None
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            try:
+                token = auth_header.split(" ")[1]
+                payload, error = AuthService.verify_jwt_token(token)
+                if not error and payload:
+                    viewer_user_id = payload.get('user_id')
+            except Exception:
+                pass  # Invalid auth is okay, just treat as non-owner
+
+        # Get calendar using public access (checks published status and ownership)
+        success, calendar_data, error_message = get_public_calendar(
             calendar_id.strip(),
-            user_id
+            viewer_user_id
         )
 
+        # Extract isOwner flag from calendar_data
+        is_owner = calendar_data.get('isOwner', False) if success else False
+
         if not success:
-            return jsonify({'error': 'Calendar not found or access denied'}), 404
+            return jsonify({'error': 'Calendar not found or not accessible'}), 404
+
+        # Check access permission for this specific day
+        # Owners can access all days regardless of lock state
+        if not is_owner:
+            # Non-owners must respect unlock logic
+            from app.utils.unlock_logic import is_day_unlocked
+
+            if not is_day_unlocked(calendar_data, day):
+                return jsonify({'error': f'Day {day} is locked'}), 403
 
         # Get thumbnail path
-        thumbnail_path = get_thumbnail_path(user_id, calendar_id, day)
+        thumbnail_path = get_thumbnail_path(calendar_id, day)
 
         if not thumbnail_path.exists():
             return jsonify({'error': f'Thumbnail not found for day {day}'}), 404
@@ -791,41 +904,67 @@ def get_video_thumbnail(calendar_id, day):
 
 
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/stream', methods=['GET'])
-@token_required
 def stream_video(calendar_id, day):
     """
     Stream video file for playback (RESTful nested endpoint)
 
     Returns the actual video file for HTML5 video player.
 
+    Access Control (NEW):
+        - If authenticated and owner: Access all videos regardless of lock state
+        - If not owner (or not authenticated): Only access unlocked days (403 for locked)
+
     NFR Compliance:
-        - [S2] JWT authentication required
+        - [S2] Optional JWT authentication (owner gets full access)
         - [S3] Multi-tenant isolation - ownership validation
         - [P3] Fast video delivery
 
     Returns:
         200: Video file (video/mp4)
-        404: Video not found
+        403: Day is locked (for non-owners)
+        404: Video not found or calendar not published
         500: Internal server error
     """
     try:
-        user_id = request.current_user['user_id']
-
         # Validate calendar ID
         if not calendar_id or not calendar_id.strip():
             return jsonify({'error': 'Invalid calendar ID'}), 400
 
-        # Get calendar and verify ownership
-        success, calendar_data, error_message = get_calendar_by_id(
+        # Get optional authentication to check ownership
+        viewer_user_id = None
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            try:
+                token = auth_header.split(" ")[1]
+                payload, error = AuthService.verify_jwt_token(token)
+                if not error and payload:
+                    viewer_user_id = payload.get('user_id')
+            except Exception:
+                pass  # Invalid auth is okay, just treat as non-owner
+
+        # Get calendar using public access (checks published status and ownership)
+        success, calendar_data, error_message = get_public_calendar(
             calendar_id.strip(),
-            user_id
+            viewer_user_id
         )
 
         if not success:
-            return jsonify({'error': 'Calendar not found or access denied'}), 404
+            return jsonify({'error': 'Calendar not found or not accessible'}), 404
+
+        # Extract isOwner flag from calendar_data
+        is_owner = calendar_data.get('isOwner', False)
+
+        # Check access permission for this specific day
+        # Owners can access all days regardless of lock state
+        if not is_owner:
+            # Non-owners must respect unlock logic
+            from app.utils.unlock_logic import is_day_unlocked
+
+            if not is_day_unlocked(calendar_data, day):
+                return jsonify({'error': f'Day {day} is locked'}), 403
 
         # Get video path
-        video_path = get_video_path(user_id, calendar_id, day)
+        video_path = get_video_path(calendar_id, day)
 
         if not video_path.exists():
             return jsonify({'error': f'Video not found for day {day}'}), 404
@@ -895,7 +1034,7 @@ def delete_video(calendar_id, day):
         video_size = videos_dict[str(day)].get('size', 0)
 
         # Delete video and thumbnail files
-        files_deleted = delete_video_file(user_id, calendar_id, day)
+        files_deleted = delete_video_file(calendar_id, day)
 
         if not files_deleted:
             print(f"Warning: No files deleted for calendar {calendar_id}, day {day}")

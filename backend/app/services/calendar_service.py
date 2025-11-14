@@ -1,12 +1,11 @@
-# Calendar Service - Business Logic for Calendar Operations
+# Calendar Service - Business Logic for Calendar Operations (Refactored for per-calendar folders)
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Tuple, Optional
 
-from app.utils.json_db import calendars_db
+from app.utils.json_db import calendars_db, add_calendar_to_user, remove_calendar_from_user, get_user_calendar_ids
 from app.utils.validators import (
     validate_calendar_title,
-    validate_calendar_title_uniqueness,
     validate_calendar_duration,
     validate_calendar_start_date,
     validate_required_fields,
@@ -15,87 +14,46 @@ from app.utils.validators import (
     validate_theme,
     validate_door_positions
 )
-from app.utils.storage import delete_calendar_files
 
-def _validate_title_with_uniqueness(user_id: str, title: str, calendar_id: str = None) -> Tuple[bool, str, str]:
-    """
-    Helper function to validate calendar title format and uniqueness
-    
-    Args:
-        user_id: The user ID to check uniqueness within
-        title: The title to validate
-        calendar_id: Optional calendar ID for updates (allows same title for same calendar)
-    
-    Returns:
-        Tuple of (is_valid, clean_title, error_message)
-    """
-    # Validate title format first
-    title_valid, clean_title, title_error = validate_calendar_title(title)
-    if not title_valid:
-        return False, "", title_error
-    
-    # Check title uniqueness for this user
-    user_calendars_success, user_calendars_list, user_calendars_error = get_user_calendars(user_id)
-    if not user_calendars_success:
-        return False, "", f"Unable to verify title uniqueness: {user_calendars_error}"
-    
-    uniqueness_valid, clean_title_final, uniqueness_error = validate_calendar_title_uniqueness(
-        user_calendars_list, clean_title, calendar_id
-    )
-    if not uniqueness_valid:
-        return False, "", uniqueness_error
-    
-    return True, clean_title_final, ""
 
 def create_calendar(user_id: str, title: str, start_date: str, duration: int,
                    door_order: str = 'sequential', door_positions: list = None,
-                   theme: str = 'christmas', tz: str = 'Europe/Berlin') -> Tuple[bool, Dict[str, Any], str]:
+                   theme: str = 'christmas', tz: str = 'Europe/Berlin',
+                   description: str = '') -> Tuple[bool, Dict[str, Any], str]:
     """
     Create a new calendar for the authenticated user
 
-    Args:
-        user_id: The user ID creating the calendar
-        title: Calendar title
-        start_date: Calendar start date in YYYY-MM-DD format
-        duration: Calendar duration in days (1-31)
-        door_order: Door ordering ("sequential" or "random", default: "sequential")
-        door_positions: Array of shuffled door positions for random ordering (optional)
-        theme: Calendar theme identifier (default: "christmas")
-        tz: IANA timezone identifier (default: "Europe/Berlin")
-
-    Returns:
-        - success: bool
-        - calendar_data: Dict with calendar info or empty dict
-        - error_message: str with error details or empty string
+    Creates folder structure: data/calendars/<uuid>/
+    Adds calendar_id to user's calendar_ids array
     """
     try:
-        # Validate required fields are present
+        # Validate required fields
         data = {'title': title, 'startDate': start_date, 'duration': duration}
         fields_valid, fields_error = validate_required_fields(data, ['title', 'startDate', 'duration'])
         if not fields_valid:
             return False, {}, fields_error
-        
-        # Validate title format and uniqueness
-        title_valid, clean_title, title_error = _validate_title_with_uniqueness(user_id, title)
+
+        # Validate title format
+        title_valid, clean_title, title_error = validate_calendar_title(title)
         if not title_valid:
             return False, {}, title_error
-        
+
         # Validate start date
         date_valid, clean_start_date, date_error = validate_calendar_start_date(start_date)
         if not date_valid:
             return False, {}, date_error
-        
+
         # Validate duration
         duration_valid, clean_duration, duration_error = validate_calendar_duration(duration)
         if not duration_valid:
             return False, {}, duration_error
 
-        # Validate door order (NFR [S4]: Input validation for enum values)
+        # Validate door order
         door_order_valid, clean_door_order, door_order_error = validate_door_order(door_order)
         if not door_order_valid:
             return False, {}, door_order_error
 
-        # Validate timezone (NFR [S4]: Input validation for timezone strings)
+        # Validate timezone
         timezone_valid, clean_timezone, timezone_error = validate_timezone(tz)
         if not timezone_valid:
             return False, {}, timezone_error
@@ -105,517 +63,361 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int,
         if not theme_valid:
             return False, {}, theme_error
 
-        # Validate door_positions (NFR [S4]: Input validation for array structure)
+        # Validate door_positions
         positions_valid, clean_door_positions, positions_error = validate_door_positions(door_positions, clean_duration)
         if not positions_valid:
             return False, {}, positions_error
 
-        # Generate unique calendar ID (NFR [S3]: Cryptographically secure)
+        # Generate unique calendar ID
         calendar_id = str(uuid.uuid4())
 
-        # Share token is null by default (lazy generation - privacy by default)
-        # Token will be generated when user clicks "Share" button (Issue #75)
-        share_token = None
-        
-        # Calculate end date and date range
+        # Create calendar folder structure
+        if not calendars_db.create_calendar_structure(calendar_id):
+            return False, {}, "Failed to create calendar folder structure"
+
+        # Calculate end date
         start_datetime = datetime.strptime(clean_start_date, '%Y-%m-%d')
         end_datetime = start_datetime + timedelta(days=clean_duration - 1)
         end_date = end_datetime.strftime('%Y-%m-%d')
-        date_range = f"{clean_start_date} to {end_date}"
-        
-        # Create calendar object according to schema (NFR [SC3]: Modular architecture)
+
+        # Create calendar metadata
         now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        date_range = f"{clean_start_date} to {end_date}"
+
+        # Calculate status based on dates
+        today = datetime.now().date()
+        start_dt = datetime.strptime(clean_start_date, '%Y-%m-%d').date()
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+        if today < start_dt:
+            status = 'upcoming'
+        elif today > end_dt:
+            status = 'ended'
+        else:
+            status = 'active'
+
         calendar_data = {
             'id': calendar_id,
             'title': clean_title,
             'startDate': clean_start_date,
-            'duration': clean_duration,
             'endDate': end_date,
             'dateRange': date_range,
-            'videoCount': 0,
-            'status': 'draft',
-            'shareToken': share_token,  # null by default (lazy generation)
-            'createdAt': now,
-            'updatedAt': now,
-            'userId': user_id,
-            'videoStorageUsed': 0,
+            'duration': clean_duration,
+            'status': status,
+            'published': False,  # Unpublished by default
+            'doorOrder': clean_door_order,
+            'doorPositions': clean_door_positions,
+            'theme': clean_theme,
+            'timezone': clean_timezone,
+            'description': description,
             'videos': {},
-            # New fields for sharing feature (Issue #74)
-            'doorOrder': clean_door_order,        # "sequential" or "random"
-            'doorPositions': clean_door_positions, # array of integers or null
-            'theme': clean_theme,                  # theme identifier (e.g., "christmas")
-            'timezone': clean_timezone             # IANA timezone (e.g., "Europe/Berlin")
+            'videoCount': 0,
+            'videoStorageUsed': 0,
+            'createdAt': now,
+            'updatedAt': now
         }
-        
-        # Save to database (NFR [SC3]: Modular architecture)
-        saved_calendar = calendars_db.create('calendars', calendar_id, calendar_data)
-        
-        if saved_calendar:
-            return True, saved_calendar, ""
-        else:
-            return False, {}, "Failed to save calendar to database"
-            
+
+        # Write meta.json
+        if not calendars_db.write_calendar_meta(calendar_id, calendar_data):
+            return False, {}, "Failed to write calendar metadata"
+
+        # Add calendar to user's calendar_ids array
+        if not add_calendar_to_user(user_id, calendar_id):
+            # Rollback: delete calendar folder
+            calendars_db.delete_calendar_folder(calendar_id)
+            return False, {}, "Failed to associate calendar with user"
+
+        return True, calendar_data, ""
+
     except Exception as e:
         print(f"Calendar creation error: {str(e)}")
         return False, {}, "Internal server error during calendar creation"
 
+
 def get_user_calendars(user_id: str) -> Tuple[bool, list, str]:
     """
     Get all calendars for a specific user
-    
-    NFR Compliance:
-        - [P3] Calendar Rendering: Optimized for <3 second response time
-        - [SC1] User Database Capacity: Handles 100+ users with O(n) complexity
-        - [P4] Concurrent Users: Thread-safe JSON file operations
-    
-    Performance Characteristics:
-        - Time Complexity: O(n) where n = total calendars in system
-        - Space Complexity: O(m) where m = calendars for this user
-        - Acceptable for small-medium scale (100 users, 1000 total calendars)
-        - May need optimization for larger datasets (>5000 calendars)
-    
-    Returns:
-        - success: bool
-        - calendars: list of calendar objects
-        - error_message: str with error details or empty string
+
+    Reads user's calendar_ids array and fetches each calendar's meta.json
     """
     try:
-        # Use database method to find calendars by user ID (NFR [SC1]: Efficient queries)
-        user_calendars = calendars_db.list_by_field('calendars', 'userId', user_id)
-        return True, user_calendars, ""
-        
+        calendar_ids = get_user_calendar_ids(user_id)
+        calendars = []
+
+        for calendar_id in calendar_ids:
+            meta = calendars_db.read_calendar_meta(calendar_id)
+            if meta:
+                calendars.append(meta)
+
+        return True, calendars, ""
+
     except Exception as e:
         print(f"Get user calendars error: {str(e)}")
         return False, [], "Internal server error retrieving calendars"
 
+
 def get_calendar_by_id(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str, Any], str]:
     """
     Get a specific calendar by ID, ensuring it belongs to the user
-    
-    Returns:
-        - success: bool
-        - calendar_data: Dict with calendar info or empty dict
-        - error_message: str with error details or empty string
+
+    Returns calendar if user owns it
     """
     try:
-        # Find calendar by ID
-        calendar = calendars_db.find_by_id('calendars', calendar_id)
-        
-        if not calendar:
+        # Check if calendar exists
+        if not calendars_db.calendar_exists(calendar_id):
             return False, {}, "Calendar not found"
-        
-        # Verify ownership
-        if calendar.get('userId') != user_id:
+
+        # Check ownership
+        user_calendar_ids = get_user_calendar_ids(user_id)
+        if calendar_id not in user_calendar_ids:
             return False, {}, "Calendar not found"  # Don't reveal existence
-        
-        return True, calendar, ""
-        
+
+        # Read calendar meta.json
+        calendar_data = calendars_db.read_calendar_meta(calendar_id)
+        if not calendar_data:
+            return False, {}, "Calendar not found"
+
+        return True, calendar_data, ""
+
     except Exception as e:
-        print(f"Get calendar by ID error: {str(e)}")
+        print(f"Get calendar error: {str(e)}")
         return False, {}, "Internal server error retrieving calendar"
+
 
 def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
                    start_date: Optional[str] = None, duration: Optional[int] = None,
                    door_order: Optional[str] = None, door_positions: Optional[list] = None,
-                   theme: Optional[str] = None, tz: Optional[str] = None) -> Tuple[bool, Dict[str, Any], str]:
+                   theme: Optional[str] = None, tz: Optional[str] = None,
+                   description: Optional[str] = None) -> Tuple[bool, Dict[str, Any], str]:
     """
-    Update a specific calendar for the authenticated user
-
-    NFR Compliance:
-        - [S4] Input Validation: All inputs validated using existing validation functions
-        - [SC3] Modular Architecture: Service layer separation of concerns
-        - [P3] Calendar Rendering: Optimized updates for <3 second response time
-
-    Args:
-        calendar_id: str - The calendar ID to update
-        user_id: str - The authenticated user ID
-        title: Optional[str] - New calendar title
-        start_date: Optional[str] - New start date in YYYY-MM-DD format
-        duration: Optional[int] - New duration in days (1-31)
-        door_order: Optional[str] - Door ordering ("sequential" or "random")
-        door_positions: Optional[list] - Array of shuffled door positions for random ordering
-        theme: Optional[str] - Calendar theme identifier
-        tz: Optional[str] - IANA timezone identifier
-
-    Returns:
-        - success: bool
-        - calendar_data: Dict with updated calendar info or empty dict
-        - error_message: str with error details or empty string
+    Update a calendar (owner only)
     """
     try:
-        # First, get the calendar and verify ownership
-        calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
-        if not calendar_exists:
-            return False, {}, error_msg
+        # Get existing calendar
+        success, calendar_data, error = get_calendar_by_id(calendar_id, user_id)
+        if not success:
+            return False, {}, error
 
-        # Prevent editing if calendar is already shared (status is "active")
-        # Once a calendar is shared, it should be immutable to ensure viewers have consistent experience
-        if existing_calendar.get('shareToken'):
-            return False, {}, "Cannot edit calendar after it has been shared. Calendar is locked."
+        updates = {}
 
-        # Prepare update data - only include provided fields
-        update_data = {}
-        
-        # Validate and process title if provided
+        # Validate and update fields if provided
         if title is not None:
-            title_valid, clean_title, title_error = _validate_title_with_uniqueness(user_id, title, calendar_id)
+            title_valid, clean_title, title_error = validate_calendar_title(title)
             if not title_valid:
                 return False, {}, title_error
-            update_data['title'] = clean_title
-        
-        # Validate and process start date if provided
+            updates['title'] = clean_title
+
         if start_date is not None:
             date_valid, clean_start_date, date_error = validate_calendar_start_date(start_date)
             if not date_valid:
                 return False, {}, date_error
-            update_data['startDate'] = clean_start_date
-        
-        # Validate and process duration if provided
+            updates['startDate'] = clean_start_date
+
         if duration is not None:
             duration_valid, clean_duration, duration_error = validate_calendar_duration(duration)
             if not duration_valid:
                 return False, {}, duration_error
-            update_data['duration'] = clean_duration
+            updates['duration'] = clean_duration
 
-        # Validate and process door order if provided (NFR [S4]: Input validation)
         if door_order is not None:
-            door_order_valid, clean_door_order, door_order_error = validate_door_order(door_order)
-            if not door_order_valid:
-                return False, {}, door_order_error
-            update_data['doorOrder'] = clean_door_order
+            order_valid, clean_order, order_error = validate_door_order(door_order)
+            if not order_valid:
+                return False, {}, order_error
+            updates['doorOrder'] = clean_order
 
-        # Validate and process timezone if provided (NFR [S4]: Input validation)
-        if tz is not None:
-            timezone_valid, clean_timezone, timezone_error = validate_timezone(tz)
-            if not timezone_valid:
-                return False, {}, timezone_error
-            update_data['timezone'] = clean_timezone
+        if door_positions is not None:
+            current_duration = updates.get('duration', calendar_data['duration'])
+            pos_valid, clean_pos, pos_error = validate_door_positions(door_positions, current_duration)
+            if not pos_valid:
+                return False, {}, pos_error
+            updates['doorPositions'] = clean_pos
 
-        # Validate and process theme if provided
         if theme is not None:
             theme_valid, clean_theme, theme_error = validate_theme(theme)
             if not theme_valid:
                 return False, {}, theme_error
-            update_data['theme'] = clean_theme
+            updates['theme'] = clean_theme
 
-        # Validate and process door positions if provided (NFR [S4]: Input validation)
-        if door_positions is not None:
-            # Get the duration (either from update or existing calendar)
-            final_duration = update_data.get('duration', existing_calendar.get('duration'))
+        if tz is not None:
+            tz_valid, clean_tz, tz_error = validate_timezone(tz)
+            if not tz_valid:
+                return False, {}, tz_error
+            updates['timezone'] = clean_tz
 
-            positions_valid, clean_door_positions, positions_error = validate_door_positions(door_positions, final_duration)
-            if not positions_valid:
-                return False, {}, positions_error
-            update_data['doorPositions'] = clean_door_positions
+        if description is not None:
+            updates['description'] = description
 
-        # If no updates provided, return error
-        if not update_data:
-            return False, {}, "No valid update fields provided"
-        
-        # Calculate derived fields if start_date or duration changed
-        final_start_date = update_data.get('startDate', existing_calendar['startDate'])
-        final_duration = update_data.get('duration', existing_calendar['duration'])
-        
-        # Recalculate end date and date range if start date or duration changed
-        if 'startDate' in update_data or 'duration' in update_data:
-            start_datetime = datetime.strptime(final_start_date, '%Y-%m-%d')
-            end_datetime = start_datetime + timedelta(days=final_duration - 1)
-            update_data['endDate'] = end_datetime.strftime('%Y-%m-%d')
-            update_data['dateRange'] = f"{final_start_date} to {update_data['endDate']}"
-        
-        # Update timestamp
-        update_data['updatedAt'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-        
-        # Update calendar in database (NFR [SC3]: Modular architecture)
-        updated_calendar = calendars_db.update('calendars', calendar_id, update_data)
-        
-        if updated_calendar:
-            return True, updated_calendar, ""
-        else:
-            return False, {}, "Failed to update calendar in database"
-            
+        # Recalculate endDate and dateRange if startDate or duration changed
+        if 'startDate' in updates or 'duration' in updates:
+            new_start_date = updates.get('startDate', calendar_data['startDate'])
+            new_duration = updates.get('duration', calendar_data['duration'])
+
+            start_dt = datetime.strptime(new_start_date, '%Y-%m-%d')
+            end_dt = start_dt + timedelta(days=new_duration - 1)
+            new_end_date = end_dt.strftime('%Y-%m-%d')
+
+            updates['endDate'] = new_end_date
+            updates['dateRange'] = f"{new_start_date} to {new_end_date}"
+
+        updates['updatedAt'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+        # Update meta.json
+        updated_calendar = calendars_db.update_calendar_meta(calendar_id, updates)
+        if not updated_calendar:
+            return False, {}, "Failed to update calendar"
+
+        return True, updated_calendar, ""
+
     except Exception as e:
-        print(f"Calendar update error: {str(e)}")
-        return False, {}, "Internal server error during calendar update"
+        print(f"Update calendar error: {str(e)}")
+        return False, {}, "Internal server error updating calendar"
+
 
 def delete_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
     """
-    Delete a specific calendar for the authenticated user
+    Delete a calendar (owner only)
 
-    This function performs atomic cleanup of:
-    1. Calendar metadata in database
-    2. All video files for the calendar
-    3. All thumbnail files for the calendar
-
-    NFR Compliance:
-        - [S3] Multi-tenant isolation: User ID verified before deletion
-        - [SC3] Modular architecture: Separate storage utility handles file cleanup
-        - GDPR compliance: Complete data removal including all media files
-
-    Args:
-        calendar_id: str - The calendar ID to delete
-        user_id: str - The authenticated user ID
-
-    Returns:
-        - success: bool
-        - error_message: str with error details or empty string
+    Deletes entire calendar folder and removes from user's calendar_ids
     """
     try:
-        # First, get the calendar and verify ownership
-        calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
-        if not calendar_exists:
-            return False, error_msg
+        # Verify ownership
+        success, calendar_data, error = get_calendar_by_id(calendar_id, user_id)
+        if not success:
+            return False, error
 
-        # Delete all video and thumbnail files for this calendar (NFR [SC3]: Modular file management)
-        # This is done BEFORE database deletion to ensure files are cleaned up even if DB delete fails
-        delete_calendar_files(user_id, calendar_id)
+        # Delete calendar folder (includes videos, thumbnails, meta.json)
+        if not calendars_db.delete_calendar_folder(calendar_id):
+            return False, "Failed to delete calendar folder"
 
-        # Delete calendar from database
-        deleted = calendars_db.delete('calendars', calendar_id)
+        # Remove from user's calendar_ids array
+        if not remove_calendar_from_user(user_id, calendar_id):
+            print(f"Warning: Calendar {calendar_id} deleted but not removed from user {user_id}")
 
-        if deleted:
-            return True, ""
-        else:
-            return False, "Failed to delete calendar from database"
+        return True, ""
 
     except Exception as e:
-        print(f"Calendar deletion error: {str(e)}")
-        return False, "Internal server error during calendar deletion"
+        print(f"Delete calendar error: {str(e)}")
+        return False, "Internal server error deleting calendar"
 
-def generate_share_token(calendar_id: str, user_id: str) -> Tuple[bool, Dict[str, Any], str]:
+
+def publish_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
     """
-    Generate a unique share token for a calendar (lazy generation)
-
-    This function implements the lazy generation pattern:
-    - If calendar already has a share token, returns existing token (idempotent)
-    - If calendar doesn't have a share token, generates new UUID v4 token
-    - Updates calendar with share token and timestamp
-
-    NFR Compliance:
-        - [S3] Multi-tenant isolation: Verifies calendar ownership before generation
-        - [S4] Input validation: Validates calendar ID format
-        - [SC3] Modular architecture: Service layer separation of concerns
-        - Privacy by default: Only generates token when explicitly requested
-
-    Args:
-        calendar_id: str - The calendar ID to generate share token for
-        user_id: str - The authenticated user ID
-
-    Returns:
-        - success: bool
-        - data: Dict with share_token and share_url, or empty dict
-        - error_message: str with error details or empty string
-
-    Example Response:
-        {
-            'share_token': 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
-            'share_url': 'https://advent-app.com/shared/a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6'
-        }
+    Publish calendar (make it publicly accessible)
     """
     try:
-        # Get calendar and verify ownership (NFR [S3]: Multi-tenant security)
-        calendar_exists, existing_calendar, error_msg = get_calendar_by_id(calendar_id, user_id)
-        if not calendar_exists:
-            return False, {}, error_msg
+        # Verify ownership
+        success, calendar_data, error = get_calendar_by_id(calendar_id, user_id)
+        if not success:
+            return False, error
 
-        # Check if calendar already has a share token (idempotent operation)
-        existing_token = existing_calendar.get('shareToken')
-        if existing_token:
-            # Calendar already has a share token - return existing token
-            # This makes the operation idempotent (safe to call multiple times)
-            share_url = f"/shared/{existing_token}"
-
-            return True, {
-                'share_token': existing_token,
-                'share_url': share_url
-            }, ""
-
-        # Generate new UUID v4 token (NFR [S4]: Cryptographically secure)
-        # UUID v4 uses random generation (128-bit, very low collision probability)
-        new_token = str(uuid.uuid4())
-
-        # Update calendar with new share token and change status from "draft" to "active"
-        # Status change: Once shared, calendar becomes "active" and should be locked from editing
-        update_data = {
-            'shareToken': new_token,
-            'status': 'active',  # Change from "draft" to "active" when sharing
+        # Update published flag
+        updates = {
+            'published': True,
             'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         }
 
-        # Update calendar in database (NFR [SC3]: Modular architecture)
-        updated_calendar = calendars_db.update('calendars', calendar_id, update_data)
-
+        updated_calendar = calendars_db.update_calendar_meta(calendar_id, updates)
         if not updated_calendar:
-            return False, {}, "Failed to update calendar with share token"
+            return False, "Failed to publish calendar"
 
-        # Construct share URL for frontend (relative URL)
-        share_url = f"/shared/{new_token}"
-
-        # Return success with token and URL
-        return True, {
-            'share_token': new_token,
-            'share_url': share_url
-        }, ""
+        return True, ""
 
     except Exception as e:
-        print(f"Share token generation error: {str(e)}")
-        return False, {}, "Internal server error during share token generation"
+        print(f"Publish calendar error: {str(e)}")
+        return False, "Internal server error publishing calendar"
 
 
-def get_calendar_by_share_token(share_token: str) -> Tuple[bool, Dict[str, Any], str]:
+def unpublish_calendar(calendar_id: str, user_id: str) -> Tuple[bool, str]:
     """
-    Find a calendar by its share token (public access, no authentication required)
-
-    This function enables public access to shared calendars via their unique share token.
-    Unlike get_calendar_by_id, this does NOT verify user ownership since it's for
-    public viewing.
-
-    NFR Compliance:
-        - [S4] Input validation: Validates share token format (UUID)
-        - [SC3] Modular architecture: Service layer separation
-        - [P3] Performance: O(n) lookup across all calendars
-        - Privacy: Does not return user_id or other sensitive data
-
-    Args:
-        share_token: str - The UUID share token to look up
-
-    Returns:
-        - success: bool
-        - calendar_data: Dict with calendar info or empty dict
-        - error_message: str with error details or empty string
-
-    Notes:
-        - Returns error if calendar is deleted (not found)
-        - Returns error if share_token is null (calendar not shared)
-        - Does not verify ownership (public endpoint)
+    Unpublish calendar (make it private again)
     """
     try:
-        # Validate share token format (should be a UUID)
-        if not share_token or not share_token.strip():
-            return False, {}, "Invalid share token"
+        # Verify ownership
+        success, calendar_data, error = get_calendar_by_id(calendar_id, user_id)
+        if not success:
+            return False, error
 
-        share_token = share_token.strip()
-
-        # Validate UUID format (basic check)
-        if len(share_token) != 36:  # UUID v4 format: 8-4-4-4-12 characters with hyphens
-            return False, {}, "Invalid share token format"
-
-        # Find calendar by share token (NFR [P3]: O(n) lookup)
-        # This searches all calendars for matching shareToken field
-        calendars_list = calendars_db.list_by_field('calendars', 'shareToken', share_token)
-
-        if not calendars_list or len(calendars_list) == 0:
-            # No calendar found with this share token
-            # Could mean: token is invalid, calendar was deleted, or calendar was never shared
-            return False, {}, "Calendar not found or no longer shared"
-
-        # Should only be one calendar with this token (tokens are unique)
-        calendar = calendars_list[0]
-
-        return True, calendar, ""
-
-    except Exception as e:
-        print(f"Get calendar by share token error: {str(e)}")
-        return False, {}, "Internal server error retrieving shared calendar"
-
-
-def get_shared_calendar_data(share_token: str) -> Tuple[bool, Dict[str, Any], str]:
-    """
-    Get formatted calendar data for public sharing view
-
-    This function prepares calendar data for public consumption by:
-    1. Finding calendar by share token
-    2. Calculating unlock status for all days
-    3. Formatting response with only public-safe information
-    4. Including thumbnail URLs for unlocked days
-
-    NFR Compliance:
-        - [S4] Privacy: Does not expose user_id, email, or sensitive data
-        - [P3] Performance: Single database lookup + O(n) unlock calculation
-        - [SC3] Modular: Uses unlock_logic utility for consistency
-        - [U5] Accessibility: Clear data structure for frontend
-
-    Args:
-        share_token: str - The UUID share token
-
-    Returns:
-        - success: bool
-        - data: Dict with formatted calendar data for public view
-        - error_message: str with error details or empty string
-
-    Response Format:
-        {
-            'title': 'My Advent Calendar',
-            'duration': 24,
-            'doorOrder': 'random',
-            'doorPositions': [3, 1, 24, ...],
-            'theme': 'christmas',
-            'days': [
-                {
-                    'dayNumber': 1,
-                    'isUnlocked': True,
-                    'thumbnailUrl': '/api/shared/<token>/day/1/thumbnail'
-                },
-                {
-                    'dayNumber': 2,
-                    'isUnlocked': False,
-                    'thumbnailUrl': None
-                },
-                ...
-            ]
+        # Update published flag
+        updates = {
+            'published': False,
+            'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         }
+
+        updated_calendar = calendars_db.update_calendar_meta(calendar_id, updates)
+        if not updated_calendar:
+            return False, "Failed to unpublish calendar"
+
+        return True, ""
+
+    except Exception as e:
+        print(f"Unpublish calendar error: {str(e)}")
+        return False, "Internal server error unpublishing calendar"
+
+
+def get_public_calendar(calendar_id: str, viewer_user_id: str = None) -> Tuple[bool, Dict[str, Any], str]:
+    """
+    Get calendar for public viewing
+
+    Access control:
+    - If published: Anyone can access
+    - If not published: Only owner can access
+    - Returns isOwner flag if viewer owns calendar
     """
     try:
-        # Import unlock logic utility
-        from app.utils.unlock_logic import get_all_unlock_statuses
+        # Check if calendar exists
+        if not calendars_db.calendar_exists(calendar_id):
+            return False, {}, "Calendar not found"
 
-        # Find calendar by share token
-        calendar_found, calendar, error_msg = get_calendar_by_share_token(share_token)
-        if not calendar_found:
-            return False, {}, error_msg
+        # Read calendar meta.json
+        calendar_data = calendars_db.read_calendar_meta(calendar_id)
+        if not calendar_data:
+            return False, {}, "Calendar not found"
 
-        # Calculate unlock status for all days (NFR [P3]: O(n) where n = duration)
-        unlock_statuses = get_all_unlock_statuses(calendar)
+        # Check if viewer is owner by querying user's calendar_ids from database
+        is_owner = False
+        if viewer_user_id:
+            user_calendar_ids = get_user_calendar_ids(viewer_user_id)
+            is_owner = calendar_id in user_calendar_ids
 
-        # Format days array with unlock status and thumbnail URLs
-        days_data = []
-        videos_dict = calendar.get('videos', {})
+        # Access control
+        if not calendar_data.get('published', False) and not is_owner:
+            return False, {}, "Calendar not found"  # Don't reveal existence
 
-        for day_number in range(1, calendar['duration'] + 1):
-            is_unlocked = unlock_statuses.get(day_number, False)
+        # Add isOwner flag
+        calendar_data['isOwner'] = is_owner
 
-            # Only include thumbnail URL if day is unlocked AND video exists
+        # Build days array with unlock statuses and thumbnail URLs
+        from app.utils.unlock_logic import is_day_unlocked
+
+        duration = calendar_data.get('duration', 0)
+        videos = calendar_data.get('videos', {})
+        days = []
+
+        for day_number in range(1, duration + 1):
+            day_unlocked = is_day_unlocked(calendar_data, day_number)
+
+            # Check if video exists for this day
+            video_info = videos.get(str(day_number))
             thumbnail_url = None
-            if is_unlocked and str(day_number) in videos_dict:
-                thumbnail_url = f"/api/shared/{share_token}/day/{day_number}/thumbnail"
+            has_video = False
+
+            if video_info and video_info.get('status') == 'completed':
+                # Construct thumbnail URL for this day
+                thumbnail_url = f"/api/calendars/{calendar_id}/videos/{day_number}/thumbnail"
+                has_video = True
 
             day_data = {
                 'dayNumber': day_number,
-                'isUnlocked': is_unlocked,
+                'isUnlocked': day_unlocked,
+                'hasVideo': has_video,
                 'thumbnailUrl': thumbnail_url
             }
+            days.append(day_data)
 
-            days_data.append(day_data)
+        calendar_data['days'] = days
 
-        # Prepare public-safe calendar data (NFR [S4]: Privacy protection)
-        public_calendar_data = {
-            'title': calendar['title'],
-            'duration': calendar['duration'],
-            'doorOrder': calendar.get('doorOrder', 'sequential'),
-            'doorPositions': calendar.get('doorPositions'),  # null if sequential
-            'theme': calendar.get('theme', 'christmas'),
-            'days': days_data
-        }
-
-        # NOTE: We intentionally DO NOT include:
-        # - userId (privacy)
-        # - startDate (privacy - prevents calculating end date)
-        # - createdAt/updatedAt (not relevant for viewers)
-        # - videoStorageUsed (internal metric)
-        # - shareToken itself (already known by viewer)
-
-        return True, public_calendar_data, ""
+        return True, calendar_data, ""
 
     except Exception as e:
-        print(f"Get shared calendar data error: {str(e)}")
-        return False, {}, "Internal server error preparing shared calendar data"
+        print(f"Get public calendar error: {str(e)}")
+        return False, {}, "Internal server error retrieving calendar"

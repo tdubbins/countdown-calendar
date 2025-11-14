@@ -78,11 +78,11 @@ class TestVideoValidators(unittest.TestCase):
                     self.assertEqual(error, "")
 
     def test_validate_video_file_size_too_large(self):
-        """Test file size exceeds maximum"""
+        """Test file size exceeds maximum (1GB limit)"""
         invalid_sizes = [
-            51 * 1024 * 1024,  # 51 MB
-            100 * 1024 * 1024,  # 100 MB
-            500 * 1024 * 1024  # 500 MB
+            1025 * 1024 * 1024,  # 1025 MB (1.001GB)
+            2 * 1024 * 1024 * 1024,  # 2 GB
+            5 * 1024 * 1024 * 1024  # 5 GB
         ]
 
         for size in invalid_sizes:
@@ -90,7 +90,7 @@ class TestVideoValidators(unittest.TestCase):
                 valid, error = validators.validate_video_file_size(size)
                 self.assertFalse(valid)
                 self.assertIn("exceeds maximum", error)
-                self.assertIn("50MB", error)
+                self.assertIn("1024MB", error)  # Updated to 1GB limit
 
     def test_validate_video_file_size_zero_or_negative(self):
         """Test zero or negative file sizes"""

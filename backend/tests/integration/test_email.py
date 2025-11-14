@@ -6,6 +6,7 @@ Test your custom domain email configuration before using it in the app
 
 import os
 import smtplib
+import pytest
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
@@ -43,19 +44,18 @@ def test_smtp_connection():
             # Login
             server.login(email_user, email_password)
             print("✅ SMTP connection successful!")
-            return True
-        
+
     except smtplib.SMTPAuthenticationError as e:
         print(f"❌ Authentication failed: {e}")
         print("   Check your email credentials")
-        return False
+        pytest.fail(f"SMTP Authentication failed: {e}")
     except smtplib.SMTPConnectError as e:
         print(f"❌ Connection failed: {e}")
         print("   Check your SMTP server and port settings")
-        return False
+        pytest.fail(f"SMTP Connection failed: {e}")
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
-        return False
+        pytest.fail(f"SMTP test failed: {e}")
 
 def send_test_email(to_email):
     """Send a test email using the working SMTP_SSL method"""
@@ -85,13 +85,12 @@ def send_test_email(to_email):
             
             # Send email
             server.send_message(msg)
-        
+
         print(f"✅ Test email sent successfully to {to_email}")
-        return True
         
     except Exception as e:
         print(f"❌ Failed to send test email: {e}")
-        return False
+        pytest.fail(f"Failed to send test email: {e}")
 
 def main():
     """Main test function"""

@@ -117,6 +117,7 @@ class ValidationLimits:
 class StoragePaths:
     """Centralized file storage paths"""
     DATA_DIR = 'data'
+    CALENDARS_DIR = 'data/calendars'  # Per-calendar folder structure
     USERS_FILE = 'users.json'
     CALENDARS_FILE = 'calendars.json'
     TASKS_FILE = 'tasks.json'

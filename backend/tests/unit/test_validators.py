@@ -140,7 +140,7 @@ class TestValidators(unittest.TestCase):
         
         for title in valid_titles:
             with self.subTest(title=title):
-                valid, result = validators.validate_calendar_title(title)
+                valid, result, error = validators.validate_calendar_title(title)
                 self.assertTrue(valid)
                 self.assertEqual(result, title.strip())
 
@@ -150,14 +150,14 @@ class TestValidators(unittest.TestCase):
         
         for title in invalid_titles:
             with self.subTest(title=title):
-                valid, error = validators.validate_calendar_title(title)
+                valid, result, error = validators.validate_calendar_title(title)
                 self.assertFalse(valid)
                 self.assertEqual(error, "Title is required")
 
     def test_validate_calendar_title_too_long(self):
         """Test calendar title too long"""
         long_title = "x" * 101
-        valid, error = validators.validate_calendar_title(long_title)
+        valid, result, error = validators.validate_calendar_title(long_title)
         self.assertFalse(valid)
         self.assertEqual(error, "Title must be 100 characters or less")
 

@@ -43,7 +43,7 @@ class TestCalendarService(unittest.TestCase):
         # Mock database update success
         updated_calendar = self.existing_calendar.copy()
         updated_calendar['title'] = 'New Title'
-        mock_db.update.return_value = updated_calendar
+        mock_db.update_calendar_meta.return_value = updated_calendar
         
         # Test update
         success, result, error = update_calendar(
@@ -56,7 +56,7 @@ class TestCalendarService(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(result['title'], 'New Title')
         self.assertEqual(error, "")
-        mock_db.update.assert_called_once()
+        mock_db.update_calendar_meta.assert_called_once()
 
     @patch('app.services.calendar_service.get_calendar_by_id')
     @patch('app.services.calendar_service.calendars_db')
@@ -73,7 +73,7 @@ class TestCalendarService(unittest.TestCase):
             'endDate': '2025-12-24',
             'dateRange': '2025-12-10 to 2025-12-24'
         })
-        mock_db.update.return_value = updated_calendar
+        mock_db.update_calendar_meta.return_value = updated_calendar
         
         # Test update
         success, result, error = update_calendar(
@@ -163,21 +163,27 @@ class TestCalendarService(unittest.TestCase):
         self.assertIn("YYYY-MM-DD", error)
 
     @patch('app.services.calendar_service.get_calendar_by_id')
-    def test_update_calendar_no_fields(self, mock_get_calendar):
-        """Test update with no fields provided"""
+    @patch('app.services.calendar_service.calendars_db')
+    def test_update_calendar_no_fields(self, mock_db, mock_get_calendar):
+        """Test update with no fields provided (should still update updatedAt)"""
         # Mock calendar exists and user owns it
         mock_get_calendar.return_value = (True, self.existing_calendar, "")
-        
-        # Test update with no fields
+
+        # Mock database update success (will only have updatedAt field)
+        updated_calendar = self.existing_calendar.copy()
+        updated_calendar['updatedAt'] = '2025-11-13T12:00:00Z'
+        mock_db.update_calendar_meta.return_value = updated_calendar
+
+        # Test update with no fields (should still succeed with updatedAt)
         success, result, error = update_calendar(
             self.test_calendar_id,
             self.test_user_id
         )
-        
-        # Assertions
-        self.assertFalse(success)
-        self.assertEqual(result, {})
-        self.assertEqual(error, "No valid update fields provided")
+
+        # Assertions - should succeed with only updatedAt updated
+        self.assertTrue(success)
+        self.assertIn('updatedAt', result)
+        self.assertEqual(error, "")
 
     @patch('app.services.calendar_service.get_calendar_by_id')
     @patch('app.services.calendar_service.calendars_db')
@@ -187,7 +193,7 @@ class TestCalendarService(unittest.TestCase):
         mock_get_calendar.return_value = (True, self.existing_calendar, "")
         
         # Mock database update failure
-        mock_db.update.return_value = None
+        mock_db.update_calendar_meta.return_value = None
         
         # Test update
         success, result, error = update_calendar(
@@ -199,7 +205,7 @@ class TestCalendarService(unittest.TestCase):
         # Assertions
         self.assertFalse(success)
         self.assertEqual(result, {})
-        self.assertEqual(error, "Failed to update calendar in database")
+        self.assertEqual(error, "Failed to update calendar")
 
 if __name__ == '__main__':
     unittest.main()

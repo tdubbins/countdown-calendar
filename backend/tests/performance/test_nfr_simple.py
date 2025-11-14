@@ -70,24 +70,34 @@ def login_and_get_token() -> str:
         return result["data"]["token"]
     raise Exception(f"Login failed: {result.get('error', 'Unknown error')}")
 
-def test_calendar_list_performance(token: str) -> Dict:
-    """Test single request performance for NFR [P3]"""
+def _check_calendar_list_performance(token: str) -> Dict:
+    """Check calendar list performance and return results (used by concurrent test)"""
     headers = {"Authorization": f"Bearer {token}"}
-    
     result = make_request(f"{BASE_URL}/api/calendars", "GET", headers=headers)
-    
+
+    # Return performance metrics for analysis
     return {
         "response_time": result["response_time"],
-        "status_code": result.get("status_code", 0),
-        "success": result["success"] and result["response_time"] < 3.0,  # NFR [P3] requirement
-        "calendar_count": len(result["data"].get('calendars', [])) if result["success"] else 0,
+        "success": result["success"] and result["response_time"] < 3.0,
+        "calendar_count": len(result["data"].get('calendars', [])) if result.get("success") else 0,
         "error": result.get("error")
     }
+
+def test_calendar_list_performance(token: str):
+    """Test single request performance for NFR [P3]"""
+    result = _check_calendar_list_performance(token)
+
+    # Assert NFR [P3] requirement: Calendar list render time < 3 seconds
+    assert result["success"], f"Calendar list request failed or too slow: {result.get('error')}"
+    assert result["response_time"] < 3.0, f"Response time {result['response_time']:.2f}s exceeds NFR [P3] requirement of 3s"
+
+    print(f"✅ Calendar list performance: {result['response_time']:.2f}s (< 3s requirement)")
+    print(f"   Calendars loaded: {result['calendar_count']}")
 
 def concurrent_request_worker(token: str, results: List, worker_id: int):
     """Worker function for concurrent testing"""
     try:
-        result = test_calendar_list_performance(token)
+        result = _check_calendar_list_performance(token)
         result['worker_id'] = worker_id
         results.append(result)
     except Exception as e:
@@ -129,16 +139,18 @@ def test_concurrent_requests(token: str, num_requests: int = 10) -> Dict:
     else:
         avg_response_time = max_response_time = min_response_time = 0
     
-    return {
-        "total_requests": num_requests,
-        "successful_requests": len(successful_requests),
-        "failed_requests": len(failed_requests),
-        "total_time": total_time,
-        "avg_response_time": avg_response_time,
-        "max_response_time": max_response_time,
-        "min_response_time": min_response_time,
-        "nfr_p4_success": len(successful_requests) >= (num_requests * 0.8)  # 80% success rate
-    }
+    # Assert NFR [P4] requirement: Support 10-20 simultaneous users
+    success_rate = len(successful_requests) / num_requests if num_requests > 0 else 0
+    assert success_rate >= 0.8, f"Success rate {success_rate:.1%} below 80% requirement for {num_requests} concurrent users"
+
+    print(f"✅ Concurrent request performance:")
+    print(f"   Total requests: {num_requests}")
+    print(f"   Successful: {len(successful_requests)} ({success_rate:.1%})")
+    print(f"   Failed: {len(failed_requests)}")
+    print(f"   Total time: {total_time:.2f}s")
+    if successful_requests:
+        print(f"   Avg response time: {avg_response_time:.2f}s")
+        print(f"   Min/Max: {min_response_time:.2f}s / {max_response_time:.2f}s")
 
 def main():
     """Run all NFR performance tests"""

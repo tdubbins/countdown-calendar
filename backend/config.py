@@ -18,8 +18,7 @@ class Config:
     TASKS_DB = os.environ.get('TASKS_DB') or 'data/tasks.json'
     EMAIL_TOKENS_DB = os.environ.get('EMAIL_TOKENS_DB') or 'data/email_tokens.json'
     
-    # Video storage
-    VIDEO_UPLOAD_FOLDER = os.environ.get('VIDEO_UPLOAD_FOLDER') or 'uploads/videos'
+    # Video settings (storage paths now in StoragePaths constants)
     MAX_VIDEO_SIZE = int(os.environ.get('MAX_VIDEO_SIZE') or 50 * 1024 * 1024)  # 50MB
     MAX_VIDEO_DURATION = int(os.environ.get('MAX_VIDEO_DURATION') or 180)  # 3 minutes
     

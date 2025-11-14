@@ -8,6 +8,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 import uuid
+import pytest
 
 # Add the backend directory to Python path  
 backend_path = os.path.join(os.path.dirname(__file__), '..', '..')
@@ -89,27 +90,20 @@ def test_calendar_database():
             print(f"   Video count: {updated_calendar['videoCount']}")
             print(f"   Storage used: {updated_calendar['videoStorageUsed']} bytes")
         else:
-            print("❌ Update failed")
-            return False
-        
+            pytest.fail("Calendar update failed")
+
         # Test 5: DELETE operation
         print("\n5️⃣ Testing DELETE operation...")
         deleted = calendars_db.delete("calendars", calendar_id)
-        if deleted:
-            print("✅ Calendar deleted successfully")
-        else:
-            print("❌ Delete failed")
-            return False
-        
+        assert deleted, "Calendar delete operation failed"
+        print("✅ Calendar deleted successfully")
+
         # Test 6: Verify deletion
         print("\n6️⃣ Verifying deletion...")
         deleted_calendar = calendars_db.find_by_id("calendars", calendar_id)
-        if deleted_calendar is None:
-            print("✅ Calendar properly deleted (not found)")
-        else:
-            print("❌ Calendar still exists after deletion")
-            return False
-        
+        assert deleted_calendar is None, "Calendar still exists after deletion"
+        print("✅ Calendar properly deleted (not found)")
+
         print("\n" + "=" * 60)
         print("🎉 All calendar database operations working correctly!")
         print("✅ Issue #22 database requirements satisfied:")
@@ -117,11 +111,11 @@ def test_calendar_database():
         print("   • User association working")
         print("   • Video storage tracking implemented")
         print("   • Modular separation maintained")
-        return True
-        
+
+    except AssertionError:
+        raise
     except Exception as e:
-        print(f"\n❌ Database test failed: {str(e)}")
-        return False
+        pytest.fail(f"Database test failed: {str(e)}")
 
 if __name__ == "__main__":
     success = test_calendar_database()

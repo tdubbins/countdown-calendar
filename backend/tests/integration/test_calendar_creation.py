@@ -177,7 +177,7 @@ def test_calendar_creation():
         print(f"⚠️  Invalid date format validation not working: {error_response_3.get('status_code')}")
     
     print("\n🎉 Calendar creation endpoint testing completed!")
-    return True
+    # Test passed - no return value needed for pytest
 
 if __name__ == "__main__":
     try:

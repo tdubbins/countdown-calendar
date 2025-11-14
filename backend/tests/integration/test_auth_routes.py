@@ -176,7 +176,7 @@ def test_auth_routes():
         print(f"⚠️  Missing data validation not working: {empty_response.get('status_code')}")
     
     print("\n🎉 Authentication routes testing completed!")
-    return True
+    # Test passed - no return value needed for pytest
 
 if __name__ == "__main__":
     try:

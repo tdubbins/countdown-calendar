@@ -8,8 +8,8 @@ from flask import current_app
 
 from app.utils.json_db import users_db, email_tokens_db
 from app.utils.validators import (
-    validate_email_address, 
-    validate_password_strength, 
+    validate_email_address,
+    validate_password_strength,
     validate_passwords_match,
     validate_required_fields
 )
@@ -57,7 +57,8 @@ class AuthService:
             'email': normalized_email,
             'password_hash': password_hash,
             'created_at': datetime.now().isoformat(),
-            'email_verified': False
+            'email_verified': False,
+            'calendar_ids': []  # Initialize empty calendar_ids array
         }
         
         # Save user to database
@@ -98,7 +99,7 @@ class AuthService:
             return False, "Invalid email or password", None
         
         # Generate JWT token
-        token = AuthService._generate_jwt_token(user['id'], user['email'])
+        token = AuthService._generate_jwt_token(user['id'])
         
         # Update last login
         users_db.update('users', user['id'], {'last_login': datetime.now().isoformat()})
@@ -147,13 +148,12 @@ class AuthService:
         return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash.encode('utf-8'))
     
     @staticmethod
-    def _generate_jwt_token(user_id: str, email: str) -> str:
+    def _generate_jwt_token(user_id: str) -> str:
         """Generate JWT token for authenticated user"""
         payload = {
             'user_id': user_id,
-            'email': email,
             'exp': datetime.now(timezone.utc) + timedelta(hours=24),
             'iat': datetime.now(timezone.utc)
         }
-        
+
         return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')

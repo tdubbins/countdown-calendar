@@ -2,6 +2,7 @@
 import json
 import os
 from typing import Dict, Any, Optional
+from app.utils.constants import StoragePaths
 
 class JSONDatabase:
     """JSON file-based database operations"""
@@ -100,8 +101,115 @@ class JSONDatabase:
         return results
 
 
+# Calendar-specific file operations
+class CalendarDatabase:
+    """Per-calendar folder-based database operations"""
+
+    CALENDARS_DIR = StoragePaths.CALENDARS_DIR
+
+    @classmethod
+    def read_calendar_meta(cls, calendar_id: str) -> Optional[Dict[str, Any]]:
+        """Read calendar meta.json file"""
+        try:
+            meta_path = os.path.join(cls.CALENDARS_DIR, calendar_id, 'meta.json')
+            if os.path.exists(meta_path):
+                with open(meta_path, 'r') as f:
+                    return json.load(f)
+            return None
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error reading calendar {calendar_id}: {e}")
+            return None
+
+    @classmethod
+    def write_calendar_meta(cls, calendar_id: str, data: Dict[str, Any]) -> bool:
+        """Write calendar meta.json file"""
+        try:
+            calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
+            os.makedirs(calendar_dir, exist_ok=True)
+
+            meta_path = os.path.join(calendar_dir, 'meta.json')
+            with open(meta_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error writing calendar {calendar_id}: {e}")
+            return False
+
+    @classmethod
+    def update_calendar_meta(cls, calendar_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Partially update calendar meta.json"""
+        meta = cls.read_calendar_meta(calendar_id)
+        if meta:
+            meta.update(updates)
+            if cls.write_calendar_meta(calendar_id, meta):
+                return meta
+        return None
+
+    @classmethod
+    def delete_calendar_folder(cls, calendar_id: str) -> bool:
+        """Delete entire calendar folder"""
+        try:
+            import shutil
+            calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
+            if os.path.exists(calendar_dir):
+                shutil.rmtree(calendar_dir)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error deleting calendar {calendar_id}: {e}")
+            return False
+
+    @classmethod
+    def calendar_exists(cls, calendar_id: str) -> bool:
+        """Check if calendar folder exists"""
+        calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
+        return os.path.exists(calendar_dir) and os.path.isdir(calendar_dir)
+
+    @classmethod
+    def create_calendar_structure(cls, calendar_id: str) -> bool:
+        """Create calendar folder structure (folder, meta.json, subfolders)"""
+        try:
+            calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
+            os.makedirs(calendar_dir, exist_ok=True)
+            os.makedirs(os.path.join(calendar_dir, 'videos'), exist_ok=True)
+            os.makedirs(os.path.join(calendar_dir, 'thumbnails'), exist_ok=True)
+            return True
+        except Exception as e:
+            print(f"Error creating calendar structure {calendar_id}: {e}")
+            return False
+
+
+# User operations helper functions
+def get_user_calendar_ids(user_id: str) -> list:
+    """Get list of calendar IDs for a user"""
+    user = users_db.find_by_id('users', user_id)
+    if user:
+        return user.get('calendar_ids', [])
+    return []
+
+
+def add_calendar_to_user(user_id: str, calendar_id: str) -> bool:
+    """Add calendar ID to user's calendar_ids array"""
+    calendar_ids = get_user_calendar_ids(user_id)
+    if calendar_id not in calendar_ids:
+        calendar_ids.append(calendar_id)
+        return users_db.update('users', user_id, {'calendar_ids': calendar_ids}) is not None
+    return True  # Already exists
+
+
+def remove_calendar_from_user(user_id: str, calendar_id: str) -> bool:
+    """Remove calendar ID from user's calendar_ids array"""
+    calendar_ids = get_user_calendar_ids(user_id)
+    if calendar_id in calendar_ids:
+        calendar_ids.remove(calendar_id)
+        return users_db.update('users', user_id, {'calendar_ids': calendar_ids}) is not None
+    return True  # Already removed
+
+
 # Database instances (singletons)
 users_db = JSONDatabase('data/users.json')
 email_tokens_db = JSONDatabase('data/email_tokens.json')
-calendars_db = JSONDatabase('data/calendars.json')
 tasks_db = JSONDatabase('data/tasks.json')
+
+# Calendar database (new per-calendar structure)
+calendars_db = CalendarDatabase()
