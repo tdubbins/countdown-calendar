@@ -89,6 +89,13 @@
               </ion-chip>
             </div>
 
+            <!-- Calendar Description (optional, clickable to edit, below chips) -->
+            <CalendarDescription
+              :description="calendar.description"
+              :editable="true"
+              @edit="openEditModal()"
+            />
+
             <!-- Door Ordering Toggle (Issue #81) - Always editable -->
             <DoorOrderToggle
               :door-order="calendar.doorOrder"
@@ -223,6 +230,7 @@ import CalendarDayGrid from '@/components/CalendarDayGrid.vue';
 import DoorOrderToggle from '@/components/DoorOrderToggle.vue';
 import ThemeSelector from '@/components/ThemeSelector.vue';
 import CalendarForm from '@/components/CalendarForm.vue';
+import CalendarDescription from '@/components/CalendarDescription.vue';
 import { useCalendar } from '@/composables/useCalendar';
 import { useModal } from '@/composables/useModal';
 import { useToast } from '@/composables/useToast';
@@ -676,6 +684,7 @@ ion-back-button::part(native) {
 .info-chip-clickable {
   cursor: pointer !important;
   transition: all 0.2s ease;
+  margin: 0; /* Remove default ion-chip margins */
 }
 
 .info-chip-clickable:hover {
@@ -691,6 +700,7 @@ ion-back-button::part(native) {
 .info-chip-readonly {
   cursor: default !important;
   pointer-events: none !important;
+  margin: 0; /* Remove default ion-chip margins */
 }
 
 /* Edit modal content */

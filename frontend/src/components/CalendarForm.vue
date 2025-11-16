@@ -22,6 +22,21 @@
       @update:model-value="clearTitleError"
     />
 
+    <!-- Description Field (Optional) -->
+    <FormField
+      v-model="formData.description"
+      label="Description (Optional)"
+      type="textarea"
+      placeholder="Share what makes this calendar special..."
+      :required="false"
+      :error-message="errors.description"
+      :maxlength="500"
+      :rows="4"
+      :show-char-count="true"
+      @blur="validateDescription"
+      @update:model-value="clearDescriptionError"
+    />
+
     <!-- Start Date Field -->
     <FormField
       v-model="formData.startDate"
@@ -127,17 +142,19 @@ const resetForm = () => {
   // Reset form data to initial empty state
   formData.value = {
     title: '',
+    description: '',
     startDate: '',
     endDate: ''
   };
-  
+
   // Clear all errors
   errors.value = {
     title: '',
+    description: '',
     startDate: '',
     endDate: ''
   };
-  
+
   // Clear status messages
   errorMessage.value = '';
   successMessage.value = '';
@@ -152,6 +169,7 @@ defineExpose({
 // Backend provides dates in YYYY-MM-DD format - use them directly
 const formData = ref({
   title: props.calendar?.title || props.initialData.title || '',
+  description: props.calendar?.description || props.initialData.description || '',
   startDate: props.calendar?.startDate || props.initialData.startDate || '',
   endDate: props.calendar?.endDate || ''
 });
@@ -159,6 +177,7 @@ const formData = ref({
 // Form validation errors
 const errors = ref({
   title: '',
+  description: '',
   startDate: '',
   endDate: ''
 });
@@ -187,7 +206,7 @@ const isFormValid = computed(() => {
 // Validation functions
 const validateTitle = () => {
   const title = formData.value.title.trim();
-  
+
   if (!title) {
     errors.value.title = 'Calendar title is required';
   } else if (title.length < 3) {
@@ -196,6 +215,26 @@ const validateTitle = () => {
     errors.value.title = 'Title must be less than 50 characters';
   } else {
     errors.value.title = '';
+  }
+};
+
+const validateDescription = () => {
+  // Description is optional, empty is valid
+  if (!formData.value.description || formData.value.description.trim() === '') {
+    errors.value.description = '';
+    return;
+  }
+
+  const description = formData.value.description.trim();
+
+  // Frontend validates length only
+  // Backend handles sanitization (NFR [S4]: Input validation and sanitization)
+  if (description.length > 500) {
+    errors.value.description = 'Description must be less than 500 characters';
+  } else if (description.length < 3) {
+    errors.value.description = 'Description must be at least 3 characters if provided';
+  } else {
+    errors.value.description = '';
   }
 };
 
@@ -238,6 +277,11 @@ const clearTitleError = () => {
   errorMessage.value = '';
 };
 
+const clearDescriptionError = () => {
+  errors.value.description = '';
+  errorMessage.value = '';
+};
+
 const clearStartDateError = () => {
   errors.value.startDate = '';
   errorMessage.value = '';
@@ -256,6 +300,7 @@ const handleSubmit = () => {
 
   // Validate all fields before submission
   validateTitle();
+  validateDescription();
   validateStartDate();
   validateEndDate();
 
@@ -263,6 +308,7 @@ const handleSubmit = () => {
     // Create the CalendarCreateData object with calculated duration
     const submitData: CalendarCreateData = {
       title: formData.value.title,
+      description: formData.value.description || '', // Include sanitized description
       startDate: formData.value.startDate,
       duration: calculatedDuration.value
     };
@@ -285,6 +331,7 @@ const handleCancel = () => {
 
 // Watch for changes to trigger validation
 watch(() => formData.value.title, validateTitle);
+watch(() => formData.value.description, validateDescription);
 watch(() => formData.value.startDate, () => {
   validateStartDate();
   // Re-validate end date when start date changes (affects duration calculation)

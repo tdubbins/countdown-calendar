@@ -80,6 +80,48 @@ def validate_calendar_title(title: str) -> Tuple[bool, str, str]:
 
     return True, title, ""
 
+def validate_calendar_description(description: str) -> Tuple[bool, str, str]:
+    """
+    Validate and sanitize calendar description
+
+    NFR Compliance:
+        - [S4] Input validation and sanitization
+
+    Args:
+        description: Calendar description string (optional)
+
+    Returns:
+        Tuple of (is_valid, clean_description, error_message)
+    """
+    # Description is optional, empty is valid
+    if not description or not description.strip():
+        return True, "", ""
+
+    description = description.strip()
+
+    # Remove HTML tags and dangerous characters for XSS prevention
+    import re
+
+    # Remove HTML tags
+    clean_desc = re.sub(r'<[^>]*>', '', description)
+
+    # Remove JavaScript protocol handlers
+    clean_desc = re.sub(r'javascript:', '', clean_desc, flags=re.IGNORECASE)
+    clean_desc = re.sub(r'data:', '', clean_desc, flags=re.IGNORECASE)
+    clean_desc = re.sub(r'vbscript:', '', clean_desc, flags=re.IGNORECASE)
+
+    # Remove event handler attributes
+    clean_desc = re.sub(r'on\w+\s*=', '', clean_desc, flags=re.IGNORECASE)
+
+    # Validate length after sanitization
+    if len(clean_desc) > 500:
+        return False, "", "Description must be 500 characters or less"
+
+    if len(clean_desc) > 0 and len(clean_desc) < 3:
+        return False, "", "Description must be at least 3 characters if provided"
+
+    return True, clean_desc, ""
+
 def validate_uniqueness_in_collection(
     collection: list, 
     field_name: str, 

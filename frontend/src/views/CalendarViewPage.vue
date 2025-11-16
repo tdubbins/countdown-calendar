@@ -19,9 +19,12 @@
         <!-- Header -->
         <header class="calendar-header">
           <h1 class="calendar-title">{{ calendar.title }}</h1>
-          <p v-if="calendar.description" class="calendar-description">
-            {{ calendar.description }}
-          </p>
+
+          <!-- Calendar Description (centered for viewer) -->
+          <CalendarDescription
+            :description="calendar.description"
+            :centered="true"
+          />
 
           <!-- Owner Controls - Only visible to calendar owner -->
           <div v-if="calendar.isOwner" class="owner-controls">
@@ -103,6 +106,7 @@ import { alertCircleOutline, personCircleOutline, lockOpenOutline, eyeOutline, r
 import { useSharedCalendar, SharedCalendarDay } from '@/composables/useSharedCalendar';
 import { useOpenedTracking } from '@/composables/useOpenedTracking';
 import DoorCard from '@/components/sharing/DoorCard.vue';
+import CalendarDescription from '@/components/CalendarDescription.vue';
 
 const route = useRoute();
 const { calendar, loading, error, fetchSharedCalendar, getDoorDisplayOrder } = useSharedCalendar();
@@ -285,17 +289,6 @@ onMounted(async () => {
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-sm) 0;
-}
-
-.calendar-description {
-  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--spacing-md) 0;
-  max-width: 40rem;
-  line-height: 1.5;
-  text-align: center;
-  white-space: pre-wrap;
-  word-wrap: break-word;
 }
 
 .calendar-info {

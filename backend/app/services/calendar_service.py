@@ -6,6 +6,7 @@ from typing import Dict, Any, Tuple, Optional
 from app.utils.json_db import calendars_db, add_calendar_to_user, remove_calendar_from_user, get_user_calendar_ids
 from app.utils.validators import (
     validate_calendar_title,
+    validate_calendar_description,
     validate_calendar_duration,
     validate_calendar_start_date,
     validate_required_fields,
@@ -68,6 +69,11 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int,
         if not positions_valid:
             return False, {}, positions_error
 
+        # Validate and sanitize description (NFR [S4]: Input sanitization)
+        desc_valid, clean_description, desc_error = validate_calendar_description(description)
+        if not desc_valid:
+            return False, {}, desc_error
+
         # Generate unique calendar ID
         calendar_id = str(uuid.uuid4())
 
@@ -109,7 +115,7 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int,
             'doorPositions': clean_door_positions,
             'theme': clean_theme,
             'timezone': clean_timezone,
-            'description': description,
+            'description': clean_description,  # Sanitized description (NFR [S4])
             'videos': {},
             'videoCount': 0,
             'videoStorageUsed': 0,
@@ -245,7 +251,11 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
             updates['timezone'] = clean_tz
 
         if description is not None:
-            updates['description'] = description
+            # Sanitize and validate description (NFR [S4]: Input sanitization)
+            desc_valid, clean_desc, desc_error = validate_calendar_description(description)
+            if not desc_valid:
+                return False, {}, desc_error
+            updates['description'] = clean_desc
 
         # Recalculate endDate and dateRange if startDate or duration changed
         if 'startDate' in updates or 'duration' in updates:

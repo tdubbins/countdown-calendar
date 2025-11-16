@@ -183,6 +183,7 @@ def update_calendar(calendar_id):
         
         # Extract update fields (only process allowed fields)
         title = data.get('title')
+        description = data.get('description')        # Optional calendar description
         start_date = data.get('startDate')
         duration = data.get('duration')
         # Issue #81: Add door ordering fields for shared calendar customization
@@ -203,6 +204,7 @@ def update_calendar(calendar_id):
             calendar_id=calendar_id.strip(),
             user_id=request.current_user['user_id'],
             title=title,
+            description=description,         # Optional calendar description
             start_date=start_date,
             duration=duration,
             door_order=door_order,           # Issue #81: Pass door ordering
@@ -1057,8 +1059,8 @@ def delete_video(calendar_id, day):
             'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         }
 
-        # Update calendar in database
-        calendars_db.update('calendars', calendar_id, updates)
+        # Update calendar metadata in distributed structure
+        calendars_db.update_calendar_meta(calendar_id, updates)
 
         # Return 204 No Content (RESTful convention for successful DELETE)
         return '', 204

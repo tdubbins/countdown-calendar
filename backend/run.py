@@ -6,6 +6,7 @@ from app import create_app
 load_dotenv()
 
 # Create Flask application
+# Worker starts automatically via app/__init__.py:start_worker()
 app = create_app()
 
 if __name__ == '__main__':

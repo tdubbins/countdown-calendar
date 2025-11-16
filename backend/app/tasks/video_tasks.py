@@ -160,8 +160,8 @@ class VideoCompressionTask:
             Tuple of (success, error_message)
         """
         try:
-            # Get calendar
-            calendar = calendars_db.find_by_id('calendars', calendar_id)
+            # Get calendar metadata from distributed structure
+            calendar = calendars_db.read_calendar_meta(calendar_id)
             if not calendar:
                 return False, "Calendar not found"
 
@@ -187,14 +187,14 @@ class VideoCompressionTask:
                 video.get('size', 0) for video in videos.values()
             )
 
-            # Update calendar
+            # Update calendar metadata in distributed structure
             updates = {
                 'videos': videos,
                 'videoCount': video_count,
                 'videoStorageUsed': total_storage
             }
 
-            calendars_db.update('calendars', calendar_id, updates)
+            calendars_db.update_calendar_meta(calendar_id, updates)
 
             return True, ""
 
@@ -226,9 +226,11 @@ class VideoCompressionTask:
             Tuple of (success, task_id, error_message)
         """
         try:
-            # Generate paths for compressed video and thumbnail
-            compressed_path = f"uploads/videos/{user_id}/{calendar_id}/{day}.mp4"
-            thumbnail_path = f"uploads/thumbnails/{user_id}/{calendar_id}/{day}.jpg"
+            # Generate paths using storage utilities (distributed calendar structure)
+            from app.utils.storage import get_video_path, get_thumbnail_path
+
+            compressed_path = str(get_video_path(calendar_id, day))
+            thumbnail_path = str(get_thumbnail_path(calendar_id, day))
 
             # Ensure directories exist
             os.makedirs(os.path.dirname(compressed_path), exist_ok=True)

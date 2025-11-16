@@ -10,6 +10,7 @@ export type DoorOrder = 'sequential' | 'random';
 export interface Calendar {
   id: string;
   title: string;
+  description?: string;             // Optional calendar description visible to viewers
   startDate: string;
   endDate?: string;
   duration: number;
@@ -40,6 +41,7 @@ export interface CalendarSummary {
 
 export interface CalendarCreateData {
   title: string;
+  description?: string;        // Optional calendar description visible to viewers
   startDate: string;
   duration: number;
 }
@@ -50,6 +52,7 @@ export interface CalendarCreateData {
  */
 export interface CalendarUpdateData {
   title?: string;
+  description?: string;        // Optional calendar description visible to viewers
   startDate?: string;
   duration?: number;
   doorOrder?: DoorOrder;       // Issue #81: Change door ordering for shared view

@@ -1,14 +1,35 @@
 <template>
   <div class="form-field">
-    <div 
-      class="input-container" 
-      :class="{ 
-        'has-error': hasError, 
+    <div
+      class="input-container"
+      :class="{
+        'has-error': hasError,
         'is-focused': isFocused,
-        'has-value': hasValue 
+        'has-value': hasValue,
+        'is-textarea': type === 'textarea'
       }"
     >
+      <!-- Textarea for multi-line input -->
+      <textarea
+        v-if="type === 'textarea'"
+        :id="fieldId"
+        ref="textareaRef"
+        :value="modelValue"
+        @input="handleInput"
+        @focus="handleFocus"
+        @blur="handleBlur"
+        :placeholder="isFocused ? placeholder : ''"
+        :required="required"
+        :aria-invalid="hasError ? 'true' : 'false'"
+        :aria-describedby="hasError ? errorId : (showCharCount ? charCountId : undefined)"
+        :maxlength="maxlength"
+        :rows="rows"
+        class="form-input form-textarea"
+      ></textarea>
+
+      <!-- Standard input for single-line input -->
       <input
+        v-else
         :id="fieldId"
         ref="inputRef"
         :type="type"
@@ -21,19 +42,32 @@
         :aria-invalid="hasError ? 'true' : 'false'"
         :aria-describedby="hasError ? errorId : undefined"
         :autocomplete="autocomplete"
+        :maxlength="maxlength"
         class="form-input"
       />
-      <label 
-        :for="fieldId" 
+
+      <label
+        :for="fieldId"
         class="form-label"
         :class="{ 'floating': isFocused || hasValue }"
       >
         {{ label }}{{ required ? ' *' : '' }}
       </label>
     </div>
-    
-    <div 
-      v-if="hasError" 
+
+    <!-- Character counter for textarea -->
+    <div
+      v-if="showCharCount && maxlength"
+      :id="charCountId"
+      class="char-count"
+      :class="{ 'near-limit': isNearLimit }"
+      aria-live="polite"
+    >
+      {{ characterCount }}/{{ maxlength }}
+    </div>
+
+    <div
+      v-if="hasError"
       class="error-message"
       :id="errorId"
       role="alert"
@@ -56,6 +90,9 @@ interface Props {
   required?: boolean;
   errorMessage?: string;
   autocomplete?: string;
+  maxlength?: number;
+  rows?: number;
+  showCharCount?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -63,7 +100,10 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   required: false,
   errorMessage: '',
-  autocomplete: 'off'
+  autocomplete: 'off',
+  maxlength: undefined,
+  rows: 4,
+  showCharCount: false
 });
 
 // Emits
@@ -76,6 +116,7 @@ const emit = defineEmits<{
 // Reactive state
 const isFocused = ref(false);
 const inputRef = ref<HTMLInputElement>();
+const textareaRef = ref<HTMLTextAreaElement>();
 
 // Computed properties following design system patterns
 const hasError = computed(() => !!props.errorMessage);
@@ -88,20 +129,33 @@ const hasValue = computed(() => {
 });
 const fieldId = computed(() => `field-${props.label.toLowerCase().replace(/\s+/g, '-')}`);
 const errorId = computed(() => `${fieldId.value}-error`);
+const charCountId = computed(() => `${fieldId.value}-char-count`);
+
+// Character count for textarea
+const characterCount = computed(() => props.modelValue?.length || 0);
+const isNearLimit = computed(() => {
+  if (!props.maxlength) return false;
+  const percentage = (characterCount.value / props.maxlength) * 100;
+  return percentage >= 80;
+});
 
 // Methods for unified form behavior
 const handleInput = (event: Event) => {
-  const target = event.target as HTMLInputElement;
+  const target = event.target as HTMLInputElement | HTMLTextAreaElement;
   emit('update:modelValue', target.value);
 };
 
 const handleFocus = async () => {
   isFocused.value = true;
   emit('focus');
-  
-  // Ensure input is focused for accessibility
+
+  // Ensure input/textarea is focused for accessibility
   await nextTick();
-  inputRef.value?.focus();
+  if (props.type === 'textarea') {
+    textareaRef.value?.focus();
+  } else {
+    inputRef.value?.focus();
+  }
 };
 
 const handleBlur = () => {
@@ -111,8 +165,20 @@ const handleBlur = () => {
 
 // Expose focus method for parent components
 defineExpose({
-  focus: () => inputRef.value?.focus(),
-  blur: () => inputRef.value?.blur()
+  focus: () => {
+    if (props.type === 'textarea') {
+      textareaRef.value?.focus();
+    } else {
+      inputRef.value?.focus();
+    }
+  },
+  blur: () => {
+    if (props.type === 'textarea') {
+      textareaRef.value?.blur();
+    } else {
+      inputRef.value?.blur();
+    }
+  }
 });
 </script>
 
@@ -301,6 +367,34 @@ defineExpose({
 
 .form-input:focus + .form-label {
   color: var(--color-focus);
+}
+
+/* Textarea-specific styling */
+.input-container.is-textarea {
+  min-height: auto;
+  align-items: flex-start;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 120px;
+  max-height: 300px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Character counter styling */
+.char-count {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: right;
+  font-weight: var(--font-weight-medium);
+}
+
+.char-count.near-limit {
+  color: var(--ion-color-warning);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* Animation entrance effect */
