@@ -148,6 +148,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import API_CONFIG from '@/config/api';
 import {
   IonAlert,
   IonButton,
@@ -418,8 +419,10 @@ const openPlaybackModal = async (day: number) => {
     // Fetch video blob and create object URL for playback
     try {
       const token = localStorage.getItem('auth_token');
-      // stream_url already includes /api/, so use full URL construction
-      const videoUrl = `http://localhost:5001${result.data.stream_url}`;
+      // stream_url already includes /api/, so construct base URL without /api
+      // BASE_URL is like "http://hostname:5001/api", remove /api and append stream_url
+      const baseWithoutApi = API_CONFIG.BASE_URL.replace(/\/api$/, '');
+      const videoUrl = `${baseWithoutApi}${result.data.stream_url}`;
       console.log('Fetching video from:', videoUrl);
 
       const response = await fetch(videoUrl, {

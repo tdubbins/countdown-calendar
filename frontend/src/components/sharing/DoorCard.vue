@@ -80,6 +80,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { IonIcon } from '@ionic/vue';
+import { API_ENDPOINTS } from '@/config/api';
 import {
   lockClosedOutline,
   giftOutline,
@@ -142,8 +143,9 @@ const stateIcon = computed(() => {
 });
 
 // Thumbnail URL (constructed from calendar ID and day number)
+// Uses centralized API config for proper URL construction
 const thumbnailUrl = computed(() =>
-  `http://localhost:5001/api/calendars/${props.calendarId}/videos/${props.day.dayNumber}/thumbnail`
+  API_ENDPOINTS.VIDEO_THUMBNAIL(props.calendarId, props.day.dayNumber)
 );
 
 /**

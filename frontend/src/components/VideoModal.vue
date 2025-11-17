@@ -74,6 +74,7 @@ import { computed } from 'vue';
 import { IonModal, IonPage, IonContent, IonButton, IonIcon } from '@ionic/vue';
 import { closeOutline } from 'ionicons/icons';
 import MediaPlayer from './MediaPlayer.vue';
+import { API_ENDPOINTS } from '@/config/api';
 
 /**
  * Component Props
@@ -107,8 +108,9 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 // Reactive video URL - updates when dayNumber prop changes
+// Uses centralized API config for proper URL construction
 const videoUrl = computed(() =>
-  `http://localhost:5001/api/calendars/${props.calendarId}/videos/${props.dayNumber}/stream`
+  API_ENDPOINTS.VIDEO_STREAM(props.calendarId, props.dayNumber)
 );
 
 /**
@@ -218,12 +220,12 @@ const handleVideoEnded = () => {
   outline-offset: 2px;
 }
 
-/* Video Player Wrapper - 16:9 aspect ratio */
+/* Video Player Wrapper - 16:9 aspect ratio with black background */
 .video-player-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: transparent;
+  background: black; /* Black bars for vertical videos, covered by horizontal videos */
 }
 
 .video-player-wrapper :deep(video) {

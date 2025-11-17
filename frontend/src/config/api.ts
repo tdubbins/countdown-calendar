@@ -1,7 +1,23 @@
 // API Configuration
+// Hybrid approach: Use environment variable OR auto-detect from current hostname
+// This works for localhost, mobile (same network), and production
+const getBaseUrl = (): string => {
+  // Option 1: Use explicit environment variable if set (for Webpack/Vue CLI)
+  const envUrl = process.env.VUE_APP_API_BASE_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // Option 2: Auto-detect - use current hostname with backend port
+  // Works for both localhost (desktop) and IP address (mobile)
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol; // http: or https:
+  return `${protocol}//${hostname}:5001/api`;
+};
+
 const API_CONFIG = {
   // Base URL for all API requests
-  BASE_URL: 'http://localhost:5001/api',
+  BASE_URL: getBaseUrl(),
   
   // Authentication endpoints
   AUTH: {
@@ -45,7 +61,13 @@ export const API_ENDPOINTS = {
 
   // Calendar Publishing
   CALENDAR_PUBLISH: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}/publish`),
-  CALENDAR_UNPUBLISH: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}/unpublish`)
+  CALENDAR_UNPUBLISH: (id: string) => buildApiUrl(`${API_CONFIG.CALENDARS.GET}/${id}/unpublish`),
+
+  // Video and Media URLs
+  VIDEO_STREAM: (calendarId: string, dayNumber: number) =>
+    buildApiUrl(`/calendars/${calendarId}/videos/${dayNumber}/stream`),
+  VIDEO_THUMBNAIL: (calendarId: string, dayNumber: number) =>
+    buildApiUrl(`/calendars/${calendarId}/videos/${dayNumber}/thumbnail`)
 };
 
 export default API_CONFIG;
