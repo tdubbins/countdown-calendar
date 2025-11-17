@@ -95,6 +95,16 @@
         </div>
       </div>
     </ion-content>
+
+    <!-- Video Modal -->
+    <VideoModal
+      :is-open="videoModal.isOpen.value"
+      :calendar-id="calendarId"
+      :day-number="videoModal.selectedItem.value || 1"
+      :require-auth="calendar?.isOwner || false"
+      @close="videoModal.close()"
+      @video-ended="handleVideoEnded"
+    />
   </ion-page>
 </template>
 
@@ -105,8 +115,10 @@ import { IonPage, IonContent, IonSpinner, IonIcon, IonButton } from '@ionic/vue'
 import { alertCircleOutline, personCircleOutline, lockOpenOutline, eyeOutline, refreshOutline } from 'ionicons/icons';
 import { useSharedCalendar, SharedCalendarDay } from '@/composables/useSharedCalendar';
 import { useOpenedTracking } from '@/composables/useOpenedTracking';
+import { useModal } from '@/composables/useModal';
 import DoorCard from '@/components/sharing/DoorCard.vue';
 import CalendarDescription from '@/components/CalendarDescription.vue';
+import VideoModal from '@/components/VideoModal.vue';
 
 const route = useRoute();
 const { calendar, loading, error, fetchSharedCalendar, getDoorDisplayOrder } = useSharedCalendar();
@@ -121,6 +133,9 @@ const showAllDoors = ref(true); // Default to showing all for owners
 
 // Initialize opened tracking with calendar ID
 const { isDayOpened, markDayAsOpened, clearOpenedDays } = useOpenedTracking(calendarId.value);
+
+// Video modal state management (day number)
+const videoModal = useModal<number>();
 
 // Computed: Door display order based on sequential or random
 const doorDisplayOrder = computed(() => getDoorDisplayOrder());
@@ -167,14 +182,27 @@ const getDayData = (dayNumber: number): SharedCalendarDay => {
 
 /**
  * Handle door click event
+ * Opens video modal for the clicked day
+ *
  * @param dayNumber - The day number that was clicked
  */
 const handleDoorClick = (dayNumber: number) => {
   // Mark day as opened in LocalStorage
   markDayAsOpened(dayNumber);
 
-  // TODO (Issue #85): Open video modal with day's video
-  console.log(`Door ${dayNumber} clicked - video modal will be implemented in Issue #85`);
+  // Open video modal with day number
+  videoModal.open(dayNumber);
+};
+
+/**
+ * Handle video playback ended
+ * Called when video finishes playing (modal auto-closes after 2s)
+ *
+ * @param dayNumber - The day number whose video ended
+ */
+const handleVideoEnded = (dayNumber: number) => {
+  console.log(`Video for day ${dayNumber} ended`);
+  // Modal will auto-close after 2 seconds (handled in VideoModal)
 };
 
 /**

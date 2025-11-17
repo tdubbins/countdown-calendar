@@ -1,7 +1,13 @@
 <template>
   <button
     class="door-card"
-    :class="[doorStateClass, { 'door-card--clickable': isClickable, 'door-card--playing-video': isPlayingVideo }]"
+    :class="[
+      doorStateClass,
+      {
+        'door-card--clickable': isClickable,
+        'door-card--opening': isOpening
+      }
+    ]"
     :aria-label="ariaLabel"
     :aria-disabled="!isClickable"
     :disabled="!isClickable"
@@ -21,7 +27,7 @@
     </div>
 
     <!-- Door Content (icons for locked/unlocked states) -->
-    <div class="door-content" v-if="!isPlayingVideo">
+    <div class="door-content">
       <!-- State Icon -->
       <ion-icon
         :icon="stateIcon"
@@ -47,9 +53,9 @@
       ></ion-icon>
     </div>
 
-    <!-- Thumbnail for unlocked/opened doors (show if not playing video) -->
+    <!-- Thumbnail for unlocked/opened doors -->
     <div
-      v-if="state !== 'locked' && day.thumbnailUrl && !isPlayingVideo"
+      v-if="state !== 'locked' && day.thumbnailUrl"
       class="door-thumbnail"
       :class="{ 'has-play-button': day.hasVideo && state === 'opened' }"
     >
@@ -68,23 +74,11 @@
         aria-hidden="true"
       />
     </div>
-
-    <!-- Video Player (shown when playing) -->
-    <div v-if="isPlayingVideo" class="door-video">
-      <MediaPlayer
-        ref="videoMediaRef"
-        :src="videoUrl"
-        mediaType="video"
-        :requireAuth="isOwner"
-        :autoplay="true"
-        @ended="onVideoEnded"
-      />
-    </div>
   </button>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import {
   lockClosedOutline,
@@ -120,9 +114,8 @@ const emit = defineEmits<{
   doorClick: [dayNumber: number];
 }>();
 
-// State
-const isPlayingVideo = ref(false);
-const videoMediaRef = ref<InstanceType<typeof MediaPlayer>>();
+// Animation state
+const isOpening = ref(false);
 
 // Composables
 const state = useDoorState(props.day, props.isDayOpened);
@@ -148,61 +141,42 @@ const stateIcon = computed(() => {
   }
 });
 
-// Media URLs (constructed from calendar ID and day number)
-// Use absolute URLs with API base to ensure correct backend endpoint
+// Thumbnail URL (constructed from calendar ID and day number)
 const thumbnailUrl = computed(() =>
   `http://localhost:5001/api/calendars/${props.calendarId}/videos/${props.day.dayNumber}/thumbnail`
 );
 
-const videoUrl = computed(() =>
-  `http://localhost:5001/api/calendars/${props.calendarId}/videos/${props.day.dayNumber}/stream`
-);
-
 /**
  * Handle door click
+ * Door opens fully, video grows from tiny to large
  *
- * Flow:
- * 1. Check current state before parent updates it
- * 2. Emit doorClick event to parent to mark as opened
- * 3. Show video player (autoplay will handle starting playback)
+ * Animation Timeline:
+ * 0ms:     Door starts opening (smooth, to 90 degrees)
+ * 700ms:   Door opening, emit event (video starts growing from tiny)
+ * 1800ms:  Door fully open, reset animation state
+ * 1900ms:  Video fully grown and playing
  */
-const handleClick = async () => {
-  if (!isClickable.value) return;
+const handleClick = () => {
+  if (!isClickable.value || isOpening.value) return;
 
-  // Capture current state before parent updates it
-  const wasUnlocked = state.value === 'unlocked';
-  const isAlreadyOpened = state.value === 'opened';
-
-  // Emit door click to mark as opened in parent
-  emit('doorClick', props.day.dayNumber);
-
-  // If door has video, show video player
-  if (props.day.hasVideo) {
-    // If opening door for first time (was unlocked), show video player (autoplay enabled)
-    if (wasUnlocked) {
-      // Wait for parent to update isDayOpened state
-      await nextTick();
-      // Wait for state to recompute
-      await nextTick();
-
-      // Show video player (autoplay prop will start playback automatically)
-      isPlayingVideo.value = true;
-    }
-
-    // If door already opened, toggle video playback on thumbnail click
-    if (isAlreadyOpened && !isPlayingVideo.value) {
-      // Show video player (autoplay prop will start playback automatically)
-      isPlayingVideo.value = true;
-    }
+  // Skip animation for already-opened doors (just open modal immediately)
+  if (state.value === 'opened') {
+    emit('doorClick', props.day.dayNumber);
+    return;
   }
-};
 
-/**
- * Handle video ended
- * Return to thumbnail view when video finishes playing
- */
-const onVideoEnded = () => {
-  isPlayingVideo.value = false;
+  // Start door opening animation
+  isOpening.value = true;
+
+  // Emit event early so video starts growing as door opens
+  setTimeout(() => {
+    emit('doorClick', props.day.dayNumber);
+  }, 700);
+
+  // Reset animation state after complete
+  setTimeout(() => {
+    isOpening.value = false;
+  }, 1800);
 };
 </script>
 
@@ -264,9 +238,13 @@ const onVideoEnded = () => {
 
 .door-card--locked .door-lock {
   position: absolute;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  color: #6b7280;
-  margin-top: 0.5rem;
+  font-size: clamp(2rem, 5vw, 2.5rem);
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  margin-top: 0.75rem;
+  /* Theme-aware: Can be easily overridden by theme classes */
 }
 
 /* State 2: Unlocked Door (Ready to Open) */
@@ -301,6 +279,30 @@ const onVideoEnded = () => {
 .door-card--unlocked .door-icon {
   color: #ffd700;
   font-size: clamp(2.5rem, 7vw, 3.5rem);
+}
+
+/* Door Opening Animation - Full Open (90 degrees) */
+@keyframes swingOpenLeft {
+  0% {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(1200px) rotateY(-90deg);
+    opacity: 0.1;
+  }
+}
+
+.door-card--unlocked.door-card--opening {
+  animation: swingOpenLeft 1.8s ease-out forwards;
+  transform-origin: left center;
+  will-change: transform, opacity;
+  pointer-events: none; /* Prevent double-clicks during animation */
+}
+
+/* Ensure animation respects transform-origin */
+.door-card--unlocked.door-card--opening::before {
+  transform-origin: left center;
 }
 
 /* State 3: Opened Door (Already Watched) ✅ */
@@ -441,28 +443,6 @@ const onVideoEnded = () => {
   pointer-events: none;
 }
 
-/* Video Display */
-.door-video {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  z-index: 10; /* Above everything else */
-  background: #000;
-}
-
-.door-video :deep(video) {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* Playing video state: Hide all other content */
-.door-card--playing-video .door-content,
-.door-card--playing-video .door-thumbnail {
-  display: none;
-}
-
 /* NFR [U5]: Accessibility - Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .door-card {
@@ -472,6 +452,22 @@ const onVideoEnded = () => {
   .door-card--unlocked:hover,
   .door-card--opened:hover {
     transform: none;
+  }
+
+  /* Replace 3D swing with simple fade for users who prefer reduced motion */
+  @keyframes simpleFadeOut {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  .door-card--unlocked.door-card--opening {
+    animation: simpleFadeOut 0.9s ease-out forwards;
+    transform: none;
+    will-change: opacity;
   }
 }
 

@@ -255,6 +255,6 @@ video {
 }
 
 video {
-  background: #000;
+  background: transparent;
 }
 </style>
