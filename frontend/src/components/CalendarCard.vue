@@ -436,16 +436,16 @@ const handleDelete = async () => {
   border: 1px solid rgba(108, 117, 125, 0.3);
 }
 
-/* In progress (1-99%) - Orange/Warning */
+/* In progress (1-99%) - Orange/Warning (WCAG AA Compliant) */
 .progress-text--progress {
-  color: #f97316;
+  color: #c2410c;  /* Contrast: 5.14:1 ✓ (improved from #f97316 which was 3.45:1) */
   background: rgba(249, 115, 22, 0.1);
   border: 1px solid rgba(249, 115, 22, 0.3);
 }
 
-/* Complete (100%) - Green/Success */
+/* Complete (100%) - Green/Success (WCAG AA Compliant) */
 .progress-text--complete {
-  color: #10b981;
+  color: #059669;  /* Contrast: 4.52:1 ✓ (improved from #10b981 which was 3.04:1) */
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }

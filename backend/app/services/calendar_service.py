@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Tuple, Optional
 
 from app.utils.json_db import calendars_db, add_calendar_to_user, remove_calendar_from_user, get_user_calendar_ids
+from app.utils.storage import delete_video_file
 from app.utils.validators import (
     validate_calendar_title,
     validate_calendar_description,
@@ -261,6 +262,7 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
         if 'startDate' in updates or 'duration' in updates:
             new_start_date = updates.get('startDate', calendar_data['startDate'])
             new_duration = updates.get('duration', calendar_data['duration'])
+            old_duration = calendar_data['duration']
 
             start_dt = datetime.strptime(new_start_date, '%Y-%m-%d')
             end_dt = start_dt + timedelta(days=new_duration - 1)
@@ -268,6 +270,45 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
 
             updates['endDate'] = new_end_date
             updates['dateRange'] = f"{new_start_date} to {new_end_date}"
+
+            # BUGFIX: If duration was reduced, delete videos for days that no longer exist
+            # Follows pattern from delete_video route (calendar.py line 1037-1065)
+            if new_duration < old_duration:
+                # Get current videos
+                videos = calendar_data.get('videos', {})
+                videos_to_delete = []
+                storage_to_free = 0
+
+                # Find videos for days beyond new duration
+                for day_str in list(videos.keys()):
+                    day_num = int(day_str)
+                    if day_num > new_duration:
+                        videos_to_delete.append(day_num)
+                        # Calculate storage before deletion (pattern from delete_video route)
+                        storage_to_free += videos[day_str].get('size', 0)
+
+                # Delete video files and update metadata
+                if videos_to_delete:
+                    for day in videos_to_delete:
+                        # Delete physical files (video + thumbnail in one call)
+                        delete_video_file(calendar_id, day)
+                        # Remove from videos dict
+                        del videos[str(day)]
+
+                    # Update videos dict and videoCount
+                    updates['videos'] = videos
+                    updates['videoCount'] = len(videos)
+
+                    # Update storage used (pattern from delete_video route line 1051-1055)
+                    new_storage_used = calendar_data.get('videoStorageUsed', 0) - storage_to_free
+                    if new_storage_used < 0:
+                        new_storage_used = 0
+                    updates['videoStorageUsed'] = new_storage_used
+
+                    # Update doorPositions to only include valid positions (≤ new duration)
+                    door_positions = calendar_data.get('doorPositions', [])
+                    if door_positions:
+                        updates['doorPositions'] = [pos for pos in door_positions if pos <= new_duration]
 
         updates['updatedAt'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 

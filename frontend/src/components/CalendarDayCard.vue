@@ -24,9 +24,12 @@
       <!-- Uploading State -->
       <div v-else-if="status === 'uploading'" class="status-uploading">
         <ion-icon :icon="cloudUploadOutline" class="status-icon animated-pulse" aria-hidden="true"></ion-icon>
-        <div v-if="progress !== undefined" class="progress-indicator">
-          <div class="progress-bar" :style="{ width: `${progress}%` }"></div>
-        </div>
+        <ion-progress-bar
+          v-if="progress !== undefined"
+          :value="progress / 100"
+          color="primary"
+          class="upload-progress-bar"
+        ></ion-progress-bar>
         <span class="status-text">{{ progress }}%</span>
         <span class="sr-only">Uploading - {{ progress }}% complete</span>
       </div>
@@ -74,7 +77,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { IonIcon, IonSpinner } from '@ionic/vue';
+import { IonIcon, IonSpinner, IonProgressBar } from '@ionic/vue';
 import {
   addCircleOutline,
   cloudUploadOutline,
@@ -268,18 +271,9 @@ const handleClick = () => {
   }
 }
 
-.progress-indicator {
+.upload-progress-bar {
   width: 80%;
-  height: clamp(0.25rem, 1vw, 0.375rem);
-  background: rgba(var(--ion-color-primary-rgb), 0.2);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  background: var(--ion-color-primary);
-  transition: width 0.3s ease;
+  height: clamp(0.25rem, 1vw, 0.5rem);
   border-radius: var(--radius-full);
 }
 
@@ -422,7 +416,7 @@ const handleClick = () => {
   .day-card,
   .status-icon,
   .completed-overlay,
-  .progress-bar {
+  .upload-progress-bar {
     animation: none;
     transition: none;
   }

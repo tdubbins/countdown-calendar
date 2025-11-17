@@ -1,5 +1,5 @@
 <template>
-  <ion-button 
+  <ion-button
     :expand="expand"
     :size="size"
     :color="color"
@@ -9,9 +9,9 @@
     :aria-label="ariaLabel"
     :disabled="disabled"
   >
-    <ion-icon 
-      v-if="icon" 
-      :name="icon" 
+    <ion-icon
+      v-if="icon"
+      :icon="icon"
       :slot="iconSlot"
       aria-hidden="true"
     ></ion-icon>
@@ -23,6 +23,17 @@
 import { computed } from 'vue';
 import { IonButton, IonIcon } from '@ionic/vue';
 
+/**
+ * ActionButton Component
+ *
+ * Modern Ionic 7 button component with proper icon handling.
+ * Icons must be imported from 'ionicons/icons' and passed as objects.
+ *
+ * @example
+ * import { add } from 'ionicons/icons';
+ * <ActionButton :icon="add" icon-slot="start">Add Calendar</ActionButton>
+ */
+
 // Props
 interface Props {
   expand?: 'block' | 'full';
@@ -30,8 +41,8 @@ interface Props {
   color?: string;
   fill?: 'clear' | 'outline' | 'solid';
   variant?: 'primary' | 'secondary';
-  icon?: string;
-  iconSlot?: 'start' | 'end';
+  icon?: any; // Icon object from ionicons/icons (e.g., add, settings, helpCircle)
+  iconSlot?: 'start' | 'end' | 'icon-only';
   ariaLabel?: string;
   disabled?: boolean;
 }

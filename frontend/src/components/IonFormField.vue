@@ -1,27 +1,45 @@
 <template>
   <div class="form-group">
-    <!-- Modern ion-select with label prop (Ionic 7+) -->
-    <ion-select
+    <!-- Textarea variant with character counter -->
+    <ion-textarea
+      v-if="type === 'textarea'"
       :label="labelWithRequired"
       label-placement="floating"
       :value="modelValue"
-      @ionChange="handleSelectionChange"
+      @ionInput="handleInput"
       @ionBlur="handleBlur"
+      @ionFocus="handleFocus"
       :placeholder="placeholder"
+      :required="required"
+      :maxlength="maxlength"
+      :rows="rows"
+      :counter="showCharCount"
+      :auto-grow="true"
+      :class="{'ion-invalid': hasError, 'ion-touched': true}"
+      :aria-invalid="hasError ? 'true' : 'false'"
+      :aria-describedby="hasError ? errorId : (showCharCount ? charCountId : undefined)"
+      fill="outline"
+    ></ion-textarea>
+
+    <!-- Standard input variant -->
+    <ion-input
+      v-else
+      :label="labelWithRequired"
+      label-placement="floating"
+      :type="type"
+      :value="modelValue"
+      @ionInput="handleInput"
+      @ionBlur="handleBlur"
+      @ionFocus="handleFocus"
+      :placeholder="placeholder"
+      :required="required"
+      :maxlength="maxlength"
       :class="{'ion-invalid': hasError, 'ion-touched': true}"
       :aria-invalid="hasError ? 'true' : 'false'"
       :aria-describedby="hasError ? errorId : undefined"
-      interface="popover"
+      :autocomplete="autocomplete"
       fill="outline"
-    >
-      <ion-select-option
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-      >
-        {{ option.label }}
-      </ion-select-option>
-    </ion-select>
+    ></ion-input>
 
     <!-- Error message -->
     <div
@@ -38,65 +56,84 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { IonSelect, IonSelectOption } from '@ionic/vue';
+import { IonInput, IonTextarea } from '@ionic/vue';
 
-// Option interface for type safety
-export interface SelectOption {
-  value: any;
-  label: string;
-}
-
-// Props
+// Props - matches FormField.vue API for easy migration
 interface Props {
-  modelValue: any;
+  modelValue: string;
   label: string;
-  options: SelectOption[];
+  type?: string;
   placeholder?: string;
   required?: boolean;
   errorMessage?: string;
+  autocomplete?: string;
+  maxlength?: number;
+  rows?: number;
+  showCharCount?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: 'Select an option',
+  type: 'text',
+  placeholder: '',
   required: false,
-  errorMessage: ''
+  errorMessage: '',
+  autocomplete: 'off',
+  maxlength: undefined,
+  rows: 4,
+  showCharCount: false
 });
 
-// Emits
+// Emits - matches FormField.vue API
 const emit = defineEmits<{
-  'update:modelValue': [value: any];
+  'update:modelValue': [value: string];
   'blur': [];
+  'focus': [];
 }>();
 
-// Computed
+// Computed properties
 const hasError = computed(() => !!props.errorMessage);
 const errorId = computed(() => `${props.label.toLowerCase().replace(/\s+/g, '-')}-error`);
+const charCountId = computed(() => `${props.label.toLowerCase().replace(/\s+/g, '-')}-char-count`);
+
+// Label with required indicator
 const labelWithRequired = computed(() => {
   return props.required ? `${props.label} *` : props.label;
 });
 
 // Event handlers
-const handleSelectionChange = (event: any) => {
-  const value = event.detail?.value ?? event.target?.value;
+const handleInput = (event: any) => {
+  // Ion events provide value in event.target.value or event.detail.value
+  const value = event.target?.value ?? event.detail?.value ?? '';
   emit('update:modelValue', value);
 };
 
 const handleBlur = () => {
   emit('blur');
 };
+
+const handleFocus = () => {
+  emit('focus');
+};
 </script>
 
 <style scoped>
 /**
- * SelectField - Modern Ionic 7 Select Component
+ * IonFormField - Modern Ionic 7 Form Component
  *
- * Migrated from legacy ion-item + ion-label pattern to modern ion-select with label prop
- * Matches IonFormField.vue styling for consistency
+ * Uses native ion-input/ion-textarea with label prop (modern pattern)
+ * Replaces legacy ion-item + ion-label pattern
+ *
+ * Benefits:
+ * - No deprecation warnings (Ionic 7+ modern API)
+ * - Built-in floating labels via labelPlacement="floating"
+ * - Built-in character counter for textareas
+ * - Better mobile keyboard handling
+ * - Consistent with Ionic design system
  *
  * NFR Compliance:
  * - [U1] Mobile responsive (320px+)
  * - [U2] Touch-friendly (44px+ targets via Ionic defaults)
- * - [U5] WCAG 2.1 AA accessibility (ARIA labels, keyboard navigation)
+ * - [U5] WCAG 2.1 AA accessibility (ARIA labels, error handling)
  */
 
 .form-group {
@@ -104,8 +141,9 @@ const handleBlur = () => {
   width: 100%;
 }
 
-/* Modern Ionic select with outline fill */
-ion-select {
+/* Modern Ionic inputs/textareas with outline fill */
+ion-input,
+ion-textarea {
   --border-color: var(--color-border, #e9ecef);
   --border-width: 2px;
   --border-radius: var(--radius-md, 12px);
@@ -114,40 +152,44 @@ ion-select {
 
   /* Prevent iOS zoom on focus (16px+ font size) */
   font-size: max(1rem, 16px);
-  min-height: 56px; /* Touch-friendly target size */
 }
 
 /* Focus state */
-ion-select:focus-within {
+ion-input:focus-within,
+ion-textarea:focus-within {
   --border-color: var(--color-focus, var(--ion-color-primary));
   --highlight-color-focused: var(--ion-color-primary);
 }
 
 /* Error state - Ionic uses ion-invalid + ion-touched */
-ion-select.ion-invalid.ion-touched {
+ion-input.ion-invalid.ion-touched,
+ion-textarea.ion-invalid.ion-touched {
   --border-color: var(--ion-color-danger);
   --highlight-color-focused: var(--ion-color-danger);
   --background: rgba(var(--ion-color-danger-rgb), 0.02);
 }
 
 /* Label styling (controlled by Ionic, but we can customize) */
-ion-select::part(label) {
+ion-input::part(label),
+ion-textarea::part(label) {
   color: var(--color-text-secondary, #495057);
   font-weight: var(--font-weight-semibold, 600);
   font-size: var(--font-size-sm, 0.9rem);
 }
 
 /* Focused label color */
-ion-select:focus-within::part(label) {
+ion-input:focus-within::part(label),
+ion-textarea:focus-within::part(label) {
   color: var(--color-focus, var(--ion-color-primary));
 }
 
 /* Error label color */
-ion-select.ion-invalid.ion-touched::part(label) {
+ion-input.ion-invalid.ion-touched::part(label),
+ion-textarea.ion-invalid.ion-touched::part(label) {
   color: var(--ion-color-danger);
 }
 
-/* Error message styling - matches IonFormField.vue */
+/* Error message styling - matches previous FormField.vue */
 .error-text {
   color: var(--ion-color-danger);
   font-size: var(--font-size-sm, 0.875rem);
@@ -167,13 +209,20 @@ ion-select.ion-invalid.ion-touched::part(label) {
   flex-shrink: 0;
 }
 
+/* Textarea specific */
+ion-textarea {
+  min-height: 120px;
+}
+
 /* Accessibility: High contrast mode support */
 @media (prefers-contrast: high) {
-  ion-select {
+  ion-input,
+  ion-textarea {
     --border-width: 3px;
   }
 
-  ion-select::part(label) {
+  ion-input::part(label),
+  ion-textarea::part(label) {
     font-weight: var(--font-weight-bold, 700);
   }
 
@@ -207,11 +256,13 @@ ion-select.ion-invalid.ion-touched::part(label) {
 
 /* Hover support for desktop */
 @media (hover: hover) {
-  ion-select:hover:not(:focus-within) {
+  ion-input:hover:not(:focus-within),
+  ion-textarea:hover:not(:focus-within) {
     --border-color: var(--color-focus, var(--ion-color-primary));
   }
 
-  ion-select.ion-invalid.ion-touched:hover {
+  ion-input.ion-invalid.ion-touched:hover,
+  ion-textarea.ion-invalid.ion-touched:hover {
     --border-color: var(--ion-color-danger);
   }
 }

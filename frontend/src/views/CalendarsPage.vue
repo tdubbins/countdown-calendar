@@ -5,14 +5,14 @@
         <ion-title>Countdown Calendar</ion-title>
         <ion-buttons slot="end">
           <!-- Desktop: Create button in header -->
-          <ActionButton 
+          <ActionButton
             v-if="!isMobile()"
             @click="goToCreateCalendar"
-            fill="solid" 
-            color="light" 
+            fill="solid"
+            color="light"
             variant="secondary"
             size="small"
-            icon="add"
+            :icon="add"
             icon-slot="start"
             aria-label="Create new calendar"
           >
@@ -34,13 +34,25 @@
     </ion-header>
     
     <ion-content :fullscreen="true" class="dashboard-content">
+      <!-- Pull-to-Refresh (Mobile UX Enhancement) -->
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
+        <ion-refresher-content
+          :pulling-icon="chevronDownCircleOutline"
+          pulling-text="Pull to refresh calendars"
+          refreshing-spinner="circles"
+          refreshing-text="Refreshing..."
+        ></ion-refresher-content>
+      </ion-refresher>
+
       <div class="dashboard-container">
 
-        <!-- Loading State (NFR [P1]: Dashboard loads under 5 seconds) -->
+        <!-- Loading State with Skeleton (NFR [P1]: Dashboard loads under 5 seconds) -->
         <div v-if="isLoading" class="loading-section">
-          <div class="loading-content">
-            <ion-spinner name="crescent" color="primary"></ion-spinner>
-            <p>Loading your calendars...</p>
+          <h2><ion-skeleton-text animated style="width: 30%; height: 32px;"></ion-skeleton-text></h2>
+          <div class="calendars-grid">
+            <div v-for="n in 3" :key="n" class="skeleton-card">
+              <ion-skeleton-text animated style="width: 100%; height: 200px; border-radius: 12px;"></ion-skeleton-text>
+            </div>
           </div>
         </div>
 
@@ -62,7 +74,7 @@
         <!-- Calendar Content (NFR [U1][U2]: Mobile responsive with 44px+ touch targets) -->
         <div v-else-if="hasCalendars" class="calendars-section">
           <h2>Your Calendars ({{ calendars.length }})</h2>
-          
+
           <!-- Calendar Grid - Display All Calendars -->
           <div class="calendars-grid">
             <CalendarCard
@@ -91,23 +103,23 @@
 
         <!-- Secondary Actions -->
         <div class="secondary-actions">
-          <ActionButton 
+          <ActionButton
             @click="goToProfile"
             fill="clear"
             color="medium"
             variant="secondary"
-            icon="settings"
+            :icon="settings"
             icon-slot="start"
           >
             Account Settings
           </ActionButton>
           
-          <ActionButton 
+          <ActionButton
             @click="goToHelp"
             fill="clear"
             color="medium"
             variant="secondary"
-            icon="help-circle"
+            :icon="helpCircle"
             icon-slot="start"
           >
             Help & Support
@@ -164,6 +176,7 @@
 
 <script setup lang="ts">
 import { onMounted, watch, ref } from 'vue';
+import { chevronDownCircleOutline, add, settings, helpCircle } from 'ionicons/icons';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
@@ -177,7 +190,10 @@ import {
   IonFab,
   IonFabButton,
   IonIcon,
-  IonSpinner
+  IonSpinner,
+  IonRefresher,
+  IonRefresherContent,
+  IonSkeletonText
 } from '@ionic/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useCalendar } from '@/composables/useCalendar';
@@ -247,6 +263,10 @@ const loadUserCalendars = async () => {
 
 // Logout functionality
 const handleLogout = async () => {
+  // Blur the active element to prevent aria-hidden focus warning during page transition
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
   await logout();
 };
 
@@ -267,6 +287,12 @@ const goToProfile = () => {
 const goToHelp = () => {
   // TODO: Implement help section
   console.log('Navigate to help');
+};
+
+// Pull-to-refresh handler
+const handleRefresh = async (event: CustomEvent) => {
+  await loadUserCalendars();
+  event.target.complete();
 };
 
 const handleEditSubmit = async (data: CalendarCreateData, calendarId?: string) => {
@@ -318,7 +344,25 @@ const closeEditModal = () => {
 }
 
 /* Loading and Error States */
-.loading-section,
+.loading-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: var(--spacing-xl) 0;
+}
+
+.loading-section h2 {
+  margin: 0 0 var(--spacing-md) 0;
+  padding: 0 var(--spacing-md);
+}
+
+.skeleton-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  min-height: 200px;
+}
+
 .error-section {
   display: flex;
   justify-content: center;

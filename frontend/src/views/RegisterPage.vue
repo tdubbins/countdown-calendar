@@ -18,7 +18,7 @@
 
         <form @submit.prevent="handleSubmit" class="register-form">
           <!-- Email Field -->
-          <FormField
+          <IonFormField
             v-model="email"
             label="Email Address"
             type="email"
@@ -80,25 +80,25 @@
           </ion-button>
 
           <!-- Success/Error Messages -->
-          <div 
-            v-if="successMessage" 
+          <div
+            v-if="successMessage"
             class="message success-message"
             id="form-success"
             role="status"
             aria-live="polite"
           >
-            <ion-icon name="checkmark-circle" class="message-icon" aria-hidden="true"></ion-icon>
+            <ion-icon :icon="checkmarkCircle" class="message-icon" aria-hidden="true"></ion-icon>
             <p>{{ successMessage }}</p>
           </div>
-          
-          <div 
-            v-if="errorMessage" 
+
+          <div
+            v-if="errorMessage"
             class="message error-message"
             id="form-error"
             role="alert"
             aria-live="assertive"
           >
-            <ion-icon name="alert-circle" class="message-icon" aria-hidden="true"></ion-icon>
+            <ion-icon :icon="alertCircle" class="message-icon" aria-hidden="true"></ion-icon>
             <p>{{ errorMessage }}</p>
           </div>
         </form>
@@ -128,7 +128,8 @@ import {
   IonIcon,
   IonSpinner
 } from '@ionic/vue';
-import FormField from '@/components/FormField.vue';
+import { checkmarkCircle, alertCircle } from 'ionicons/icons';
+import IonFormField from '@/components/IonFormField.vue';
 import PasswordField from '@/components/PasswordField.vue';
 import PasswordRequirements from '@/components/PasswordRequirements.vue';
 import { useAuth } from '@/composables/useAuth';

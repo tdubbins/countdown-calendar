@@ -1,28 +1,26 @@
 <template>
   <div class="form-group">
-    <ion-item 
-      :class="{'ion-invalid': hasError, 'form-item': true}" 
-      lines="none"
-    >
-      <ion-label position="stacked" class="form-label">
-        {{ label }}
-        <span v-if="required" aria-hidden="true">*</span>
-      </ion-label>
+    <div class="password-field-wrapper">
+      <!-- Modern ion-input with label prop -->
       <ion-input
+        :label="labelWithRequired"
+        label-placement="floating"
         :type="showPassword ? 'text' : 'password'"
         :value="modelValue"
-        @ion-input="handleInput"
-        @ion-blur="handleBlur"
+        @ionInput="handleInput"
+        @ionBlur="handleBlur"
         :placeholder="placeholder"
         :required="required"
-        class="form-input"
+        :class="{'ion-invalid': hasError, 'ion-touched': true}"
         :aria-invalid="hasError ? 'true' : 'false'"
         :aria-describedby="getAriaDescribedBy()"
         :autocomplete="autocomplete"
+        fill="outline"
       ></ion-input>
-      <ion-button 
-        slot="end" 
-        fill="clear" 
+
+      <!-- Password visibility toggle button -->
+      <ion-button
+        fill="clear"
         @click="togglePasswordVisibility"
         :aria-label="showPassword ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`"
         class="password-toggle"
@@ -30,9 +28,11 @@
       >
         <ion-icon :icon="showPassword ? eyeOffOutline : eyeOutline"></ion-icon>
       </ion-button>
-    </ion-item>
-    <div 
-      v-if="hasError" 
+    </div>
+
+    <!-- Error message -->
+    <div
+      v-if="hasError"
       class="error-text"
       :id="errorId"
       role="alert"
@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { IonItem, IonLabel, IonInput, IonButton, IonIcon } from '@ionic/vue';
+import { IonInput, IonButton, IonIcon } from '@ionic/vue';
 import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 
 // Props
@@ -77,6 +77,9 @@ const showPassword = ref(false);
 // Computed
 const hasError = computed(() => !!props.errorMessage);
 const errorId = computed(() => `${props.label.toLowerCase().replace(/\s+/g, '-')}-error`);
+const labelWithRequired = computed(() => {
+  return props.required ? `${props.label} *` : props.label;
+});
 
 // Methods
 const handleInput = (event: any) => {
@@ -100,103 +103,167 @@ const getAriaDescribedBy = () => {
 </script>
 
 <style scoped>
+/**
+ * PasswordField - Modern Ionic 7 Password Input
+ *
+ * Migrated from legacy ion-item pattern to modern ion-input with label prop
+ * Includes password visibility toggle button positioned absolutely
+ *
+ * NFR Compliance:
+ * - [U1] Mobile responsive (320px+)
+ * - [U2] Touch-friendly (44px+ button targets)
+ * - [U5] WCAG 2.1 AA accessibility (ARIA labels, keyboard navigation)
+ */
+
 .form-group {
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-lg, 24px);
+  width: 100%;
 }
 
-.form-item {
-  --background: #f8f9fa;
-  --border-radius: 12px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-  --padding-top: 16px;
-  --padding-bottom: 16px;
-  border: 2px solid #e9ecef;
-  transition: all 0.3s ease;
+/* Wrapper for input + toggle button */
+.password-field-wrapper {
+  position: relative;
+  width: 100%;
 }
 
-.form-item:focus-within {
-  --background: white;
-  border-color: var(--ion-color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.2);
-  outline: 2px solid transparent;
+/* Modern Ionic input with outline fill */
+ion-input {
+  --border-color: var(--color-border, #e9ecef);
+  --border-width: 2px;
+  --border-radius: var(--radius-md, 12px);
+  --placeholder-color: var(--color-text-secondary, #6c757d);
+  --placeholder-opacity: 0.6;
+  --padding-end: 52px; /* Make room for toggle button */
+
+  /* Prevent iOS zoom on focus (16px+ font size) */
+  font-size: max(1rem, 16px);
 }
 
-.form-item.ion-invalid {
-  border-color: var(--ion-color-danger);
-  --background: #fff5f5;
+/* Focus state */
+ion-input:focus-within {
+  --border-color: var(--color-focus, var(--ion-color-primary));
+  --highlight-color-focused: var(--ion-color-primary);
 }
 
-.form-label {
-  --color: #495057;
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
+/* Error state */
+ion-input.ion-invalid.ion-touched {
+  --border-color: var(--ion-color-danger);
+  --highlight-color-focused: var(--ion-color-danger);
+  --background: rgba(var(--ion-color-danger-rgb), 0.02);
 }
 
-.form-input {
-  --color: #212529;
-  font-size: 1rem;
+/* Label styling */
+ion-input::part(label) {
+  color: var(--color-text-secondary, #495057);
+  font-weight: var(--font-weight-semibold, 600);
+  font-size: var(--font-size-sm, 0.9rem);
 }
 
-.form-input:focus {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
+/* Focused label */
+ion-input:focus-within::part(label) {
+  color: var(--color-focus, var(--ion-color-primary));
 }
 
+/* Error label */
+ion-input.ion-invalid.ion-touched::part(label) {
+  color: var(--ion-color-danger);
+}
+
+/* Password toggle button - positioned absolutely */
 .password-toggle {
-  --color: #6c757d;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  --color: var(--color-text-secondary, #6c757d);
+  --padding-start: 8px;
+  --padding-end: 8px;
   margin: 0;
+  z-index: 10;
+  min-height: 44px; /* NFR: U2 - Touch-friendly */
+  min-width: 44px;
 }
 
-.password-toggle:focus {
+.password-toggle:hover {
+  --color: var(--ion-color-primary);
+}
+
+.password-toggle:focus-visible {
   outline: 2px solid var(--ion-color-primary);
   outline-offset: 2px;
+  border-radius: var(--radius-sm, 6px);
 }
 
+/* Error message */
 .error-text {
   color: var(--ion-color-danger);
-  font-size: 0.875rem;
-  margin-top: 8px;
-  font-weight: 500;
+  font-size: var(--font-size-sm, 0.875rem);
+  margin-top: var(--spacing-xs, 8px);
+  font-weight: var(--font-weight-medium, 500);
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: var(--spacing-xs, 6px);
+  line-height: var(--line-height-normal, 1.5);
 }
 
 .error-text::before {
-  content: "⚠️";
-  font-size: 0.8rem;
+  content: "●";
+  color: var(--ion-color-danger);
+  font-size: var(--font-size-xs, 0.75rem);
+  margin-top: 2px;
+  flex-shrink: 0;
 }
 
-/* High contrast mode support */
+/* Accessibility: High contrast mode */
 @media (prefers-contrast: high) {
-  .form-item {
-    border-width: 3px;
+  ion-input {
+    --border-width: 3px;
   }
-  
-  .form-item:focus-within {
-    border-width: 4px;
+
+  ion-input::part(label) {
+    font-weight: var(--font-weight-bold, 700);
   }
-  
+
   .error-text {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold, 700);
+  }
+
+  .password-toggle {
+    --color: var(--color-text-primary);
   }
 }
 
-/* Animation */
-.form-item {
-  animation: fadeInUp 0.6s ease-out;
+/* Accessibility: Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .form-group {
+    animation: none;
+  }
 }
 
-@keyframes fadeInUp {
+/* Animation - entrance effect */
+.form-group {
+  animation: formFieldEnter var(--transition-slow, 0.6s) ease-out;
+}
+
+@keyframes formFieldEnter {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Hover support for desktop */
+@media (hover: hover) {
+  ion-input:hover:not(:focus-within) {
+    --border-color: var(--color-focus, var(--ion-color-primary));
+  }
+
+  ion-input.ion-invalid.ion-touched:hover {
+    --border-color: var(--ion-color-danger);
   }
 }
 </style>

@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { API_ENDPOINTS } from '@/config/api';
-import { useCalendar } from '@/composables/useCalendar';
+import { clearCalendarData } from '@/composables/useCalendar';
 
 // Global authentication state
 const authToken = ref<string | null>(null);
@@ -32,7 +32,7 @@ initializeAuth();
 
 export const useAuth = () => {
   const router = useRouter();
-  
+
   // Computed properties
   const isAuthenticated = computed(() => !!authToken.value);
   const currentUser = computed(() => userData.value);
@@ -144,7 +144,6 @@ export const useAuth = () => {
       clearAuthData();
 
       // Clear all calendar data to prevent data leakage between users
-      const { clearCalendarData } = useCalendar();
       clearCalendarData();
 
       router.push('/login');

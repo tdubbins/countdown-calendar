@@ -13,13 +13,13 @@
     <!-- Optional action button -->
     <div v-if="$slots.action || (actionText && onAction)" class="action-section">
       <slot name="action">
-        <ActionButton 
+        <ActionButton
           v-if="actionText && onAction"
           @click="onAction"
           fill="solid"
           color="primary"
           size="large"
-          icon="add"
+          :icon="add"
           icon-slot="start"
           expand="block"
         >
@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import { add } from 'ionicons/icons';
 import type { EmptyStateProps } from '@/types/calendar';
 import ActionButton from '@/components/ActionButton.vue';
 

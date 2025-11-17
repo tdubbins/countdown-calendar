@@ -10,23 +10,23 @@
   >
     <!-- Show summary when all requirements are met -->
     <div v-if="allRequirementsMet" class="requirements-summary">
-      <ion-icon name="checkmark-circle" class="success-icon" aria-hidden="true"></ion-icon>
+      <ion-icon :icon="checkmarkCircle" class="success-icon" aria-hidden="true"></ion-icon>
       <span>Password requirements met</span>
     </div>
-    
+
     <!-- Show detailed requirements when password is incomplete -->
     <div v-else>
       <p class="requirements-title">Password requirements:</p>
       <div class="requirements-grid" role="list">
-        <div 
+        <div
           v-for="requirement in requirements"
           :key="requirement.key"
           :class="{'requirement-met': requirement.met, 'requirement': true}"
           role="listitem"
           :aria-label="requirement.met ? 'Requirement met: ' + requirement.text : 'Requirement not met: ' + requirement.text"
         >
-          <ion-icon 
-            :icon="requirement.met ? 'checkmark-circle' : 'ellipse-outline'"
+          <ion-icon
+            :icon="requirement.met ? checkmarkCircle : ellipseOutline"
             aria-hidden="true"
           ></ion-icon>
           {{ requirement.text }}
@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { IonIcon } from '@ionic/vue';
+import { checkmarkCircle, ellipseOutline } from 'ionicons/icons';
 
 // Props
 interface Props {

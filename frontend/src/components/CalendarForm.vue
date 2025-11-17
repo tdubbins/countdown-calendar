@@ -11,7 +11,7 @@
     </div>
 
     <!-- Calendar Title Field -->
-    <FormField
+    <NativeFormField
       v-model="formData.title"
       label="Calendar Title"
       placeholder="Christmas Countdown 2025"
@@ -23,7 +23,7 @@
     />
 
     <!-- Description Field (Optional) -->
-    <FormField
+    <NativeFormField
       v-model="formData.description"
       label="Description (Optional)"
       type="textarea"
@@ -38,23 +38,23 @@
     />
 
     <!-- Start Date Field -->
-    <FormField
+    <DatePickerField
       v-model="formData.startDate"
       label="Start Date"
-      type="date"
       :required="true"
       :error-message="errors.startDate"
+      :min="mode === 'create' ? getTodayString() : undefined"
       @blur="validateStartDate"
       @update:model-value="clearStartDateError"
     />
 
     <!-- End Date Field -->
-    <FormField
+    <DatePickerField
       v-model="formData.endDate"
       label="End Date"
-      type="date"
       :required="true"
       :error-message="errors.endDate"
+      :min="formData.startDate || getTodayString()"
       @blur="validateEndDate"
       @update:model-value="clearEndDateError"
     />
@@ -106,12 +106,15 @@ import {
   IonButton,
   IonSpinner
 } from '@ionic/vue';
-import FormField from '@/components/FormField.vue';
+import NativeFormField from '@/components/NativeFormField.vue';
+import DatePickerField from '@/components/DatePickerField.vue';
 import type { CalendarCreateData, Calendar } from '@/types/calendar';
+import { debounce, DEBOUNCE_DELAYS } from '@/utils/debounce';
 import {
   calculateDaysBetween,
   validateDateRange,
   isDateInPast,
+  getTodayString,
   CALENDAR_CONSTANTS
 } from '@/utils/calendarUtils';
 
@@ -329,23 +332,23 @@ const handleCancel = () => {
   emit('cancel');
 };
 
-// Watch for changes to trigger validation
-watch(() => formData.value.title, validateTitle);
-watch(() => formData.value.description, validateDescription);
-watch(() => formData.value.startDate, () => {
+// Debounced validation functions (validates only after user stops typing)
+// Performance improvement: reduces validation calls from every keystroke to once per pause
+const debouncedValidateTitle = debounce(validateTitle, DEBOUNCE_DELAYS.DEFAULT);
+const debouncedValidateDescription = debounce(validateDescription, DEBOUNCE_DELAYS.DEFAULT);
+
+const debouncedValidateDates = debounce(() => {
   validateStartDate();
-  // Re-validate end date when start date changes (affects duration calculation)
   if (formData.value.endDate) {
     validateEndDate();
   }
-});
-watch(() => formData.value.endDate, () => {
-  validateEndDate();
-  // Re-validate start date when end date changes
-  if (formData.value.startDate) {
-    validateStartDate();
-  }
-});
+}, DEBOUNCE_DELAYS.FAST); // Faster for date pickers since user selects, not types
+
+// Watch for changes to trigger debounced validation
+watch(() => formData.value.title, debouncedValidateTitle);
+watch(() => formData.value.description, debouncedValidateDescription);
+watch(() => formData.value.startDate, debouncedValidateDates);
+watch(() => formData.value.endDate, debouncedValidateDates);
 </script>
 
 <style scoped>

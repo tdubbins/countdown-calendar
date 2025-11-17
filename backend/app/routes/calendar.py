@@ -64,13 +64,15 @@ def create_calendar():
         
         # Extract calendar data
         title = data.get('title', '').strip()
+        description = data.get('description', '').strip()
         start_date = data.get('startDate', '').strip()
         duration = data.get('duration')
-        
+
         # Create calendar using service layer
         success, calendar_data, error_message = create_calendar_service(
             user_id=request.current_user['user_id'],
             title=title,
+            description=description,
             start_date=start_date,
             duration=duration
         )

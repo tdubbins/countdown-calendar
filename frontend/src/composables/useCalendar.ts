@@ -8,6 +8,13 @@ const calendars = ref<CalendarSummary[]>([]);
 const isLoading = ref(false);
 const currentCalendar = ref<Calendar | null>(null);
 
+// Standalone function to clear calendar data (exported to avoid circular dependency with useAuth)
+export const clearCalendarData = () => {
+  calendars.value = [];
+  currentCalendar.value = null;
+  isLoading.value = false;
+};
+
 // Types for API responses following existing patterns
 interface ApiResponse<T = any> {
   success: boolean;
@@ -365,13 +372,6 @@ export const useCalendar = () => {
     } finally {
       isLoading.value = false;
     }
-  };
-
-  // Clear all calendar data (for logout)
-  const clearCalendarData = () => {
-    calendars.value = [];
-    currentCalendar.value = null;
-    isLoading.value = false;
   };
 
   return {

@@ -20,7 +20,7 @@
       <!-- Success/Error State -->
       <div v-else class="result-section">
         <div class="status-icon">
-          <ion-icon :name="iconName" aria-hidden="true"></ion-icon>
+          <ion-icon :icon="iconName" aria-hidden="true"></ion-icon>
         </div>
         <h2>{{ title }}</h2>
         <p>{{ message }}</p>
@@ -40,6 +40,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { IonIcon, IonSpinner } from '@ionic/vue';
+import { checkmarkCircle, alertCircle, informationCircle } from 'ionicons/icons';
 
 // Props
 interface Props {
@@ -58,9 +59,9 @@ const statusClass = computed(() => `${props.status}-card`);
 
 const iconName = computed(() => {
   switch (props.status) {
-    case 'success': return 'checkmark-circle';
-    case 'error': return 'alert-circle';
-    default: return 'information-circle';
+    case 'success': return checkmarkCircle;
+    case 'error': return alertCircle;
+    default: return informationCircle;
   }
 });
 </script>

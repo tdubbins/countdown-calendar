@@ -50,6 +50,7 @@
       v-else-if="mediaType === 'image'"
       :src="blobUrl"
       :alt="alt"
+      loading="lazy"
       @load="onMediaLoad"
       @error="onMediaError"
     />
@@ -60,6 +61,7 @@
       ref="videoRef"
       :src="blobUrl"
       controls
+      preload="metadata"
       @loadeddata="onMediaLoad"
       @error="onMediaError"
       @ended="handleVideoEnded"
