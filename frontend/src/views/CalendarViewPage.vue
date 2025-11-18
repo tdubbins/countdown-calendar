@@ -15,7 +15,26 @@
       </div>
 
       <!-- Calendar Loaded Successfully -->
-      <div v-else-if="calendar" class="calendar-container">
+      <div v-else-if="calendar" class="calendar-view calendar-container" :class="themeClass">
+        <!-- Multiple snowflake layers with mixed sizes and opacity for natural snowfall -->
+        <div class="snowflakes-layer snowflakes-layer-1" aria-hidden="true">
+          <span class="flake-xl white">❄</span><span class="flake-s transparent">❅</span><span class="flake-m white">❆</span><span class="flake-l transparent">❄</span><span class="flake-s white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-m white">❄</span><span class="flake-l white">❅</span><span class="flake-s transparent">❆</span><span class="flake-xl white">❄</span><span class="flake-m transparent">❅</span><span class="flake-l white">❆</span><span class="flake-s white">❄</span><span class="flake-xl transparent">❅</span><span class="flake-m white">❆</span><span class="flake-l transparent">❄</span><span class="flake-s white">❅</span><span class="flake-xl white">❆</span><span class="flake-m transparent">❄</span><span class="flake-l white">❅</span>
+        </div>
+        <div class="snowflakes-layer snowflakes-layer-2" aria-hidden="true">
+          <span class="flake-l white">❆</span><span class="flake-m transparent">❄</span><span class="flake-xl white">❅</span><span class="flake-s transparent">❆</span><span class="flake-l white">❄</span><span class="flake-m white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❄</span><span class="flake-l transparent">❅</span><span class="flake-xl white">❆</span><span class="flake-m white">❄</span><span class="flake-s transparent">❅</span><span class="flake-l white">❆</span><span class="flake-xl transparent">❄</span><span class="flake-m white">❅</span><span class="flake-s white">❆</span><span class="flake-l transparent">❄</span><span class="flake-xl white">❅</span><span class="flake-m transparent">❆</span><span class="flake-s white">❄</span>
+        </div>
+        <div class="snowflakes-layer snowflakes-layer-3" aria-hidden="true">
+          <span class="flake-m white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❄</span><span class="flake-l white">❅</span><span class="flake-m transparent">❆</span><span class="flake-xl white">❄</span><span class="flake-s transparent">❅</span><span class="flake-l white">❆</span><span class="flake-xl transparent">❄</span><span class="flake-m white">❅</span><span class="flake-s white">❆</span><span class="flake-l transparent">❄</span><span class="flake-xl white">❅</span><span class="flake-m transparent">❆</span><span class="flake-s white">❄</span><span class="flake-l white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-m white">❄</span><span class="flake-s transparent">❅</span><span class="flake-l white">❆</span>
+        </div>
+        <div class="snowflakes-layer snowflakes-layer-4" aria-hidden="true">
+          <span class="flake-xl white">❄</span><span class="flake-s transparent">❆</span><span class="flake-l white">❅</span><span class="flake-m transparent">❄</span><span class="flake-xl white">❆</span><span class="flake-s white">❅</span><span class="flake-l transparent">❄</span><span class="flake-m white">❆</span><span class="flake-xl transparent">❅</span><span class="flake-s white">❄</span><span class="flake-l white">❆</span><span class="flake-m transparent">❅</span><span class="flake-xl white">❄</span><span class="flake-s transparent">❆</span><span class="flake-l white">❅</span><span class="flake-m white">❄</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❅</span><span class="flake-l transparent">❄</span><span class="flake-m white">❆</span>
+        </div>
+        <div class="snowflakes-layer snowflakes-layer-5" aria-hidden="true">
+          <span class="flake-s white">❅</span><span class="flake-l transparent">❄</span><span class="flake-m white">❆</span><span class="flake-xl white">❅</span><span class="flake-s transparent">❄</span><span class="flake-l white">❆</span><span class="flake-m transparent">❅</span><span class="flake-xl white">❄</span><span class="flake-s white">❆</span><span class="flake-l transparent">❅</span><span class="flake-m white">❄</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❅</span><span class="flake-l white">❄</span><span class="flake-m transparent">❆</span><span class="flake-xl white">❅</span><span class="flake-s transparent">❄</span><span class="flake-l white">❆</span><span class="flake-m white">❅</span><span class="flake-xl transparent">❄</span>
+        </div>
+
+        <!-- Calendar content wrapper -->
+        <div class="calendar-content">
         <!-- Header -->
         <header class="calendar-header">
           <h1 class="calendar-title">{{ calendar.title }}</h1>
@@ -89,11 +108,13 @@
             :is-owner="calendar?.isOwner || false"
             :start-date="calendar?.startDate"
             :is-day-opened="isDayOpened"
+            :theme="calendar?.theme || 'christmas'"
             @door-click="handleDoorClick"
             role="gridcell"
           />
         </div>
-      </div>
+        </div> <!-- Close calendar-content wrapper -->
+      </div> <!-- Close calendar-view -->
     </ion-content>
 
     <!-- Video Modal -->
@@ -116,6 +137,7 @@ import { alertCircleOutline, personCircleOutline, lockOpenOutline, eyeOutline, r
 import { useSharedCalendar, SharedCalendarDay } from '@/composables/useSharedCalendar';
 import { useOpenedTracking } from '@/composables/useOpenedTracking';
 import { useModal } from '@/composables/useModal';
+import { getThemeConfig } from '@/utils/themeConfig';
 import DoorCard from '@/components/sharing/DoorCard.vue';
 import CalendarDescription from '@/components/CalendarDescription.vue';
 import VideoModal from '@/components/VideoModal.vue';
@@ -139,6 +161,12 @@ const videoModal = useModal<number>();
 
 // Computed: Door display order based on sequential or random
 const doorDisplayOrder = computed(() => getDoorDisplayOrder());
+
+// Computed: Theme class based on calendar theme
+const themeClass = computed(() => {
+  const themeId = calendar.value?.theme || 'christmas';
+  return getThemeConfig(themeId).cssClass;
+});
 
 /**
  * Get day data for a specific day number
@@ -238,9 +266,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Import theme background styles */
+@import '@/theme/theme-backgrounds.css';
+
 /* Page Content */
 .shared-calendar-content {
-  --background: var(--ion-color-light);
+  --background: transparent;
 }
 
 /* Loading State */
@@ -297,12 +328,19 @@ onMounted(async () => {
   max-width: 32rem;
 }
 
-/* Calendar Container */
-.calendar-container {
+/* Calendar View - Full screen background container */
+.calendar-view {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Calendar Content - Centered content wrapper */
+.calendar-content {
   max-width: 75rem; /* 1200px */
   margin: 0 auto;
   padding: var(--spacing-lg);
-  min-height: 100vh;
+  position: relative;
+  z-index: 10;
 }
 
 /* Header */
@@ -315,8 +353,13 @@ onMounted(async () => {
 .calendar-title {
   font-size: clamp(1.75rem, 5vw, 2.5rem);
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
+  color: #ffffff;
   margin: 0 0 var(--spacing-sm) 0;
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.8),
+    0 0 30px rgba(135, 206, 250, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.8),
+    0 2px 4px rgba(0, 0, 0, 0.9);
 }
 
 .calendar-info {

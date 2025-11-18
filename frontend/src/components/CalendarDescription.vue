@@ -51,12 +51,19 @@ const handleClick = () => {
   word-wrap: break-word;
 }
 
-/* Centered variant (for viewer page) */
+/* Centered variant (for viewer page) - Christmasy styling */
 .calendar-description--centered {
   text-align: center;
   margin-left: auto;
   margin-right: auto;
   max-width: 40rem;
+  color: #f0f9ff;
+  font-size: clamp(0.9rem, 2.2vw, 1.05rem);
+  text-shadow:
+    0 0 15px rgba(255, 255, 255, 0.7),
+    0 0 25px rgba(135, 206, 250, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.7),
+    0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 /* Editable variant (for edit page) */

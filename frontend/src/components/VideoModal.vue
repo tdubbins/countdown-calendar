@@ -19,11 +19,13 @@
 -->
 
 <template>
+  <!-- Desktop: Full Ionic Modal with tree decorations -->
   <ion-modal
+    v-if="!isMobile"
+    :key="`video-modal-${calendarId}-${dayNumber}`"
     :is-open="isOpen"
     :backdrop-dismiss="true"
     @didDismiss="handleClose"
-    @keydown.esc="handleClose"
     class="video-modal-fullscreen"
   >
     <ion-page class="video-modal-page">
@@ -35,6 +37,7 @@
           aria-modal="true"
           :aria-labelledby="`video-title-${dayNumber}`"
           @click.stop
+          @keydown.esc="handleClose"
         >
           <!-- Close Button -->
           <ion-button
@@ -59,7 +62,7 @@
               :src="videoUrl"
               mediaType="video"
               :requireAuth="requireAuth"
-              :autoplay="true"
+              :autoplay="shouldAutoplay"
               @ended="handleVideoEnded"
             />
           </div>
@@ -67,13 +70,23 @@
       </ion-content>
     </ion-page>
   </ion-modal>
+
+  <!-- Mobile: Simple Overlay with Native Video Player -->
+  <MobileVideoOverlay
+    v-if="isMobile"
+    :is-open="isOpen"
+    :video-url="videoUrl"
+    @close="handleClose"
+    @video-ended="handleMobileVideoEnded"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { IonModal, IonPage, IonContent, IonButton, IonIcon } from '@ionic/vue';
+import { IonModal, IonPage, IonContent, IonButton, IonIcon, isPlatform } from '@ionic/vue';
 import { closeOutline } from 'ionicons/icons';
 import MediaPlayer from './MediaPlayer.vue';
+import MobileVideoOverlay from './MobileVideoOverlay.vue';
 import { API_ENDPOINTS } from '@/config/api';
 
 /**
@@ -114,6 +127,29 @@ const videoUrl = computed(() =>
 );
 
 /**
+ * Detect mobile/tablet device using Ionic's Platform API
+ * Use simple overlay for mobile/tablet, full modal for desktop
+ *
+ * Ionic's isPlatform() is the professional, maintained solution that:
+ * - Handles iOS 13+ iPad detection properly
+ * - Works across all devices and browsers
+ * - Automatically maintained by Ionic team
+ * - More reliable than user agent sniffing
+ */
+const isMobile = computed(() => {
+  return isPlatform('mobile') || isPlatform('tablet') || isPlatform('ipad');
+});
+
+/**
+ * Enable autoplay for all devices
+ * Note: Mobile browsers may still block autoplay with sound due to browser policies
+ * If blocked, user must tap to play
+ */
+const shouldAutoplay = computed(() => {
+  return true; // Attempt autoplay on all devices
+});
+
+/**
  * Handle modal close
  * Emits close event to parent
  */
@@ -122,7 +158,7 @@ const handleClose = () => {
 };
 
 /**
- * Handle video playback ended
+ * Handle video playback ended (Desktop)
  * Keep modal open briefly so user sees the completed state
  */
 const handleVideoEnded = () => {
@@ -132,6 +168,15 @@ const handleVideoEnded = () => {
   setTimeout(() => {
     handleClose();
   }, 2000);
+};
+
+/**
+ * Handle video playback ended (Mobile)
+ * Close immediately on mobile (simpler UX)
+ */
+const handleMobileVideoEnded = () => {
+  emit('video-ended', props.dayNumber);
+  handleClose();
 };
 </script>
 
@@ -225,14 +270,67 @@ const handleVideoEnded = () => {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: black; /* Black bars for vertical videos, covered by horizontal videos */
+  background: #000000; /* Black bars for vertical videos, covered by horizontal videos */
+  overflow: hidden;
+}
+
+/* Dark forest effect - Left side with 4 trees (different shades) */
+.video-player-wrapper::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  background-image:
+    url(../assets/tree1.png),
+    url(../assets/tree2.png),
+    url(../assets/tree3.png),
+    url(../assets/tree4.png);
+  background-size: 150% auto, 150% auto, 150% auto, 150% auto;
+  background-position:
+    -50% bottom,
+    0% bottom,
+    40% bottom,
+    90% bottom;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.3;
+  z-index: 0;
+}
+
+/* Dark forest effect - Right side with 4 trees (different shades) */
+.video-player-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  background-image:
+    url(../assets/tree1.png),
+    url(../assets/tree2.png),
+    url(../assets/tree3.png),
+    url(../assets/tree4.png);
+  background-size: 150% auto, 150% auto, 150% auto, 150% auto;
+  background-position:
+    150% bottom,
+    100% bottom,
+    60% bottom,
+    10% bottom;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.3;
+  z-index: 0;
 }
 
 .video-player-wrapper :deep(video) {
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: transparent;
+  z-index: 1; /* Ensure video is always above tree decorations */
 }
 
 /* Screen Reader Only */
@@ -248,7 +346,7 @@ const handleVideoEnded = () => {
   border-width: 0;
 }
 
-/* NFR [U1]: Responsive - Mobile */
+/* NFR [U1]: Responsive - Mobile - Only applies to desktop modal when shown on smaller screens */
 @media (max-width: 640px) {
   .video-modal-container {
     width: 95%;

@@ -578,34 +578,26 @@ onUnmounted(() => {
 }
 
 /* Day Grid - Intrinsic Responsive Design */
+/* Use container-relative sizing for true responsive behavior */
 .day-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(7rem, 22vw, 12rem), 1fr));
-  gap: clamp(0.75rem, 2.5vw, 1.5rem);
-  padding: clamp(0.75rem, 2.5vw, 1.5rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8rem), 1fr));
+  gap: clamp(0.75rem, 2cqi, 1.5rem);
+  padding: clamp(0.75rem, 2cqi, 1.5rem);
+  width: 100%;
 }
 
-/* Container query for very small containers */
-@container (max-width: 20rem) {
+/* Container query for very small containers (portrait phones) */
+@container (max-width: 30rem) {
   .day-grid {
-    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
   }
 }
 
-/* Container query for medium containers */
-@container (min-width: 40rem) {
-  .day-grid {
-    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-    gap: 1rem;
-  }
-}
-
-/* Container query for large containers */
+/* Container query for large containers (desktop) - Week-style layout */
 @container (min-width: 60rem) {
   .day-grid {
-    grid-template-columns: repeat(7, 1fr); /* Week-style layout */
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
   }
 }
 

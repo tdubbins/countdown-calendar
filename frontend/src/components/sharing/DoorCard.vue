@@ -3,6 +3,8 @@
     class="door-card"
     :class="[
       doorStateClass,
+      themeClass,
+      state,
       {
         'door-card--clickable': isClickable,
         'door-card--opening': isOpening
@@ -17,13 +19,9 @@
     @keydown.space.prevent="handleClick"
     role="button"
   >
-    <!-- Day Number Badge with Debug Info -->
+    <!-- Day Number -->
     <div class="door-number" aria-hidden="true">
-      <div>Day {{ day.dayNumber }}</div>
-      <div class="debug-state">State: {{ state }}</div>
-      <div class="debug-state">Unlocked: {{ day.isUnlocked ? 'YES' : 'NO' }}</div>
-      <div v-if="day.hasVideo" class="debug-state">Has Video: YES</div>
-      <div v-if="day.thumbnailUrl" class="debug-state">Has Thumb: YES</div>
+      {{ day.dayNumber }}
     </div>
 
     <!-- Door Content (icons for locked/unlocked states) -->
@@ -104,10 +102,12 @@ interface Props {
   startDate?: string; // Optional to handle loading state
   isDayOpened: (dayNumber: number) => boolean;
   isOwner?: boolean; // Whether viewer is the calendar owner
+  theme?: string; // Theme identifier (e.g., 'christmas', 'birthday', 'generic')
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isOwner: false
+  isOwner: false,
+  theme: 'christmas'
 });
 
 // Emits
@@ -127,6 +127,7 @@ const isClickable = computed(() => isDoorClickable(state.value));
 const ariaLabel = computed(() =>
   getDoorAriaLabel(props.day.dayNumber, state.value, props.startDate)
 );
+const themeClass = computed(() => `theme-${props.theme}`);
 
 // State icon based on door state
 const stateIcon = computed(() => {
@@ -183,28 +184,48 @@ const handleClick = () => {
 </script>
 
 <style scoped>
-/* Base Door Card Styles */
+/* Import theme styles */
+@import '@/theme/door-themes.css';
+
+/**
+ * Base Door Card Styles
+ *
+ * MINIMAL STRUCTURAL CSS ONLY - No colors, shadows, or decorative styling!
+ * Themes control ALL visual appearance via door-themes.css
+ *
+ * This file only handles:
+ * - Layout (flexbox, positioning, sizing)
+ * - Interactions (cursor, animations, pointer events)
+ * - Accessibility (focus, reduced motion, touch targets)
+ */
+
+/* Base card structure */
 .door-card {
+  /* Layout */
   position: relative;
-  aspect-ratio: 1;
-  min-height: 9rem;
-  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-md);
-  transition: all var(--transition-base);
-  border: none;
-  cursor: default;
+  width: 100%;
+  aspect-ratio: 1;
+
+  /* Sizing with theme variable fallbacks */
+  padding: var(--door-padding, var(--spacing-md));
+  border-radius: var(--door-border-radius, var(--radius-md));
 
   /* NFR [U2]: Touch-friendly minimum size (44px+) */
-  min-width: 44px;
-  min-height: 140px;
+  /* Use clamp for fluid sizing that works in all orientations */
+  min-width: clamp(44px, 12vmin, 160px);
+  min-height: clamp(44px, 12vmin, 160px);
+
+  /* Interaction */
+  cursor: default;
+  border: none;
+  transition: all var(--transition-base);
 
   /* Remove button defaults */
   font-family: inherit;
-  width: 100%;
 }
 
 /* NFR [U5]: Focus indicator for keyboard navigation */
@@ -213,77 +234,27 @@ const handleClick = () => {
   outline-offset: 2px;
 }
 
-/* State 1: Locked Door 🔒 */
+/* State: Locked Door - Structure only */
 .door-card--locked {
-  background: linear-gradient(135deg, #4a5568, #2d3748);
   cursor: not-allowed;
   pointer-events: none;
-  position: relative;
-  z-index: 1;
 }
 
-/* Ensure locked doors are opaque (no thumbnail should show) */
-.door-card--locked::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #4a5568, #2d3748);
-  opacity: 1;
-  z-index: 0;
-  border-radius: var(--radius-md);
-}
-
-.door-card--locked .door-icon {
-  color: #9ca3af;
-  font-size: clamp(2rem, 6vw, 3rem);
-}
-
-.door-card--locked .door-lock {
-  position: absolute;
-  font-size: clamp(2rem, 5vw, 2.5rem);
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.5rem;
-  border-radius: var(--radius-sm);
-  margin-top: 0.75rem;
-  /* Theme-aware: Can be easily overridden by theme classes */
-}
-
-/* State 2: Unlocked Door (Ready to Open) */
+/* State: Unlocked Door - Structure only */
 .door-card--unlocked {
-  background: linear-gradient(135deg, #c41e3a 0%, #165b33 100%);
-  border: 2px solid #ffd700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  position: relative;
-}
-
-/* Add opaque overlay to unlocked doors so thumbnail doesn't bleed through too much */
-.door-card--unlocked::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(196, 30, 58, 0.85) 0%, rgba(22, 91, 51, 0.85) 100%);
-  z-index: 0;
-  border-radius: var(--radius-md);
-  pointer-events: none;
-}
-
-.door-card--unlocked:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 24px rgba(255, 215, 0, 0.4);
 }
 
 .door-card--unlocked:active {
   transform: scale(0.98);
 }
 
-.door-card--unlocked .door-icon {
-  color: #ffd700;
-  font-size: clamp(2.5rem, 7vw, 3.5rem);
+/* State: Opened Door - Structure only */
+.door-card--opened {
+  cursor: pointer;
 }
 
-/* Door Opening Animation - Full Open (90 degrees) */
+/* Door Opening Animation (3D swing) */
 @keyframes swingOpenLeft {
   0% {
     transform: perspective(1200px) rotateY(0deg);
@@ -299,83 +270,22 @@ const handleClick = () => {
   animation: swingOpenLeft 1.8s ease-out forwards;
   transform-origin: left center;
   will-change: transform, opacity;
-  pointer-events: none; /* Prevent double-clicks during animation */
+  pointer-events: none;
 }
 
-/* Ensure animation respects transform-origin */
-.door-card--unlocked.door-card--opening::before {
-  transform-origin: left center;
-}
-
-/* State 3: Opened Door (Already Watched) ✅ */
-.door-card--opened {
-  background: #2c5f2d;
-  opacity: 0.85;
-  border: 2px solid #165b33;
-  cursor: pointer;
-}
-
-.door-card--opened:hover {
-  opacity: 1;
-  transform: scale(1.02);
-}
-
-.door-card--opened .door-icon {
-  color: #a3e635;
-  font-size: clamp(2rem, 6vw, 2.5rem);
-}
-
-.door-card--opened .door-checkmark {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
-  color: #4ade80;
-  z-index: 2;
-}
-
-/* Day Number Badge */
+/* Day Number Badge - Position only, theme handles styling */
 .door-number {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
-  font-size: clamp(0.85rem, 2.5vw, 1rem);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.95);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  z-index: 2;
-  /* NFR [U5]: Color contrast 4.5:1 */
-  text-shadow: none;
-  /* Debug mode: Make badge larger for extra info */
-  line-height: 1.3;
-  max-width: 90%;
+  z-index: 10;
+  line-height: 1;
+  /* Font size and colors controlled by theme */
+  font-size: var(--door-number-size, 1.5rem);
+  font-weight: var(--door-number-weight, var(--font-weight-bold));
 }
 
-@media (prefers-color-scheme: dark) {
-  .door-number {
-    background: rgba(0, 0, 0, 0.8);
-    color: #ffffff;
-  }
-}
-
-/* Debug State Display */
-.debug-state {
-  font-size: 0.65rem;
-  font-weight: normal;
-  color: #dc2626; /* Red color for visibility */
-  line-height: 1.2;
-  margin-top: 0.1rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .debug-state {
-    color: #fca5a5; /* Lighter red for dark mode */
-  }
-}
-
-/* Door Content Container */
+/* Door Content Container - Icons and content positioning */
 .door-content {
   display: flex;
   align-items: center;
@@ -384,22 +294,16 @@ const handleClick = () => {
   width: 100%;
   height: 100%;
   position: relative;
-  z-index: 1; /* Above the gradient overlay */
+  z-index: 1;
 }
 
-/* Door Icon */
-.door-icon {
-  transition: all var(--transition-base);
-}
-
-/* Thumbnail Display (only for unlocked/opened doors) */
+/* Thumbnail Display - Layout only */
 .door-thumbnail {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-md);
   overflow: hidden;
   z-index: 0;
-  /* Note: Locked doors never show thumbnail (v-if prevents rendering) */
+  border-radius: inherit;
 }
 
 .door-thumbnail :deep(img) {
@@ -408,38 +312,36 @@ const handleClick = () => {
   object-fit: cover;
 }
 
-/* Play Button Overlay */
+/* Play Button Overlay - Position only, theme handles colors */
 .play-button-overlay {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: clamp(3rem, 8vw, 4rem);
-  color: rgba(255, 255, 255, 0.95);
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
   pointer-events: none;
   z-index: 10;
-  transition: transform 0.2s ease, color 0.2s ease;
+  transition: transform 0.2s ease;
+  /* Colors controlled by theme or use white as default */
+  color: rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
 }
 
-/* Play button hover effect (when parent door card is hovered) */
 .door-thumbnail.has-play-button:hover .play-button-overlay {
   transform: translate(-50%, -50%) scale(1.15);
-  color: rgba(255, 255, 255, 1);
 }
 
-/* Unlocked state: Hide thumbnail completely (door is closed) */
+/* Hide thumbnail on unlocked (closed) doors */
 .door-card--unlocked .door-thumbnail {
   display: none;
 }
 
-/* Opened state: Show thumbnail at full opacity (primary content) */
+/* Show thumbnail on opened doors */
 .door-card--opened .door-thumbnail {
-  opacity: 1.0;
-  z-index: 1; /* Bring thumbnail above door-content */
+  z-index: 1;
 }
 
-/* Opened state: Hide icons when thumbnail is showing */
+/* Hide door icons when showing thumbnail (opened state) */
 .door-card--opened .door-content {
   opacity: 0;
   pointer-events: none;
@@ -451,12 +353,7 @@ const handleClick = () => {
     transition: none;
   }
 
-  .door-card--unlocked:hover,
-  .door-card--opened:hover {
-    transform: none;
-  }
-
-  /* Replace 3D swing with simple fade for users who prefer reduced motion */
+  /* Replace 3D swing with simple fade */
   @keyframes simpleFadeOut {
     0% {
       opacity: 1;
@@ -470,51 +367,6 @@ const handleClick = () => {
     animation: simpleFadeOut 0.9s ease-out forwards;
     transform: none;
     will-change: opacity;
-  }
-}
-
-/* NFR [U5]: High contrast mode */
-@media (prefers-contrast: high) {
-  .door-card--locked {
-    border: 3px solid #6b7280;
-  }
-
-  .door-card--unlocked {
-    border-width: 3px;
-  }
-
-  .door-card--opened {
-    border-width: 3px;
-  }
-
-  .door-number {
-    font-weight: var(--font-weight-black);
-    border: 1px solid currentColor;
-  }
-}
-
-/* Responsive adjustments for very small screens */
-@media (max-width: 640px) {
-  .door-card {
-    min-height: 140px;
-    padding: var(--spacing-sm);
-  }
-
-  .door-number {
-    font-size: 0.8rem;
-    padding: 0.2rem 0.4rem;
-  }
-}
-
-/* Container queries for extra small screens */
-@container (max-width: 20rem) {
-  .door-number {
-    font-size: 0.75rem;
-    padding: 0.15rem 0.35rem;
-  }
-
-  .door-icon {
-    font-size: 1.5rem !important;
   }
 }
 </style>
