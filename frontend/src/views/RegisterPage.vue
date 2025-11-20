@@ -10,7 +10,7 @@
       <div class="register-container">
         <div class="register-header">
           <div class="logo-section">
-            <div class="logo-icon">📅</div>
+            <img src="@/assets/logo.png" alt="Countdown Calendar Logo" class="logo-icon" />
             <h1>Countdown Calendar</h1>
           </div>
           <p class="subtitle">Create your account to start building engaging countdown experiences</p>
@@ -312,7 +312,8 @@ const goToLogin = () => {
 }
 
 .logo-icon {
-  font-size: 3.5rem;
+  width: 200px;
+  height: auto;
   margin-bottom: 12px;
 }
 
@@ -444,9 +445,9 @@ const goToLogin = () => {
   .register-header h1 {
     font-size: 1.6rem;
   }
-  
+
   .logo-icon {
-    font-size: 3rem;
+    width: 150px;
   }
 }
 </style>

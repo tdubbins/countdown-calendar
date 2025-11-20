@@ -39,6 +39,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/CalendarViewPage.vue'),
     meta: { requiresAuth: false }
   },
+  {
+    path: '/help',
+    component: () => import('@/views/HelpPage.vue'),
+    meta: { requiresAuth: false }
+  },
   // Legacy redirects for backwards compatibility
   {
     path: '/dashboard',

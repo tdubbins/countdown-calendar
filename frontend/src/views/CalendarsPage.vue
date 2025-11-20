@@ -104,17 +104,6 @@
         <!-- Secondary Actions -->
         <div class="secondary-actions">
           <ActionButton
-            @click="goToProfile"
-            fill="clear"
-            color="medium"
-            variant="secondary"
-            :icon="settings"
-            icon-slot="start"
-          >
-            Account Settings
-          </ActionButton>
-          
-          <ActionButton
             @click="goToHelp"
             fill="clear"
             color="medium"
@@ -176,7 +165,7 @@
 
 <script setup lang="ts">
 import { onMounted, watch, ref } from 'vue';
-import { chevronDownCircleOutline, add, settings, helpCircle } from 'ionicons/icons';
+import { chevronDownCircleOutline, add, helpCircle } from 'ionicons/icons';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
@@ -279,14 +268,8 @@ const openCalendar = (calendarId: string) => {
   router.push(`/calendar/${calendarId}/edit`);
 };
 
-const goToProfile = () => {
-  // TODO: Implement profile settings
-  console.log('Navigate to profile');
-};
-
 const goToHelp = () => {
-  // TODO: Implement help section
-  console.log('Navigate to help');
+  router.push('/help');
 };
 
 // Pull-to-refresh handler
@@ -436,6 +419,7 @@ const closeEditModal = () => {
   flex-direction: column;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-2xl);
+  align-items: center;
 }
 
 /* Floating Action Button (NFR [U2]: Mobile-optimized touch target) */
