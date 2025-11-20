@@ -2,10 +2,13 @@
   <p
     v-if="description"
     class="calendar-description"
-    :class="{
-      'calendar-description--editable': editable,
-      'calendar-description--centered': centered
-    }"
+    :class="[
+      {
+        'calendar-description--editable': editable,
+        'calendar-description--centered': centered
+      },
+      themeClass
+    ]"
     @click="handleClick"
     :role="editable ? 'button' : undefined"
     :tabindex="editable ? 0 : undefined"
@@ -16,16 +19,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 interface Props {
   description?: string;
   editable?: boolean;
   centered?: boolean;
+  theme?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   description: '',
   editable: false,
-  centered: false
+  centered: false,
+  theme: 'christmas'
+});
+
+const themeClass = computed(() => {
+  return props.theme ? `theme-${props.theme}` : 'theme-christmas';
 });
 
 const emit = defineEmits<{
@@ -51,19 +62,14 @@ const handleClick = () => {
   word-wrap: break-word;
 }
 
-/* Centered variant (for viewer page) - Christmasy styling */
+/* Centered variant (for viewer page) - Base styling */
+/* Theme-specific text styling is defined in theme files */
 .calendar-description--centered {
   text-align: center;
   margin-left: auto;
   margin-right: auto;
   max-width: 40rem;
-  color: #f0f9ff;
   font-size: clamp(0.9rem, 2.2vw, 1.05rem);
-  text-shadow:
-    0 0 15px rgba(255, 255, 255, 0.7),
-    0 0 25px rgba(135, 206, 250, 0.5),
-    0 3px 6px rgba(0, 0, 0, 0.7),
-    0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 /* Editable variant (for edit page) */

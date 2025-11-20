@@ -22,7 +22,6 @@
   <!-- Desktop: Full Ionic Modal with tree decorations -->
   <ion-modal
     v-if="!isMobile"
-    :key="`video-modal-${calendarId}-${dayNumber}`"
     :is-open="isOpen"
     :backdrop-dismiss="true"
     @didDismiss="handleClose"
@@ -56,7 +55,7 @@
           </h2>
 
           <!-- Video Player -->
-          <div class="video-player-wrapper">
+          <div class="video-player-wrapper" :class="themeClass">
             <MediaPlayer
               v-if="videoUrl"
               :src="videoUrl"
@@ -104,6 +103,9 @@ interface Props {
 
   /** Whether viewer is calendar owner (affects auth) */
   requireAuth: boolean;
+
+  /** Theme ID for styling letterbox decorations */
+  theme?: string;
 }
 
 /**
@@ -125,6 +127,11 @@ const emit = defineEmits<Emits>();
 const videoUrl = computed(() =>
   API_ENDPOINTS.VIDEO_STREAM(props.calendarId, props.dayNumber)
 );
+
+// Theme class for letterbox decorations
+const themeClass = computed(() => {
+  return props.theme ? `theme-${props.theme}` : 'theme-christmas';
+});
 
 /**
  * Detect mobile/tablet device using Ionic's Platform API
@@ -266,6 +273,7 @@ const handleMobileVideoEnded = () => {
 }
 
 /* Video Player Wrapper - 16:9 aspect ratio with black background */
+/* Theme-specific letterbox decorations are defined in theme files */
 .video-player-wrapper {
   position: relative;
   width: 100%;
@@ -274,63 +282,13 @@ const handleMobileVideoEnded = () => {
   overflow: hidden;
 }
 
-/* Dark forest effect - Left side with 4 trees (different shades) */
-.video-player-wrapper::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 30%;
-  background-image:
-    url(../assets/tree1.png),
-    url(../assets/tree2.png),
-    url(../assets/tree3.png),
-    url(../assets/tree4.png);
-  background-size: 150% auto, 150% auto, 150% auto, 150% auto;
-  background-position:
-    -50% bottom,
-    0% bottom,
-    40% bottom,
-    90% bottom;
-  background-repeat: no-repeat;
-  pointer-events: none;
-  opacity: 0.3;
-  z-index: 0;
-}
-
-/* Dark forest effect - Right side with 4 trees (different shades) */
-.video-player-wrapper::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 30%;
-  background-image:
-    url(../assets/tree1.png),
-    url(../assets/tree2.png),
-    url(../assets/tree3.png),
-    url(../assets/tree4.png);
-  background-size: 150% auto, 150% auto, 150% auto, 150% auto;
-  background-position:
-    150% bottom,
-    100% bottom,
-    60% bottom,
-    10% bottom;
-  background-repeat: no-repeat;
-  pointer-events: none;
-  opacity: 0.3;
-  z-index: 0;
-}
-
 .video-player-wrapper :deep(video) {
   position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: transparent;
-  z-index: 1; /* Ensure video is always above tree decorations */
+  z-index: 1; /* Ensure video is always above theme decorations */
 }
 
 /* Screen Reader Only */

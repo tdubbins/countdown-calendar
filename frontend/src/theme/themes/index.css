@@ -1,0 +1,15 @@
+/**
+ * Theme Styles Index
+ *
+ * Centralized import file for all calendar themes.
+ * Import this file to load all available themes.
+ */
+
+/* Import individual theme files */
+@import './christmas.css';
+@import './birthday.css';
+
+/* Future themes:
+@import './holiday.css';
+@import './custom.css';
+*/

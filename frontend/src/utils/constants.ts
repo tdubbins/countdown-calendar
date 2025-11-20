@@ -212,10 +212,11 @@ export const Z_INDEX = {
  * NFR [SC3]: Modular architecture prepared for future theme expansion
  */
 export const THEME_OPTIONS = {
-  /** Christmas theme - festive red and green color palette */
-  CHRISTMAS: 'christmas'
+  /** Christmas theme - wooden cabin doors with falling snow */
+  CHRISTMAS: 'christmas',
+  /** Birthday theme - gift boxes with floating balloons */
+  BIRTHDAY: 'birthday'
   // Future themes:
-  // BIRTHDAY: 'birthday',
   // HOLIDAY: 'holiday',
   // CUSTOM: 'custom'
 } as const;

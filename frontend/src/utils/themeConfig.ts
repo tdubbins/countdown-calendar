@@ -22,13 +22,13 @@ export const THEMES: Record<string, ThemeConfig> = {
     description: 'Wooden cabin doors with falling snow',
     cssClass: 'theme-christmas'
   },
+  birthday: {
+    id: 'birthday',
+    name: 'Birthday',
+    description: 'Gift boxes with floating balloons',
+    cssClass: 'theme-birthday'
+  },
   // Future themes
-  // birthday: {
-  //   id: 'birthday',
-  //   name: 'Birthday',
-  //   description: 'Festive birthday celebration',
-  //   cssClass: 'theme-birthday'
-  // },
   // generic: {
   //   id: 'generic',
   //   name: 'Generic',

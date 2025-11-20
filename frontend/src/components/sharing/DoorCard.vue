@@ -184,8 +184,8 @@ const handleClick = () => {
 </script>
 
 <style scoped>
-/* Import theme styles */
-@import '@/theme/door-themes.css';
+/* Import all theme styles (doors, backgrounds, text, letterbox) */
+@import '@/theme/themes/index.css';
 
 /**
  * Base Door Card Styles

@@ -16,23 +16,6 @@
 
       <!-- Calendar Loaded Successfully -->
       <div v-else-if="calendar" class="calendar-view calendar-container" :class="themeClass">
-        <!-- Multiple snowflake layers with mixed sizes and opacity for natural snowfall -->
-        <div class="snowflakes-layer snowflakes-layer-1" aria-hidden="true">
-          <span class="flake-xl white">❄</span><span class="flake-s transparent">❅</span><span class="flake-m white">❆</span><span class="flake-l transparent">❄</span><span class="flake-s white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-m white">❄</span><span class="flake-l white">❅</span><span class="flake-s transparent">❆</span><span class="flake-xl white">❄</span><span class="flake-m transparent">❅</span><span class="flake-l white">❆</span><span class="flake-s white">❄</span><span class="flake-xl transparent">❅</span><span class="flake-m white">❆</span><span class="flake-l transparent">❄</span><span class="flake-s white">❅</span><span class="flake-xl white">❆</span><span class="flake-m transparent">❄</span><span class="flake-l white">❅</span>
-        </div>
-        <div class="snowflakes-layer snowflakes-layer-2" aria-hidden="true">
-          <span class="flake-l white">❆</span><span class="flake-m transparent">❄</span><span class="flake-xl white">❅</span><span class="flake-s transparent">❆</span><span class="flake-l white">❄</span><span class="flake-m white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❄</span><span class="flake-l transparent">❅</span><span class="flake-xl white">❆</span><span class="flake-m white">❄</span><span class="flake-s transparent">❅</span><span class="flake-l white">❆</span><span class="flake-xl transparent">❄</span><span class="flake-m white">❅</span><span class="flake-s white">❆</span><span class="flake-l transparent">❄</span><span class="flake-xl white">❅</span><span class="flake-m transparent">❆</span><span class="flake-s white">❄</span>
-        </div>
-        <div class="snowflakes-layer snowflakes-layer-3" aria-hidden="true">
-          <span class="flake-m white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❄</span><span class="flake-l white">❅</span><span class="flake-m transparent">❆</span><span class="flake-xl white">❄</span><span class="flake-s transparent">❅</span><span class="flake-l white">❆</span><span class="flake-xl transparent">❄</span><span class="flake-m white">❅</span><span class="flake-s white">❆</span><span class="flake-l transparent">❄</span><span class="flake-xl white">❅</span><span class="flake-m transparent">❆</span><span class="flake-s white">❄</span><span class="flake-l white">❅</span><span class="flake-xl transparent">❆</span><span class="flake-m white">❄</span><span class="flake-s transparent">❅</span><span class="flake-l white">❆</span>
-        </div>
-        <div class="snowflakes-layer snowflakes-layer-4" aria-hidden="true">
-          <span class="flake-xl white">❄</span><span class="flake-s transparent">❆</span><span class="flake-l white">❅</span><span class="flake-m transparent">❄</span><span class="flake-xl white">❆</span><span class="flake-s white">❅</span><span class="flake-l transparent">❄</span><span class="flake-m white">❆</span><span class="flake-xl transparent">❅</span><span class="flake-s white">❄</span><span class="flake-l white">❆</span><span class="flake-m transparent">❅</span><span class="flake-xl white">❄</span><span class="flake-s transparent">❆</span><span class="flake-l white">❅</span><span class="flake-m white">❄</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❅</span><span class="flake-l transparent">❄</span><span class="flake-m white">❆</span>
-        </div>
-        <div class="snowflakes-layer snowflakes-layer-5" aria-hidden="true">
-          <span class="flake-s white">❅</span><span class="flake-l transparent">❄</span><span class="flake-m white">❆</span><span class="flake-xl white">❅</span><span class="flake-s transparent">❄</span><span class="flake-l white">❆</span><span class="flake-m transparent">❅</span><span class="flake-xl white">❄</span><span class="flake-s white">❆</span><span class="flake-l transparent">❅</span><span class="flake-m white">❄</span><span class="flake-xl transparent">❆</span><span class="flake-s white">❅</span><span class="flake-l white">❄</span><span class="flake-m transparent">❆</span><span class="flake-xl white">❅</span><span class="flake-s transparent">❄</span><span class="flake-l white">❆</span><span class="flake-m white">❅</span><span class="flake-xl transparent">❄</span>
-        </div>
-
         <!-- Calendar content wrapper -->
         <div class="calendar-content">
         <!-- Header -->
@@ -43,6 +26,7 @@
           <CalendarDescription
             :description="calendar.description"
             :centered="true"
+            :theme="calendar.theme || 'christmas'"
           />
 
           <!-- Owner Controls - Only visible to calendar owner -->
@@ -123,6 +107,7 @@
       :calendar-id="calendarId"
       :day-number="videoModal.selectedItem.value || 1"
       :require-auth="calendar?.isOwner || false"
+      :theme="calendar?.theme || 'christmas'"
       @close="videoModal.close()"
       @video-ended="handleVideoEnded"
     />
@@ -266,8 +251,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Import theme background styles */
-@import '@/theme/theme-backgrounds.css';
+/* Import all theme styles (doors, backgrounds, text, letterbox) */
+@import '@/theme/themes/index.css';
 
 /* Page Content */
 .shared-calendar-content {
@@ -350,16 +335,12 @@ onMounted(async () => {
   padding: var(--spacing-md);
 }
 
+/* Base calendar title - theme-specific colors defined in theme files */
 .calendar-title {
   font-size: clamp(1.75rem, 5vw, 2.5rem);
   font-weight: var(--font-weight-bold);
-  color: #ffffff;
   margin: 0 0 var(--spacing-sm) 0;
-  text-shadow:
-    0 0 20px rgba(255, 255, 255, 0.8),
-    0 0 30px rgba(135, 206, 250, 0.6),
-    0 4px 8px rgba(0, 0, 0, 0.8),
-    0 2px 4px rgba(0, 0, 0, 0.9);
+  /* color and text styling defined per-theme */
 }
 
 .calendar-info {

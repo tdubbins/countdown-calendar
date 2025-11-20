@@ -1,0 +1,367 @@
+/**
+ * Christmas Theme
+ *
+ * Wooden cabin doors with falling snow.
+ * Complete theme styling including doors, backgrounds, and animations.
+ */
+
+/* ============================================
+   DOOR STYLING - Wooden Cabin Doors
+   ============================================ */
+
+.door-card.theme-christmas {
+  /* Base styling */
+  --door-border-radius: 8px;
+  --door-border-width: 3px;
+  --door-padding: 16px;
+
+  /* Typography */
+  --door-number-size: 2rem;
+  --door-number-weight: 700;
+
+  /* Closed Door (Both Locked and Unlocked) - Red Christmas Door with Wreath */
+  --door-closed-bg: url(../../assets/christmas-door.jpg);
+  --door-closed-bg-size: cover;
+  --door-closed-bg-position: center top;
+  --door-closed-border: #8b0000;
+  --door-closed-number-color: #ffffff;
+  --door-closed-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  /* Unlocked doors get extra glow effect */
+  --door-unlocked-shadow: 0 4px 12px rgba(0, 0, 0, 0.4),
+                          0 0 20px rgba(245, 158, 11, 0.3);
+  --door-unlocked-glow: rgba(245, 158, 11, 0.4);
+}
+
+/* Locked Door Styling - Red Christmas door with wreath */
+.door-card.theme-christmas.locked {
+  background-image: var(--door-closed-bg);
+  background-size: var(--door-closed-bg-size);
+  background-position: var(--door-closed-bg-position);
+  background-repeat: no-repeat;
+  border: var(--door-border-width) solid var(--door-closed-border);
+  box-shadow: var(--door-closed-shadow);
+  position: relative;
+}
+
+.door-card.theme-christmas.locked .door-number {
+  color: var(--door-closed-number-color);
+  font-size: var(--door-number-size);
+  font-weight: var(--door-number-weight);
+  background: rgba(139, 0, 0, 0.8);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Hide generic center icon on locked doors - wreath is the focus */
+.door-card.theme-christmas.locked .door-icon {
+  display: none;
+}
+
+/* Lock icon on locked doors - centered */
+.door-card.theme-christmas.locked .door-lock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(3rem, 8vw, 4rem);
+  color: #ffffff;
+  background: rgba(139, 0, 0, 0.9);
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.9));
+  z-index: 3;
+}
+
+/* Unlocked Door Styling - Same door image, with glow effect */
+.door-card.theme-christmas.unlocked {
+  background-image: var(--door-closed-bg);
+  background-size: var(--door-closed-bg-size);
+  background-position: var(--door-closed-bg-position);
+  background-repeat: no-repeat;
+  border: var(--door-border-width) solid var(--door-closed-border);
+  box-shadow: var(--door-unlocked-shadow);
+  position: relative;
+}
+
+/* Hide generic center icon on unlocked doors - wreath is the visual */
+.door-card.theme-christmas.unlocked .door-icon {
+  display: none;
+}
+
+.door-card.theme-christmas.unlocked .door-number {
+  color: var(--door-closed-number-color);
+  font-size: var(--door-number-size);
+  font-weight: var(--door-number-weight);
+  background: rgba(22, 101, 52, 0.85);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Hover effect - subtle scale and glow */
+.door-card.theme-christmas.unlocked:hover {
+  transform: scale(1.05);
+  box-shadow: var(--door-unlocked-shadow),
+              0 0 30px var(--door-unlocked-glow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Opened Door Styling - Clean thumbnail display */
+.door-card.theme-christmas.opened {
+  background: transparent;
+  border: var(--door-border-width) solid #8b0000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  opacity: 1;
+}
+
+.door-card.theme-christmas.opened:hover {
+  transform: scale(1.02);
+}
+
+/* Hide center icon on opened doors - show thumbnail only */
+.door-card.theme-christmas.opened .door-icon {
+  display: none;
+}
+
+/* Checkmark icon in top-right corner - minimal styling */
+.door-card.theme-christmas.opened .door-checkmark {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  color: #4ade80;
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+}
+
+/* Ensure opened doors show thumbnail cleanly */
+.door-card.theme-christmas.opened .door-number {
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+}
+
+/* Reduced motion support - disable animations for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .door-card.theme-christmas.unlocked:hover,
+  .door-card.theme-christmas.opened:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ============================================
+   BACKGROUND - Winter Night with Snowfall
+   ============================================ */
+
+.calendar-view.theme-christmas {
+  /* Winter scene background image - Full screen */
+  background-color: #0f172a;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(15, 23, 42, 0.4) 0%,
+      rgba(30, 58, 95, 0.5) 50%,
+      rgba(15, 23, 42, 0.4) 100%
+    ),
+    url(../../assets/christmas-background.png);
+
+  /* Full viewport coverage */
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+
+  /* Ensure full screen coverage */
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Snowfall Animation Layers */
+/* Using multiple pseudo-elements for depth effect */
+
+/* Layer 1: Large, slow snowflakes (background layer) */
+.calendar-view.theme-christmas::before {
+  content: '❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅ ❄ ❆ ❄ ❅';
+  position: absolute;
+  top: -150px;
+  left: 0;
+  right: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 36px;
+  line-height: 80px;
+  text-align: justify;
+  letter-spacing: 20px;
+  word-spacing: 30px;
+  animation: snowfall-slow 25s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Layer 2: Medium snowflakes (middle layer) */
+.calendar-view.theme-christmas::after {
+  content: '❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄ ❆ ❅ ❆ ❄';
+  position: absolute;
+  top: -120px;
+  left: 0;
+  right: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 28px;
+  line-height: 70px;
+  text-align: justify;
+  letter-spacing: 15px;
+  word-spacing: 25px;
+  animation: snowfall-medium 20s linear infinite;
+  animation-delay: 3s;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Snowfall Keyframe Animations */
+@keyframes snowfall-slow {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(100vh) translateX(50px);
+    opacity: 0;
+  }
+}
+
+@keyframes snowfall-medium {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.4;
+  }
+  90% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(100vh) translateX(-30px);
+    opacity: 0;
+  }
+}
+
+/* Content wrapper to ensure it appears above snowflakes */
+.calendar-view.theme-christmas .calendar-content {
+  position: relative;
+  z-index: 10;
+}
+
+/* Accessibility: Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .calendar-view.theme-christmas::before,
+  .calendar-view.theme-christmas::after {
+    animation: none;
+    opacity: 0.2;
+  }
+}
+
+/* Mobile optimization - adjusted snowflakes for small screens */
+@media (max-width: 768px) {
+  .calendar-view.theme-christmas::before {
+    font-size: 28px;
+    letter-spacing: 12px;
+    word-spacing: 20px;
+  }
+
+  .calendar-view.theme-christmas::after {
+    font-size: 22px;
+    letter-spacing: 10px;
+    word-spacing: 18px;
+  }
+}
+
+/* ============================================
+   TEXT STYLING - Winter Blue Glow
+   ============================================ */
+
+.calendar-description--centered.theme-christmas {
+  color: #f0f9ff;
+  text-shadow:
+    0 0 15px rgba(255, 255, 255, 0.7),
+    0 0 25px rgba(135, 206, 250, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.7),
+    0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* ============================================
+   VIDEO LETTERBOX - Tree Decorations
+   ============================================ */
+
+/* Left side with 4 trees (different shades) */
+.video-player-wrapper.theme-christmas::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  background-image:
+    url(../../assets/tree1.png),
+    url(../../assets/tree2.png),
+    url(../../assets/tree3.png),
+    url(../../assets/tree4.png);
+  background-size: 150% auto, 150% auto, 150% auto, 150% auto;
+  background-position:
+    -50% bottom,
+    0% bottom,
+    40% bottom,
+    90% bottom;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.3;
+  z-index: 0;
+}
+
+/* Right side with 4 trees (different shades) */
+.video-player-wrapper.theme-christmas::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  background-image:
+    url(../../assets/tree1.png),
+    url(../../assets/tree2.png),
+    url(../../assets/tree3.png),
+    url(../../assets/tree4.png);
+  background-size: 150% auto, 150% auto, 150% auto, 150% auto;
+  background-position:
+    150% bottom,
+    100% bottom,
+    60% bottom,
+    10% bottom;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.3;
+  z-index: 0;
+}
+
+/* ============================================
+   TITLE STYLING - Winter White Glow
+   ============================================ */
+
+.calendar-view.theme-christmas .calendar-title {
+  color: #ffffff;
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.8),
+    0 0 30px rgba(135, 206, 250, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.8),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+}

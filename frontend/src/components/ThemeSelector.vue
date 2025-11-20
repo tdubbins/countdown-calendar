@@ -77,8 +77,8 @@ const localTheme = ref<string>(props.theme || DEFAULT_THEME);
 // Theme options for dropdown (Issue #82)
 // NFR [SC3]: Prepared for future theme expansion
 const themeOptions = [
-  { value: THEME_OPTIONS.CHRISTMAS, label: 'Christmas' }
-  // Future: { value: 'birthday', label: 'Birthday' },
+  { value: THEME_OPTIONS.CHRISTMAS, label: 'Christmas' },
+  { value: THEME_OPTIONS.BIRTHDAY, label: 'Birthday' }
   // Future: { value: 'holiday', label: 'Holiday' },
   // Future: { value: 'custom', label: 'Custom' }
 ];
@@ -86,7 +86,7 @@ const themeOptions = [
 // Display name for locked state
 const themeDisplayName = computed(() => {
   const option = themeOptions.find(opt => opt.value === localTheme.value);
-  return option?.label || 'Christmas';
+  return option?.label || (localTheme.value === 'birthday' ? 'Birthday' : 'Christmas');
 });
 
 // Watch props for external changes (e.g., from API response)
