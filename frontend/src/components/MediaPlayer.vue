@@ -41,7 +41,7 @@
       role="alert"
       aria-live="assertive"
     >
-      <ion-icon :icon="alertCircleOutline" aria-hidden="true" />
+      <ion-icon :icon="giftOutline" aria-hidden="true" />
       <p>{{ error }}</p>
     </div>
 
@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { IonSpinner, IonIcon } from '@ionic/vue'
-import { alertCircleOutline } from 'ionicons/icons'
+import { giftOutline } from 'ionicons/icons'
 import { useMedia } from '@/composables/useMedia'
 
 /**
@@ -234,7 +234,7 @@ defineExpose({
 }
 
 .media-error {
-  color: var(--ion-color-danger);
+  color: white;
   text-align: center;
 }
 

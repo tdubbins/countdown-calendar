@@ -53,7 +53,7 @@ export const useMedia = () => {
       if (response.status === 403) {
         throw new Error('This day is locked')
       } else if (response.status === 404) {
-        throw new Error('Media not found')
+        throw new Error("This day's surprise is coming soon. Check back later!")
       } else {
         throw new Error(`Failed to load media (${response.status})`)
       }
