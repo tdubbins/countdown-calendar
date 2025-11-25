@@ -26,7 +26,7 @@
             :required="true"
             :error-message="emailError"
             autocomplete="email"
-            @blur="validateEmail"
+            @blur="validateEmailField"
             @update:model-value="clearEmailError"
           />
 
@@ -82,6 +82,41 @@
             <ion-icon :icon="alertCircle" class="message-icon" aria-hidden="true"></ion-icon>
             <p>{{ errorMessage }}</p>
           </div>
+
+          <!-- Resend Verification Button (shown only for verification errors) -->
+          <div
+            v-if="showResendVerification"
+            class="resend-section"
+          >
+            <p class="resend-text">Didn't receive the verification email?</p>
+            <ion-button
+              expand="block"
+              fill="outline"
+              color="primary"
+              @click="handleResendVerification"
+              :disabled="isLoading || isResending"
+              class="resend-button"
+              aria-label="Resend verification email"
+            >
+              <ion-spinner
+                v-if="isResending"
+                name="crescent"
+                aria-label="Sending email"
+              ></ion-spinner>
+              <span v-else>📧 Resend Verification Email</span>
+            </ion-button>
+
+            <!-- Resend Message -->
+            <div
+              v-if="resendMessage"
+              :class="['message', resendMessageType === 'success' ? 'resend-success-message' : 'resend-error-message']"
+              role="status"
+              aria-live="polite"
+            >
+              <ion-icon :icon="resendMessageType === 'success' ? checkmarkCircle : alertCircle" class="message-icon" aria-hidden="true"></ion-icon>
+              <p>{{ resendMessage }}</p>
+            </div>
+          </div>
         </form>
 
         <!-- Register Link -->
@@ -113,12 +148,22 @@ import { checkmarkCircle, alertCircle } from 'ionicons/icons';
 import IonFormField from '@/components/IonFormField.vue';
 import PasswordField from '@/components/PasswordField.vue';
 import { useAuth } from '@/composables/useAuth';
+import { useResendVerification } from '@/composables/useResendVerification';
+import { validateEmail } from '@/utils/validators';
 
 // Router for navigation
 const router = useRouter();
 
 // Authentication composable
 const { login, isLoading } = useAuth();
+
+// Resend verification composable
+const {
+  isResending,
+  message: resendMessage,
+  messageType: resendMessageType,
+  resend: resendVerification
+} = useResendVerification();
 
 // Form data
 const email = ref('');
@@ -129,6 +174,7 @@ const emailError = ref('');
 const passwordError = ref('');
 const errorMessage = ref('');
 const successMessage = ref('');
+const showResendVerification = ref(false);
 
 // Form validation
 const isFormValid = computed(() => {
@@ -139,15 +185,9 @@ const isFormValid = computed(() => {
 });
 
 // Validation functions
-const validateEmail = () => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email.value) {
-    emailError.value = 'Email is required';
-  } else if (!emailRegex.test(email.value)) {
-    emailError.value = 'Please enter a valid email address';
-  } else {
-    emailError.value = '';
-  }
+const validateEmailField = () => {
+  const result = validateEmail(email.value);
+  emailError.value = result.error;
 };
 
 const validatePassword = () => {
@@ -172,30 +212,31 @@ const handleSubmit = async () => {
   // Clear previous messages
   errorMessage.value = '';
   successMessage.value = '';
-  
+  showResendVerification.value = false;
+
   // Validate all fields
-  validateEmail();
+  validateEmailField();
   validatePassword();
-  
+
   // Check if form is valid
   if (!isFormValid.value) {
     errorMessage.value = 'Please fix the errors above';
     return;
   }
-  
+
   try {
     const result = await login(email.value, password.value);
-    
+
     if (result.success) {
       // Show success message
       successMessage.value = '✅ Login successful! Redirecting to dashboard...';
-      
+
       // Clear form
       email.value = '';
       password.value = '';
       emailError.value = '';
       passwordError.value = '';
-      
+
       // Redirect to calendar overview after 2 seconds
       setTimeout(() => {
         successMessage.value = '';
@@ -203,11 +244,21 @@ const handleSubmit = async () => {
       }, 2000);
     } else {
       errorMessage.value = result.message;
+
+      // Check if error is about email verification
+      if (result.message.toLowerCase().includes('verify your email')) {
+        showResendVerification.value = true;
+      }
     }
-    
+
   } catch (error: any) {
     errorMessage.value = 'An unexpected error occurred';
   }
+};
+
+// Handle resend verification email
+const handleResendVerification = async () => {
+  await resendVerification(email.value);
 };
 
 // Navigation
@@ -327,6 +378,54 @@ const goToRegister = () => {
   margin: 0;
   font-size: 1rem;
   line-height: 1.4;
+}
+
+/* Resend verification section */
+.resend-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.resend-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  margin: 0 0 12px 0;
+  text-align: center;
+}
+
+.resend-button {
+  margin-top: 0;
+  height: 48px;
+  font-weight: 600;
+  font-size: 1rem;
+  --border-radius: 10px;
+  text-transform: none;
+}
+
+.resend-button:focus {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
+}
+
+.resend-success-message {
+  margin-top: 12px;
+  background: rgba(209, 242, 209, 0.95);
+  color: #0f5132;
+  border: 1px solid #a3d977;
+  font-size: 0.9rem;
+  padding: 12px;
+}
+
+.resend-error-message {
+  margin-top: 12px;
+  background: rgba(248, 215, 218, 0.95);
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  font-size: 0.9rem;
+  padding: 12px;
 }
 
 /* Register link */

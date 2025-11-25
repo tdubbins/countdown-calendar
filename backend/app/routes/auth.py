@@ -69,21 +69,54 @@ def verify_email(token):
     """Verify user email using verification token"""
     try:
         success, message, user_data = EmailService.verify_email_token(token)
-        
+
         if not success:
             return jsonify({
                 'success': False,
                 'error': message
             }), 400
-        
+
         return jsonify({
             'success': True,
             'message': message,
             'user_id': user_data['user_id'] if user_data else None
         }), 200
-        
+
     except Exception as e:
         print(f"Email verification error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+@auth_bp.route('/auth/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend verification email to unverified user"""
+    try:
+        # Get JSON data from request
+        try:
+            data = request.get_json()
+            if not data:
+                raise ValueError("No JSON data provided")
+        except Exception:
+            return jsonify({
+                'error': 'Request must contain JSON data'
+            }), 400
+
+        email = data.get('email', '')
+
+        # Resend verification email
+        success, message = AuthService.resend_verification_email(email)
+
+        if not success:
+            return jsonify({'error': message}), 429  # 429 Too Many Requests for rate limiting
+
+        return jsonify({
+            'success': True,
+            'message': message
+        }), 200
+
+    except Exception as e:
+        print(f"Resend verification error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500

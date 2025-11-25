@@ -179,7 +179,6 @@ import {
   IonFab,
   IonFabButton,
   IonIcon,
-  IonSpinner,
   IonRefresher,
   IonRefresherContent,
   IonSkeletonText
@@ -199,7 +198,7 @@ import type { Calendar, CalendarCreateData } from '@/types/calendar';
 const router = useRouter();
 const route = useRoute();
 const { isAuthenticated, logout, redirectToLogin } = useAuth();
-const { calendars, isLoading, hasCalendars, loadCalendars, getCalendar, updateCalendar } = useCalendar();
+const { calendars, isLoading, hasCalendars, loadCalendars, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
 const { showSuccess } = useToast();
 const { showError } = useAlert();

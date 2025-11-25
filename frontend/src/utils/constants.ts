@@ -93,6 +93,9 @@ export const ERROR_MESSAGES = {
   AUTH_FAILED: 'Authentication failed. Please check your credentials.',
   UNAUTHORIZED: 'Unauthorized access. Please log in again.',
   SESSION_EXPIRED: 'Your session has expired. Please log in again.',
+  EMAIL_VERIFICATION_REQUIRED: 'Please verify your email before logging in',
+  RESEND_VERIFICATION_FAILED: 'Failed to send verification email. Please try again.',
+  RESEND_RATE_LIMIT: 'Too many verification emails sent. Please try again later.',
 
   // Calendar errors
   CALENDAR_NOT_FOUND: 'Calendar not found',
@@ -133,6 +136,7 @@ export const SUCCESS_MESSAGES = {
   LOGIN_SUCCESS: 'Logged in successfully',
   LOGOUT_SUCCESS: 'Logged out successfully',
   REGISTRATION_SUCCESS: 'Registration successful. Please check your email.',
+  VERIFICATION_EMAIL_SENT: 'Verification email sent! Please check your inbox and spam folder.',
 
   // Sharing
   LINK_COPIED: 'Share link copied to clipboard',

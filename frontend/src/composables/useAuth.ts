@@ -92,7 +92,7 @@ export const useAuth = () => {
   // Register user
   const register = async (email: string, password: string, confirmPassword: string): Promise<{ success: boolean; message: string }> => {
     isLoading.value = true;
-    
+
     try {
       const response = await fetch(API_ENDPOINTS.REGISTER(), {
         method: 'POST',
@@ -101,19 +101,53 @@ export const useAuth = () => {
         },
         body: JSON.stringify({ email, password, confirmPassword }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Registration failed');
       }
-      
+
       const data = await response.json();
-      
+
       return {
         success: true,
         message: data.message || 'Registration successful'
       };
-      
+
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message
+      };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // Resend verification email
+  const resendVerificationEmail = async (email: string): Promise<{ success: boolean; message: string }> => {
+    isLoading.value = true;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.RESEND_VERIFICATION(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification email');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Verification email sent successfully'
+      };
+
     } catch (error: any) {
       return {
         success: false,
@@ -187,12 +221,13 @@ export const useAuth = () => {
     isAuthenticated,
     currentUser,
     isLoading,
-    
+
     // Actions
     login,
     register,
+    resendVerificationEmail,
     logout,
-    
+
     // Utilities
     getAuthHeaders,
     checkAuth,

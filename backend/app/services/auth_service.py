@@ -13,6 +13,7 @@ from app.utils.validators import (
     validate_passwords_match,
     validate_required_fields
 )
+from app.utils.rate_limiter import check_rate_limit, get_rate_limit_update_data
 
 class AuthService:
     """Authentication business logic"""
@@ -147,6 +148,65 @@ class AuthService:
         """Verify password against stored hash"""
         return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash.encode('utf-8'))
     
+    @staticmethod
+    def resend_verification_email(email: str) -> Tuple[bool, str]:
+        """Resend verification email to unverified user"""
+        # Validate email format
+        is_valid, normalized_email, error = validate_email_address(email)
+        if not is_valid:
+            return False, error
+
+        # Find user by email
+        user = users_db.find_by_field('users', 'email', normalized_email.lower())
+
+        # Generic response for privacy (don't reveal if user exists)
+        # But still handle the logic correctly
+        if not user:
+            return True, "If this email is registered and unverified, a new verification link has been sent."
+
+        # Check if already verified
+        if user.get('email_verified', False):
+            return True, "If this email is registered and unverified, a new verification link has been sent."
+
+        # Check rate limiting using utility (3 requests per hour)
+        is_allowed, new_count, rate_limit_error = check_rate_limit(
+            user=user,
+            action='verification_email',
+            limit=3,
+            window_hours=1
+        )
+
+        if not is_allowed:
+            return False, rate_limit_error
+
+        # Invalidate all old unused tokens for this user
+        from app.services.email_service import EmailService
+        all_tokens = email_tokens_db.find_all('tokens')
+        for token_id, token_data in all_tokens.items():
+            if token_data.get('user_id') == user['id'] and not token_data.get('used', False):
+                email_tokens_db.update('tokens', token_id, {'used': True})
+
+        # Generate new token and send email
+        verification_token = EmailService.generate_verification_token(
+            user['id'],
+            user['email']
+        )
+        email_sent, email_message = EmailService.send_verification_email(
+            user['email'],
+            verification_token
+        )
+
+        # Update rate limiting tracking
+        rate_limit_data = get_rate_limit_update_data('verification_email', new_count)
+        users_db.update('users', user['id'], rate_limit_data)
+
+        if not email_sent:
+            # Don't reveal email sending failure to user (security)
+            # But log it for debugging
+            print(f"Warning: Failed to resend verification email: {email_message}")
+
+        return True, "Verification email sent! Please check your inbox and spam folder."
+
     @staticmethod
     def _generate_jwt_token(user_id: str) -> str:
         """Generate JWT token for authenticated user"""

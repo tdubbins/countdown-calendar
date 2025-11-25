@@ -26,7 +26,7 @@
             :required="true"
             :error-message="emailError"
             autocomplete="email"
-            @blur="validateEmail"
+            @blur="validateEmailField"
             @update:model-value="clearEmailError"
           />
 
@@ -39,12 +39,12 @@
             :error-message="passwordError"
             autocomplete="new-password"
             requirements-id="password-requirements"
-            @blur="validatePassword"
+            @blur="validatePasswordField"
             @update:model-value="clearPasswordError"
           />
-          
+
           <!-- Password Requirements -->
-          <PasswordRequirements 
+          <PasswordRequirements
             ref="passwordRequirementsRef"
             :password="password"
           />
@@ -57,7 +57,7 @@
             :required="true"
             :error-message="confirmPasswordError"
             autocomplete="new-password"
-            @blur="validateConfirmPassword"
+            @blur="validateConfirmPasswordField"
             @update:model-value="clearConfirmPasswordError"
           />
 
@@ -133,6 +133,7 @@ import IonFormField from '@/components/IonFormField.vue';
 import PasswordField from '@/components/PasswordField.vue';
 import PasswordRequirements from '@/components/PasswordRequirements.vue';
 import { useAuth } from '@/composables/useAuth';
+import { validateEmail, validatePassword, validatePasswordsMatch, checkPasswordRequirements } from '@/utils/validators';
 
 // Router for navigation
 const router = useRouter();
@@ -155,14 +156,9 @@ const successMessage = ref('');
 // Component refs
 const passwordRequirementsRef = ref();
 
-// Password validation logic (duplicated from component for consistency)
-const hasMinLength = computed(() => password.value.length >= 8);
-const hasUppercase = computed(() => /[A-Z]/.test(password.value));
-const hasLowercase = computed(() => /[a-z]/.test(password.value));
-const hasNumber = computed(() => /\d/.test(password.value));
-const isPasswordValid = computed(() => 
-  hasMinLength.value && hasUppercase.value && hasLowercase.value && hasNumber.value
-);
+// Password validation logic using utility
+const passwordChecks = computed(() => checkPasswordRequirements(password.value));
+const isPasswordValid = computed(() => passwordChecks.value.isValid);
 
 // Form validation
 const isFormValid = computed(() => {
@@ -176,39 +172,24 @@ const isFormValid = computed(() => {
 });
 
 // Validation functions
-const validateEmail = () => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email.value) {
-    emailError.value = 'Email is required';
-  } else if (!emailRegex.test(email.value)) {
-    emailError.value = 'Please enter a valid email address';
-  } else {
-    emailError.value = '';
-  }
+const validateEmailField = () => {
+  const result = validateEmail(email.value);
+  emailError.value = result.error;
 };
 
-const validatePassword = () => {
-  if (!password.value) {
-    passwordError.value = 'Password is required';
-  } else if (!isPasswordValid.value) {
-    passwordError.value = 'Password does not meet requirements';
-  } else {
-    passwordError.value = '';
-  }
+const validatePasswordField = () => {
+  const result = validatePassword(password.value);
+  passwordError.value = result.error;
+
   // Re-validate confirm password if it exists
   if (confirmPassword.value) {
-    validateConfirmPassword();
+    validateConfirmPasswordField();
   }
 };
 
-const validateConfirmPassword = () => {
-  if (!confirmPassword.value) {
-    confirmPasswordError.value = 'Please confirm your password';
-  } else if (password.value !== confirmPassword.value) {
-    confirmPasswordError.value = 'Passwords do not match';
-  } else {
-    confirmPasswordError.value = '';
-  }
+const validateConfirmPasswordField = () => {
+  const result = validatePasswordsMatch(password.value, confirmPassword.value);
+  confirmPasswordError.value = result.error;
 };
 
 // Clear error functions
@@ -232,11 +213,11 @@ const handleSubmit = async () => {
   // Clear previous messages
   errorMessage.value = '';
   successMessage.value = '';
-  
+
   // Validate all fields
-  validateEmail();
-  validatePassword();
-  validateConfirmPassword();
+  validateEmailField();
+  validatePasswordField();
+  validateConfirmPasswordField();
   
   // Check if form is valid
   if (!isFormValid.value) {

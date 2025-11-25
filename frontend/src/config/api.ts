@@ -25,7 +25,8 @@ const API_CONFIG = {
     LOGIN: '/auth/login',
     LOGOUT: '/auth/logout',
     PROFILE: '/auth/profile',
-    VERIFY_EMAIL: '/auth/verify-email'
+    VERIFY_EMAIL: '/auth/verify-email',
+    RESEND_VERIFICATION: '/auth/resend-verification'
   },
   
   // Calendar endpoints (for future use)
@@ -51,6 +52,7 @@ export const API_ENDPOINTS = {
   LOGOUT: () => buildApiUrl(API_CONFIG.AUTH.LOGOUT),
   PROFILE: () => buildApiUrl(API_CONFIG.AUTH.PROFILE),
   VERIFY_EMAIL: (token: string) => buildApiUrl(`${API_CONFIG.AUTH.VERIFY_EMAIL}/${token}`),
+  RESEND_VERIFICATION: () => buildApiUrl(API_CONFIG.AUTH.RESEND_VERIFICATION),
   
   // Calendars
   CALENDARS_LIST: () => buildApiUrl(API_CONFIG.CALENDARS.LIST),
