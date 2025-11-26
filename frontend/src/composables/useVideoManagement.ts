@@ -35,6 +35,21 @@ interface ApiResponse<T = any> {
   error?: string;
 }
 
+// Reassign response type
+export interface ReassignResult {
+  swapped: boolean;
+  sourceDay: {
+    day: number;
+    status: 'empty' | 'completed';
+    filename?: string;
+  };
+  targetDay: {
+    day: number;
+    status: 'completed';
+    filename?: string;
+  };
+}
+
 export const useVideoManagement = (calendarId: string) => {
   const { getAuthHeaders } = useAuth();
 
@@ -477,6 +492,100 @@ export const useVideoManagement = (calendarId: string) => {
   };
 
   /**
+   * Reassign video from one day to another (move or swap)
+   * POST /api/calendars/{id}/videos/reassign
+   *
+   * @param sourceDay Day to move video from
+   * @param targetDay Day to move video to
+   * @returns Promise with reassign result
+   */
+  const reassignVideo = async (
+    sourceDay: number,
+    targetDay: number
+  ): Promise<ApiResponse<ReassignResult>> => {
+    try {
+      const headers = getAuthHeaders();
+
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/reassign`,
+        {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ sourceDay, targetDay })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          error: errorData.error || 'Failed to reassign video'
+        };
+      }
+
+      const data = await response.json();
+
+      // Update local day statuses based on result
+      const sourceStatus = dayStatuses.value.get(sourceDay);
+      const targetStatus = dayStatuses.value.get(targetDay);
+
+      if (data.swapped) {
+        // Swap: exchange statuses and cached thumbnails (no network requests needed)
+        if (sourceStatus && targetStatus) {
+          const sourceThumbnail = sourceStatus.thumbnailUrl;
+          const targetThumbnail = targetStatus.thumbnailUrl;
+
+          dayStatuses.value.set(sourceDay, {
+            ...targetStatus,
+            day: sourceDay,
+            thumbnailUrl: targetThumbnail
+          });
+          dayStatuses.value.set(targetDay, {
+            ...sourceStatus,
+            day: targetDay,
+            thumbnailUrl: sourceThumbnail
+          });
+        }
+      } else {
+        // Move: source becomes empty, target gets the video with its thumbnail
+        if (sourceStatus) {
+          const sourceThumbnail = sourceStatus.thumbnailUrl;
+
+          dayStatuses.value.set(targetDay, {
+            ...sourceStatus,
+            day: targetDay,
+            thumbnailUrl: sourceThumbnail
+          });
+          dayStatuses.value.set(sourceDay, {
+            day: sourceDay,
+            status: 'empty',
+            thumbnailUrl: undefined
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          swapped: data.swapped,
+          sourceDay: data.sourceDay,
+          targetDay: data.targetDay
+        }
+      };
+
+    } catch (error) {
+      console.error('Failed to reassign video:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reassign video'
+      };
+    }
+  };
+
+  /**
    * Get day status
    */
   const getDayStatus = (day: number): VideoStatus['status'] => {
@@ -528,6 +637,7 @@ export const useVideoManagement = (calendarId: string) => {
     uploadVideo,
     getVideoMetadata,
     deleteVideo,
+    reassignVideo,
 
     // Getters
     getDayStatus,

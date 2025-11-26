@@ -30,7 +30,14 @@
         :thumbnail-url="getDayThumbnail(day)"
         :progress="getDayProgress(day)"
         :error-message="getDayError(day)"
+        :is-dragging="draggedDay === day"
+        :is-drag-over="dragOverDay === day"
         @click="handleDayClick(day)"
+        @dragstart="handleDragStart"
+        @dragend="handleDragEnd"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
       />
     </div>
 
@@ -186,6 +193,7 @@ const emit = defineEmits<{
   'uploadComplete': [day: number];
   'uploadError': [day: number, error: string];
   'videoDeleted': [day: number];
+  'videoReassigned': [sourceDay: number, targetDay: number, swapped: boolean];
 }>();
 
 // Composable
@@ -199,6 +207,7 @@ const {
   uploadVideo,
   getVideoMetadata,
   deleteVideo,
+  reassignVideo,
   getDayStatus,
   getDayThumbnail,
   getDayProgress,
@@ -224,6 +233,11 @@ const playbackVideoUrl = ref<string | null>(null);
 
 // Delete alert state
 const isDeleteAlertOpen = ref(false);
+
+// Drag and drop state
+const draggedDay = ref<number | null>(null);
+const dragOverDay = ref<number | null>(null);
+const isReassigning = ref(false);
 
 /**
  * Helper: Format date (ISO to readable)
@@ -499,6 +513,98 @@ const handleDeleteVideo = async () => {
 
   } else {
     await showError(result.error || 'Failed to delete video');
+  }
+};
+
+/**
+ * Drag and drop handlers for video reassignment
+ */
+
+/**
+ * Handle drag start - set the dragged day
+ */
+const handleDragStart = (day: number) => {
+  draggedDay.value = day;
+  statusAnnouncement.value = `Dragging day ${day} video. Drop on another day to move or swap.`;
+};
+
+/**
+ * Handle drag end - clear drag state
+ */
+const handleDragEnd = () => {
+  draggedDay.value = null;
+  dragOverDay.value = null;
+  if (!isReassigning.value) {
+    statusAnnouncement.value = 'Drag cancelled';
+  }
+};
+
+/**
+ * Handle drag over - track which day is being hovered
+ */
+const handleDragOver = (day: number) => {
+  if (day !== draggedDay.value) {
+    dragOverDay.value = day;
+  }
+};
+
+/**
+ * Handle drag leave - clear hover state
+ */
+const handleDragLeave = () => {
+  dragOverDay.value = null;
+};
+
+/**
+ * Handle drop - reassign or swap videos
+ */
+const handleDrop = async (targetDay: number) => {
+  const sourceDay = draggedDay.value;
+
+  // Clear drag state
+  draggedDay.value = null;
+  dragOverDay.value = null;
+
+  // Validate
+  if (!sourceDay || sourceDay === targetDay) {
+    return;
+  }
+
+  // Check target status - prevent drop on processing/uploading
+  const targetStatus = getDayStatus(targetDay);
+  if (targetStatus === 'processing' || targetStatus === 'uploading') {
+    await showError(`Cannot move to day ${targetDay} - video is still processing`);
+    return;
+  }
+
+  // Perform reassignment
+  isReassigning.value = true;
+  const willSwap = targetStatus === 'completed';
+
+  // Announce action
+  statusAnnouncement.value = willSwap
+    ? `Swapping videos between day ${sourceDay} and day ${targetDay}...`
+    : `Moving video from day ${sourceDay} to day ${targetDay}...`;
+
+  const result = await reassignVideo(sourceDay, targetDay);
+
+  isReassigning.value = false;
+
+  if (result.success && result.data) {
+    statusAnnouncement.value = result.data.swapped
+      ? `Videos swapped between day ${sourceDay} and day ${targetDay}`
+      : `Video moved from day ${sourceDay} to day ${targetDay}`;
+
+    await showSuccess(
+      result.data.swapped
+        ? `Videos swapped between day ${sourceDay} and day ${targetDay}`
+        : `Video moved to day ${targetDay}`
+    );
+
+    emit('videoReassigned', sourceDay, targetDay, result.data.swapped);
+  } else {
+    statusAnnouncement.value = `Failed to move video: ${result.error}`;
+    await showError(result.error || 'Failed to reassign video');
   }
 };
 

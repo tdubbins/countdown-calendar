@@ -2,13 +2,20 @@
   <div
     class="day-card"
     :class="dayCardClasses"
+    :draggable="isDraggable"
     @click="handleClick"
     @keydown.enter="handleClick"
     @keydown.space.prevent="handleClick"
+    @dragstart="handleDragStart"
+    @dragend="handleDragEnd"
+    @dragover.prevent="handleDragOver"
+    @dragleave="handleDragLeave"
+    @drop.prevent="handleDrop"
     tabindex="0"
     role="button"
     :aria-label="ariaLabel"
     :aria-describedby="errorMessage ? `error-${day}` : undefined"
+    :aria-grabbed="isDragging ? 'true' : undefined"
   >
     <!-- Day Number -->
     <div class="day-number">{{ day }}</div>
@@ -94,17 +101,36 @@ interface Props {
   thumbnailUrl?: string;
   progress?: number;
   errorMessage?: string;
+  isDragging?: boolean;  // True if this card is being dragged
+  isDragOver?: boolean;  // True if a dragged item is over this card
 }
 
 const props = withDefaults(defineProps<Props>(), {
   status: 'empty',
-  progress: 0
+  progress: 0,
+  isDragging: false,
+  isDragOver: false
 });
 
 // Emits
 const emit = defineEmits<{
   'click': [day: number];
+  'dragstart': [day: number];
+  'dragend': [];
+  'dragover': [day: number];
+  'dragleave': [day: number];
+  'drop': [day: number];
 }>();
+
+// Computed: Can this card be dragged?
+const isDraggable = computed(() => props.status === 'completed');
+
+// Computed: Can this card receive drops?
+const canReceiveDrop = computed(() =>
+  props.status === 'empty' ||
+  props.status === 'completed' ||
+  props.status === 'failed'
+);
 
 // Computed classes for status styling
 const dayCardClasses = computed(() => ({
@@ -113,7 +139,10 @@ const dayCardClasses = computed(() => ({
   'day-card--processing': props.status === 'processing',
   'day-card--completed': props.status === 'completed',
   'day-card--failed': props.status === 'failed',
-  'day-card--interactive': props.status === 'empty' || props.status === 'failed' || props.status === 'completed'
+  'day-card--interactive': props.status === 'empty' || props.status === 'failed' || props.status === 'completed',
+  'day-card--dragging': props.isDragging,
+  'day-card--drag-over': props.isDragOver && canReceiveDrop.value,
+  'day-card--draggable': isDraggable.value
 }));
 
 // Accessible label
@@ -122,16 +151,66 @@ const ariaLabel = computed(() => {
     empty: 'empty, click to upload video',
     uploading: `uploading, ${props.progress}% complete`,
     processing: 'processing video',
-    completed: 'video uploaded, click to view',
+    completed: 'video uploaded, click to view or drag to move',
     failed: 'upload failed, click to retry'
   };
 
-  return `Day ${props.day}, ${statusDescriptions[props.status]}`;
+  let label = `Day ${props.day}, ${statusDescriptions[props.status]}`;
+
+  if (props.isDragging) {
+    label += '. Currently being dragged';
+  }
+  if (props.isDragOver && canReceiveDrop.value) {
+    label += '. Drop here to ' + (props.status === 'completed' ? 'swap videos' : 'move video');
+  }
+
+  return label;
 });
 
 // Handle click/keyboard interaction
 const handleClick = () => {
   emit('click', props.day);
+};
+
+// Drag and drop handlers
+const handleDragStart = (e: DragEvent) => {
+  if (!isDraggable.value) {
+    e.preventDefault();
+    return;
+  }
+
+  // Set drag data
+  if (e.dataTransfer) {
+    e.dataTransfer.setData('text/plain', props.day.toString());
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  emit('dragstart', props.day);
+};
+
+const handleDragEnd = () => {
+  emit('dragend');
+};
+
+const handleDragOver = (e: DragEvent) => {
+  if (!e.dataTransfer) return;
+
+  if (!canReceiveDrop.value) {
+    e.dataTransfer.dropEffect = 'none';
+    return;
+  }
+
+  e.dataTransfer.dropEffect = 'move';
+  emit('dragover', props.day);
+};
+
+const handleDragLeave = () => {
+  emit('dragleave', props.day);
+};
+
+const handleDrop = () => {
+  if (!canReceiveDrop.value) return;
+  emit('drop', props.day);
 };
 </script>
 
@@ -173,6 +252,39 @@ const handleClick = () => {
 .day-card--interactive:focus {
   outline: 2px solid var(--ion-color-primary);
   outline-offset: 2px;
+}
+
+/* Draggable state - show grab cursor on completed cards */
+.day-card--draggable {
+  cursor: grab;
+}
+
+.day-card--draggable:active {
+  cursor: grabbing;
+}
+
+/* Dragging state - visual feedback when card is being dragged */
+.day-card--dragging {
+  opacity: 0.5;
+  border-style: dashed;
+  border-color: var(--ion-color-primary);
+  transform: scale(0.95);
+}
+
+/* Drag over state - highlight valid drop targets */
+.day-card--drag-over {
+  border-color: var(--ion-color-tertiary);
+  border-width: 3px;
+  background: rgba(var(--ion-color-tertiary-rgb), 0.15);
+  transform: scale(1.02);
+  box-shadow: 0 0 12px rgba(var(--ion-color-tertiary-rgb), 0.4);
+}
+
+/* Swap indicator - show different style when hovering over another completed card */
+.day-card--completed.day-card--drag-over {
+  border-color: var(--ion-color-warning);
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  box-shadow: 0 0 12px rgba(var(--ion-color-warning-rgb), 0.4);
 }
 
 /* Day Number */
@@ -422,6 +534,14 @@ const handleClick = () => {
   }
 
   .day-card--interactive:hover {
+    transform: none;
+  }
+
+  .day-card--dragging {
+    transform: none;
+  }
+
+  .day-card--drag-over {
     transform: none;
   }
 }

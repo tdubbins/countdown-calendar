@@ -155,6 +155,112 @@ def delete_video_file(calendar_id: str, day: int) -> bool:
     return deleted
 
 
+def rename_video_files(calendar_id: str, source_day: int, target_day: int) -> Tuple[bool, str]:
+    """
+    Rename video and thumbnail files from one day to another.
+
+    Used when moving a video to an empty day slot.
+
+    Args:
+        calendar_id: Calendar ID
+        source_day: Day number to move from (1-31)
+        target_day: Day number to move to (1-31)
+
+    Returns:
+        Tuple of (success, error_message)
+    """
+    try:
+        source_video = get_video_path(calendar_id, source_day)
+        target_video = get_video_path(calendar_id, target_day)
+        source_thumb = get_thumbnail_path(calendar_id, source_day)
+        target_thumb = get_thumbnail_path(calendar_id, target_day)
+
+        # Validate source exists
+        if not source_video.exists():
+            return False, f"Source video for day {source_day} does not exist"
+
+        # Validate target doesn't exist (use swap_video_files for that)
+        if target_video.exists():
+            return False, f"Target day {target_day} already has a video. Use swap instead."
+
+        # Rename video file
+        source_video.rename(target_video)
+        logger.info(f"Renamed video: day_{source_day}.mp4 -> day_{target_day}.mp4")
+
+        # Rename thumbnail if exists
+        if source_thumb.exists():
+            source_thumb.rename(target_thumb)
+            logger.info(f"Renamed thumbnail: day_{source_day}_thumb.jpg -> day_{target_day}_thumb.jpg")
+
+        return True, ""
+
+    except Exception as e:
+        logger.error(f"Error renaming video files from day {source_day} to {target_day}: {e}")
+        return False, f"Failed to rename video files: {str(e)}"
+
+
+def swap_video_files(calendar_id: str, day_a: int, day_b: int) -> Tuple[bool, str]:
+    """
+    Swap video and thumbnail files between two days.
+
+    Uses a temporary file to avoid collision during swap.
+
+    Args:
+        calendar_id: Calendar ID
+        day_a: First day number (1-31)
+        day_b: Second day number (1-31)
+
+    Returns:
+        Tuple of (success, error_message)
+    """
+    try:
+        video_a = get_video_path(calendar_id, day_a)
+        video_b = get_video_path(calendar_id, day_b)
+        thumb_a = get_thumbnail_path(calendar_id, day_a)
+        thumb_b = get_thumbnail_path(calendar_id, day_b)
+
+        # Validate both videos exist
+        if not video_a.exists():
+            return False, f"Video for day {day_a} does not exist"
+        if not video_b.exists():
+            return False, f"Video for day {day_b} does not exist"
+
+        # Create temp paths in the same directory
+        video_dir = get_calendar_video_dir(calendar_id)
+        thumb_dir = get_calendar_thumbnail_dir(calendar_id)
+        temp_video = video_dir / "day_temp_swap.mp4"
+        temp_thumb = thumb_dir / "day_temp_swap_thumb.jpg"
+
+        # Swap videos: A -> temp, B -> A, temp -> B
+        video_a.rename(temp_video)
+        video_b.rename(video_a)
+        temp_video.rename(video_b)
+        logger.info(f"Swapped videos: day_{day_a}.mp4 <-> day_{day_b}.mp4")
+
+        # Swap thumbnails if both exist
+        if thumb_a.exists() and thumb_b.exists():
+            thumb_a.rename(temp_thumb)
+            thumb_b.rename(thumb_a)
+            temp_thumb.rename(thumb_b)
+            logger.info(f"Swapped thumbnails: day_{day_a}_thumb.jpg <-> day_{day_b}_thumb.jpg")
+        elif thumb_a.exists():
+            # Only A has thumbnail, move to B
+            thumb_a.rename(thumb_b)
+            logger.info(f"Moved thumbnail from day {day_a} to day {day_b}")
+        elif thumb_b.exists():
+            # Only B has thumbnail, move to A
+            thumb_b.rename(thumb_a)
+            logger.info(f"Moved thumbnail from day {day_b} to day {day_a}")
+
+        return True, ""
+
+    except Exception as e:
+        logger.error(f"Error swapping video files between day {day_a} and {day_b}: {e}")
+        # Note: If swap fails mid-way, files may be in inconsistent state
+        # Consider implementing rollback in production
+        return False, f"Failed to swap video files: {str(e)}"
+
+
 def delete_calendar_files(calendar_id: str) -> bool:
     """
     Delete all videos and thumbnails for a calendar.

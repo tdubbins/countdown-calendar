@@ -17,8 +17,13 @@ from app.services.calendar_service import (
     get_public_calendar
 )
 from app.services.auth_service import AuthService
-from app.utils.validators import validate_video_file_type, validate_video_file_size, validate_video_day_number, validate_video_duration
-from app.utils.storage import check_storage_quota, get_video_path, get_thumbnail_path, delete_video_file
+from app.utils.validators import (
+    validate_video_file_type,
+    validate_video_file_size,
+    validate_video_day_number,
+    validate_video_duration
+)
+from app.utils.storage import check_storage_quota, get_video_path, get_thumbnail_path, delete_video_file, rename_video_files, swap_video_files
 from app.utils.json_db import calendars_db, get_user_calendar_ids
 from app.tasks import VideoCompressionTask, TaskQueue
 
@@ -1072,4 +1077,161 @@ def delete_video(calendar_id, day):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         print(f"Delete video error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@calendar_bp.route('/calendars/<calendar_id>/videos/reassign', methods=['POST'])
+@token_required
+def reassign_video(calendar_id):
+    """
+    Reassign a video from one day to another (move or swap)
+
+    If targetDay is empty, moves the video. If targetDay has a video, swaps them.
+
+    NFR Compliance:
+        - [S2] JWT authentication required
+        - [S3] Multi-tenant isolation - ownership validation
+        - [SC3] RESTful API design
+
+    Request Body:
+        {
+            "sourceDay": 1,  // Day to move video from (required)
+            "targetDay": 5   // Day to move video to (required)
+        }
+
+    Returns:
+        200: Video reassigned/swapped successfully
+        {
+            "success": true,
+            "message": "Videos swapped successfully" | "Video reassigned successfully",
+            "swapped": true | false,
+            "sourceDay": { day info },
+            "targetDay": { day info }
+        }
+
+        400: Invalid request (missing fields, invalid days)
+        404: Calendar or source video not found
+        500: Internal server error
+    """
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        if not calendar_id or not calendar_id.strip():
+            return jsonify({'error': 'Invalid calendar ID'}), 400
+
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request must contain JSON data'}), 400
+
+        source_day = data.get('sourceDay')
+        target_day = data.get('targetDay')
+
+        # Validate required fields
+        if source_day is None or target_day is None:
+            return jsonify({'error': 'Both sourceDay and targetDay are required'}), 400
+
+        # Validate day numbers are integers
+        try:
+            source_day = int(source_day)
+            target_day = int(target_day)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Day numbers must be integers'}), 400
+
+        # Validate same day
+        if source_day == target_day:
+            return jsonify({'error': 'Source and target days must be different'}), 400
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id.strip(),
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        # Validate days are within calendar duration using existing validator
+        duration = calendar_data.get('duration', 31)
+        source_valid, source_error = validate_video_day_number(source_day, duration)
+        if not source_valid:
+            return jsonify({'error': f'Source day: {source_error}'}), 400
+        target_valid, target_error = validate_video_day_number(target_day, duration)
+        if not target_valid:
+            return jsonify({'error': f'Target day: {target_error}'}), 400
+
+        # Get videos dict
+        videos_dict = calendar_data.get('videos', {})
+
+        # Validate source has a video
+        if str(source_day) not in videos_dict:
+            return jsonify({'error': f'No video found for source day {source_day}'}), 404
+
+        source_video_info = videos_dict[str(source_day)]
+        target_has_video = str(target_day) in videos_dict
+        target_video_info = videos_dict.get(str(target_day), {})
+
+        # Check if source video is processing (security: enforce on backend too)
+        if source_video_info.get('status') == 'processing':
+            return jsonify({'error': f'Cannot move day {source_day} - video is still processing'}), 400
+
+        # Check if target video is processing
+        if target_has_video and target_video_info.get('status') == 'processing':
+            return jsonify({'error': f'Cannot reassign to day {target_day} - video is still processing'}), 400
+
+        # Perform file operations
+        if target_has_video:
+            # Swap videos
+            file_success, file_error = swap_video_files(calendar_id, source_day, target_day)
+            if not file_success:
+                return jsonify({'error': file_error}), 500
+
+            # Swap metadata in videos dict
+            videos_dict[str(source_day)] = target_video_info
+            videos_dict[str(target_day)] = source_video_info
+
+            operation = 'swapped'
+        else:
+            # Move video to empty slot
+            file_success, file_error = rename_video_files(calendar_id, source_day, target_day)
+            if not file_success:
+                return jsonify({'error': file_error}), 500
+
+            # Move metadata in videos dict
+            videos_dict[str(target_day)] = source_video_info
+            del videos_dict[str(source_day)]
+
+            operation = 'reassigned'
+
+        # Update calendar metadata
+        updates = {
+            'videos': videos_dict,
+            'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        }
+        calendars_db.update_calendar_meta(calendar_id, updates)
+
+        # Build response
+        response = {
+            'success': True,
+            'message': f'Videos {operation} successfully',
+            'swapped': target_has_video,
+            'sourceDay': {
+                'day': source_day,
+                'status': 'completed' if target_has_video else 'empty',
+                'filename': videos_dict.get(str(source_day), {}).get('filename') if target_has_video else None
+            },
+            'targetDay': {
+                'day': target_day,
+                'status': 'completed',
+                'filename': videos_dict[str(target_day)].get('filename')
+            }
+        }
+
+        return jsonify(response), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"Reassign video error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
