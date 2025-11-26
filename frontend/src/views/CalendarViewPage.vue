@@ -210,11 +210,8 @@ const handleDoorClick = (dayNumber: number) => {
 /**
  * Handle video playback ended
  * Called when video finishes playing (modal auto-closes after 2s)
- *
- * @param dayNumber - The day number whose video ended
  */
-const handleVideoEnded = (dayNumber: number) => {
-  console.log(`Video for day ${dayNumber} ended`);
+const handleVideoEnded = () => {
   // Modal will auto-close after 2 seconds (handled in VideoModal)
 };
 
@@ -225,7 +222,6 @@ const handleVideoEnded = (dayNumber: number) => {
 const handleResetDoors = () => {
   if (calendar.value?.isOwner) {
     clearOpenedDays();
-    console.log('All doors re-closed - opened tracking cleared');
   }
 };
 
@@ -234,7 +230,6 @@ const handleResetDoors = () => {
 watch(showAllDoors, () => {
   if (calendar.value?.isOwner) {
     clearOpenedDays();
-    console.log('Cleared opened doors tracking due to view mode change');
   }
 });
 

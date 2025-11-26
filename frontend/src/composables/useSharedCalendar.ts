@@ -110,23 +110,19 @@ export function useSharedCalendar() {
                 const response = await fetch(absoluteUrl, { headers });
 
                 if (response.ok) {
-                  // Convert to blob URL for authenticated image loading
                   const blob = await response.blob();
                   const blobUrl = URL.createObjectURL(blob);
-                  console.log(`[DEBUG] Day ${day.dayNumber}: Thumbnail fetched with auth → blob URL`);
                   return {
                     ...day,
                     thumbnailUrl: blobUrl
                   };
                 } else {
-                  console.warn(`[DEBUG] Day ${day.dayNumber}: Thumbnail fetch failed:`, response.status);
                   return {
                     ...day,
                     thumbnailUrl: null
                   };
                 }
-              } catch (error) {
-                console.error(`[DEBUG] Day ${day.dayNumber}: Thumbnail fetch error:`, error);
+              } catch {
                 return {
                   ...day,
                   thumbnailUrl: null

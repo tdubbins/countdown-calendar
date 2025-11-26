@@ -331,8 +331,6 @@ const loadCalendarData = async () => {
  * Handle upload complete
  */
 const handleUploadComplete = async (day: number) => {
-  console.log(`Upload complete for day ${day}`);
-
   await showSuccess(`Day ${day} video uploaded successfully!`);
 
   // Reload calendar to update video count
@@ -352,8 +350,6 @@ const handleUploadError = async (day: number, error: string) => {
  * Handle video deleted
  */
 const handleVideoDeleted = async (day: number) => {
-  console.log(`Video deleted for day ${day}`);
-
   await showSuccess(`Day ${day} video deleted`);
 
   // Reload calendar to update video count
@@ -391,8 +387,6 @@ const handlePublishToggle = async () => {
       // Show success message
       const action = isPublished.value ? 'published' : 'unpublished';
       await showSuccess(`Calendar ${action} successfully!`);
-
-      console.log(`Calendar ${action}:`, calendarId.value);
     } else {
       await showError(result.error || 'Failed to update calendar status');
     }
@@ -469,9 +463,6 @@ const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions
   if (!calendar.value) return;
 
   try {
-    console.log('Updating door order:', data);
-
-    // Call API to update calendar with new door ordering
     const result = await updateCalendar(calendarId.value, {
       doorOrder: data.doorOrder,
       doorPositions: data.doorPositions
@@ -488,8 +479,6 @@ const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions
           ? 'Door ordering set to sequential'
           : 'Door ordering shuffled successfully'
       );
-
-      console.log('Door order updated successfully:', result.data);
     } else {
       // Show error feedback
       await showError(result.error || 'Failed to update door ordering');
@@ -509,9 +498,6 @@ const handleThemeUpdate = async (theme: string) => {
   if (!calendar.value) return;
 
   try {
-    console.log('Updating theme:', theme);
-
-    // Call API to update calendar with new theme
     const result = await updateCalendar(calendarId.value, {
       theme: theme
     });
@@ -522,8 +508,6 @@ const handleThemeUpdate = async (theme: string) => {
 
       // Show success feedback
       await showSuccess(`Theme updated to ${theme}`);
-
-      console.log('Theme updated successfully:', result.data);
     } else {
       // Show error feedback
       await showError(result.error || 'Failed to update theme');

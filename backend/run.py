@@ -1,4 +1,5 @@
 # Main Application Entry Point
+import os
 from dotenv import load_dotenv
 from app import create_app
 
@@ -10,4 +11,7 @@ load_dotenv()
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Use environment-based debug setting (defaults to False for safety)
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=debug, host='0.0.0.0', port=port)

@@ -7,10 +7,10 @@ load_dotenv()
 
 class Config:
     """Base configuration class"""
-    
+
     # Flask settings
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    DEBUG = os.environ.get('DEBUG') or True
+    DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
     
     # Database settings (JSON file paths)
     USERS_DB = os.environ.get('USERS_DB') or 'data/users.json'
@@ -53,7 +53,11 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production environment configuration"""
     DEBUG = False
-    SECRET_KEY = os.environ.get('SECRET_KEY')  # Must be set in production
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+
+    def __init__(self):
+        if not self.SECRET_KEY:
+            raise RuntimeError("SECRET_KEY environment variable must be set in production")
 
 # Configuration dictionary
 config = {

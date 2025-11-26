@@ -8,11 +8,11 @@ import os
 
 # Initialize rate limiter globally (will be bound to app in create_app)
 limiter = Limiter(
-    get_remote_address,  # key_func as first positional argument (Flask-Limiter 4.0 requirement)
+    get_remote_address,
     default_limits=["200 per hour"],
-    storage_uri="memory://",  # In-memory storage for development
-    strategy="fixed-window",  # Simple fixed-window rate limiting
-    headers_enabled=True      # Enable X-RateLimit-* headers in responses
+    storage_uri="memory://",
+    strategy="fixed-window",
+    headers_enabled=True
 )
 
 def create_app(config_name=None):
@@ -25,8 +25,17 @@ def create_app(config_name=None):
 
     app.config.from_object(config[config_name])
 
-    # Initialize extensions
-    CORS(app)
+    # Configure CORS with allowed origins from environment
+    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080').split(',')
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": allowed_origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True,
+            "max_age": 3600
+        }
+    })
 
     # Bind rate limiter to this application instance
     limiter.init_app(app)

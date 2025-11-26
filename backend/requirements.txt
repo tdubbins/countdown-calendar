@@ -11,6 +11,7 @@ Flask-Cors==6.0.0
 Flask-Limiter==4.0.0
 Flask-Mail==0.10.0
 future==1.0.0
+gunicorn==23.0.0
 idna==3.11
 itsdangerous==2.2.0
 Jinja2==3.1.6

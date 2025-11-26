@@ -403,8 +403,8 @@ const handlePlaybackVideoMetadata = (e: Event) => {
   const video = e.target as HTMLVideoElement;
   video.muted = false;
   video.volume = 1.0;
-  video.play().catch((error) => {
-    console.log('Autoplay prevented:', error);
+  video.play().catch(() => {
+    // Autoplay may be prevented by browser policy
   });
 };
 
@@ -433,11 +433,8 @@ const openPlaybackModal = async (day: number) => {
     // Fetch video blob and create object URL for playback
     try {
       const token = localStorage.getItem('auth_token');
-      // stream_url already includes /api/, so construct base URL without /api
-      // BASE_URL is like "http://hostname:5001/api", remove /api and append stream_url
       const baseWithoutApi = API_CONFIG.BASE_URL.replace(/\/api$/, '');
       const videoUrl = `${baseWithoutApi}${result.data.stream_url}`;
-      console.log('Fetching video from:', videoUrl);
 
       const response = await fetch(videoUrl, {
         headers: {
