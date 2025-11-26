@@ -209,6 +209,10 @@ Thumbs.db
 CLAUDE.md
 
 # Project planning and design documents (internal use only)
+*_PLAN.md
+*_PLAN.txt
+*_COMMANDS.txt
+*_REVIEW*.md
 SHARING_FEATURE_DESIGN.md
 EPIC_4_5_ISSUES.md
 PR_DESCRIPTIONS.md
