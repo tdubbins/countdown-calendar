@@ -1,4 +1,4 @@
-# Calendar Service - Business Logic for Calendar Operations (Refactored for per-calendar folders)
+# Calendar Service - Business Logic for Calendar Operations
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Tuple, Optional
@@ -70,7 +70,7 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int,
         if not positions_valid:
             return False, {}, positions_error
 
-        # Validate and sanitize description (NFR [S4]: Input sanitization)
+        # Validate and sanitize description
         desc_valid, clean_description, desc_error = validate_calendar_description(description)
         if not desc_valid:
             return False, {}, desc_error
@@ -116,7 +116,7 @@ def create_calendar(user_id: str, title: str, start_date: str, duration: int,
             'doorPositions': clean_door_positions,
             'theme': clean_theme,
             'timezone': clean_timezone,
-            'description': clean_description,  # Sanitized description (NFR [S4])
+            'description': clean_description,
             'videos': {},
             'videoCount': 0,
             'videoStorageUsed': 0,
@@ -252,7 +252,6 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
             updates['timezone'] = clean_tz
 
         if description is not None:
-            # Sanitize and validate description (NFR [S4]: Input sanitization)
             desc_valid, clean_desc, desc_error = validate_calendar_description(description)
             if not desc_valid:
                 return False, {}, desc_error
@@ -271,8 +270,7 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
             updates['endDate'] = new_end_date
             updates['dateRange'] = f"{new_start_date} to {new_end_date}"
 
-            # BUGFIX: If duration was reduced, delete videos for days that no longer exist
-            # Follows pattern from delete_video route (calendar.py line 1037-1065)
+            # If duration was reduced, delete videos for days that no longer exist
             if new_duration < old_duration:
                 # Get current videos
                 videos = calendar_data.get('videos', {})
@@ -284,7 +282,6 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
                     day_num = int(day_str)
                     if day_num > new_duration:
                         videos_to_delete.append(day_num)
-                        # Calculate storage before deletion (pattern from delete_video route)
                         storage_to_free += videos[day_str].get('size', 0)
 
                 # Delete video files and update metadata
@@ -299,7 +296,7 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
                     updates['videos'] = videos
                     updates['videoCount'] = len(videos)
 
-                    # Update storage used (pattern from delete_video route line 1051-1055)
+                    # Update storage used
                     new_storage_used = calendar_data.get('videoStorageUsed', 0) - storage_to_free
                     if new_storage_used < 0:
                         new_storage_used = 0

@@ -27,7 +27,6 @@ export const BREAKPOINTS = {
 
 /**
  * Touch Target Sizes (pixels)
- * NFR [U2]: Minimum touch target sizes for mobile accessibility
  */
 export const TOUCH_TARGETS = {
   /** Minimum touch target size (44px per Apple/Google guidelines) */
@@ -40,7 +39,6 @@ export const TOUCH_TARGETS = {
 
 /**
  * Video Upload Constraints
- * NFR [S1]: File size and duration limits
  */
 export const VIDEO_CONSTRAINTS = {
   /** Maximum video file size in bytes (50MB) */
@@ -68,7 +66,6 @@ export const CALENDAR_CONSTRAINTS = {
 
 /**
  * Performance Thresholds
- * NFR [P1], [P3]: Performance targets
  */
 export const PERFORMANCE = {
   /** Maximum app load time in milliseconds (5 seconds) */
@@ -212,8 +209,7 @@ export const Z_INDEX = {
 
 /**
  * Calendar Themes
- * Available themes for shared calendar customization (Issue #82)
- * NFR [SC3]: Modular architecture prepared for future theme expansion
+ * Available themes for shared calendar customization
  */
 export const THEME_OPTIONS = {
   /** Christmas theme - wooden cabin doors with falling snow */

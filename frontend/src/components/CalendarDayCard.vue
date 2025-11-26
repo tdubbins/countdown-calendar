@@ -233,7 +233,7 @@ const handleDrop = () => {
   container-type: inline-size;
   overflow: hidden;
 
-  /* NFR [U2]: Touch-friendly minimum size */
+  /* Touch-friendly minimum size */
   min-height: 44px;
   min-width: 44px;
 }

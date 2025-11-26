@@ -1,13 +1,8 @@
 import { ref, watch } from 'vue';
 
 /**
- * Composable for tracking which calendar doors have been opened
- * Uses LocalStorage for persistence (privacy-first, no backend tracking)
- *
- * Storage format: calendar_${shareToken}_opened = [1, 2, 3, ...]
- * This is per-browser and not synced across devices
- *
- * NFR [S4]: Input validation for day numbers
+ * Composable for tracking which calendar doors have been opened.
+ * Uses LocalStorage for persistence (per-browser, not synced across devices).
  */
 export function useOpenedTracking(shareToken: string) {
   const openedDays = ref<number[]>([]);
@@ -61,7 +56,7 @@ export function useOpenedTracking(shareToken: string) {
    * @param dayNumber - The day number to mark as opened
    */
   const markDayAsOpened = (dayNumber: number): void => {
-    // Validate day number (NFR [S4]: Input validation)
+    // Validate day number
     if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 31) {
       console.warn(`Invalid day number: ${dayNumber}`);
       return;

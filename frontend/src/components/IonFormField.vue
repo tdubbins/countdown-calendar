@@ -130,10 +130,6 @@ const handleFocus = () => {
  * - Better mobile keyboard handling
  * - Consistent with Ionic design system
  *
- * NFR Compliance:
- * - [U1] Mobile responsive (320px+)
- * - [U2] Touch-friendly (44px+ targets via Ionic defaults)
- * - [U5] WCAG 2.1 AA accessibility (ARIA labels, error handling)
  */
 
 .form-group {

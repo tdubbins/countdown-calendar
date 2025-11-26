@@ -7,7 +7,6 @@ from config import config
 import os
 
 # Initialize rate limiter globally (will be bound to app in create_app)
-# NFR [S4]: Protect public endpoints from abuse with IP-based rate limiting
 limiter = Limiter(
     get_remote_address,  # key_func as first positional argument (Flask-Limiter 4.0 requirement)
     default_limits=["200 per hour"],
@@ -36,7 +35,7 @@ def create_app(config_name=None):
     from app.utils.storage import ensure_upload_directories
     ensure_upload_directories()
 
-    # Start background worker for task processing (NFR [P2]: Processing starts within 5 seconds)
+    # Start background worker for task processing
     from app.tasks import start_worker
     start_worker()
 

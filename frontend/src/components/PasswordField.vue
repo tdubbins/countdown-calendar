@@ -106,13 +106,7 @@ const getAriaDescribedBy = () => {
 /**
  * PasswordField - Modern Ionic 7 Password Input
  *
- * Migrated from legacy ion-item pattern to modern ion-input with label prop
- * Includes password visibility toggle button positioned absolutely
- *
- * NFR Compliance:
- * - [U1] Mobile responsive (320px+)
- * - [U2] Touch-friendly (44px+ button targets)
- * - [U5] WCAG 2.1 AA accessibility (ARIA labels, keyboard navigation)
+ * Includes password visibility toggle button positioned absolutely.
  */
 
 .form-group {

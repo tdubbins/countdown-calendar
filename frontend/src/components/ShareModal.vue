@@ -94,18 +94,10 @@ import {
 } from 'ionicons/icons';
 
 /**
- * ShareModal Component (Issue #78)
+ * ShareModal Component
  *
- * A modal for sharing calendars with two states:
- * 1. Not Shared: Shows "Generate Share Link" button
- * 2. Already Shared: Shows share URL with copy functionality
- *
- * Features:
- * - Lazy share token generation
- * - Copy to clipboard with fallback support
- * - Loading states during API calls
- * - Accessible keyboard navigation
- * - Touch-friendly buttons (44px+ targets)
+ * A modal for sharing calendars. Shows share URL with copy functionality
+ * when calendar has a share token.
  */
 
 interface Props {

@@ -231,7 +231,7 @@ const validateDescription = () => {
   const description = formData.value.description.trim();
 
   // Frontend validates length only
-  // Backend handles sanitization (NFR [S4]: Input validation and sanitization)
+  // Backend handles sanitization
   if (description.length > 500) {
     errors.value.description = 'Description must be less than 500 characters';
   } else if (description.length < 3) {

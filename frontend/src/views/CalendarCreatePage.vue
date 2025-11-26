@@ -70,22 +70,16 @@ const isLoading = ref(false);
 // Reference to the calendar form component
 const calendarFormRef = ref<any>(null);
 
-// Form submission handler (NFR [P3]: Calendar creation completes under 3 seconds)
 const handleFormSubmit = async (formData: CalendarCreateData) => {
   try {
     isLoading.value = true;
-    
-    // Call the calendar service to create calendar (NFR [S4]: Input validation on API call)
+
     const result = await createCalendar(formData);
-    
+
     if (result.success && result.data) {
-      // Show success toast (NFR [U4]: Clear success feedback)
       await showSuccess(`Calendar "${result.data.title}" created successfully!`);
 
-      // Auto-navigate to calendar edit page (day grid) for immediate editing
-      // Use router.replace() instead of router.push() to replace history entry
-      // This ensures back button goes to calendar overview, not back to create page
-      console.log('Auto-navigating to calendar edit view for ID:', result.data.id);
+      // Navigate to calendar edit page (replace history entry so back goes to overview)
       setTimeout(() => router.replace(`/calendar/${result.data.id}/edit`), 100);
 
     } else {
@@ -104,7 +98,6 @@ const handleFormSubmit = async (formData: CalendarCreateData) => {
   } catch (error) {
     console.error('Failed to create calendar:', error);
 
-    // Show generic error alert (NFR [U4]: Clear error feedback)
     await showError(
       'Sorry, we couldn\'t create your calendar. Please check your connection and try again.',
       {

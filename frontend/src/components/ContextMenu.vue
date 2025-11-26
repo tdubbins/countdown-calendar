@@ -173,7 +173,7 @@ const handleDismiss = () => {
 .popover-content ion-item {
   --padding-start: 1rem;
   --padding-end: 1rem;
-  --min-height: 44px; /* NFR [U2]: Touch-friendly minimum */
+  --min-height: 44px;
   font-size: 0.9rem;
   cursor: pointer;
   transition: background-color var(--transition-base);

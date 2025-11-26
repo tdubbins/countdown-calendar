@@ -82,10 +82,7 @@ def validate_calendar_title(title: str) -> Tuple[bool, str, str]:
 
 def validate_calendar_description(description: str) -> Tuple[bool, str, str]:
     """
-    Validate and sanitize calendar description
-
-    NFR Compliance:
-        - [S4] Input validation and sanitization
+    Validate and sanitize calendar description.
 
     Args:
         description: Calendar description string (optional)
@@ -220,9 +217,6 @@ def validate_door_order(door_order: str) -> Tuple[bool, str, str]:
     """
     Validate door order is a valid option.
 
-    NFR Compliance:
-        - [S4] Input validation for enum values
-
     Args:
         door_order: Door ordering option ("sequential" or "random")
 
@@ -243,9 +237,6 @@ def validate_door_order(door_order: str) -> Tuple[bool, str, str]:
 def validate_timezone(timezone: str) -> Tuple[bool, str, str]:
     """
     Validate timezone is a valid IANA timezone identifier.
-
-    NFR Compliance:
-        - [S4] Input validation for timezone strings
 
     Args:
         timezone: IANA timezone identifier (e.g., "Europe/Berlin", "America/New_York")
@@ -301,25 +292,12 @@ def validate_door_positions(door_positions: Optional[List[int]], duration: int) 
     """
     Validate door positions array for random door ordering.
 
-    NFR Compliance:
-        - [S4] Input validation for array structure and contents
-
     Args:
         door_positions: Array of shuffled door positions (1-indexed day numbers)
         duration: Calendar duration (number of days)
 
     Returns:
         Tuple of (is_valid, clean_door_positions, error_message)
-
-    Examples:
-        >>> validate_door_positions([3, 1, 2], 3)
-        (True, [3, 1, 2], "")
-
-        >>> validate_door_positions([1, 1, 3], 3)
-        (False, None, "Door positions must contain each day number from 1 to duration exactly once")
-
-        >>> validate_door_positions([1, 2], 3)
-        (False, None, "Door positions array length (2) must match duration (3)")
     """
     # None is valid for sequential ordering
     if door_positions is None:
@@ -351,10 +329,6 @@ def validate_video_file_type(filename: str) -> Tuple[bool, str]:
     """
     Validate video file extension is allowed.
 
-    NFR Compliance:
-        - [S4] Input validation for file uploads
-        - [R1] Supported formats: mp4, mov, avi, webm
-
     Args:
         filename: Name of the uploaded file
 
@@ -376,18 +350,7 @@ def validate_video_file_type(filename: str) -> Tuple[bool, str]:
 
 def validate_video_file_size(file_size: int) -> Tuple[bool, str]:
     """
-    Validate video file size is within limits.
-
-    NFR Compliance:
-        - [R1] Video size limit: 1GB per file (updated from 50MB to support modern phone videos)
-        - [S4] Input validation for resource limits
-
-    Design Decision:
-        Initial spec: 50MB limit
-        Updated to: 1GB (1024MB) to accommodate modern smartphone videos:
-        - 1080p 30fps: ~150 MB/min = 450MB for 3 minutes
-        - 1080p 60fps: ~375 MB/min = 1125MB for 3 minutes
-        Backend FFmpeg compression reduces uploaded videos by 50-70% for storage optimization.
+    Validate video file size is within limits (max 1GB).
 
     Args:
         file_size: Size of file in bytes
@@ -431,17 +394,12 @@ def validate_video_duration(video_path: str, max_duration_seconds: int = 180) ->
     """
     Validate video duration using FFprobe.
 
-    NFR Compliance:
-        - [R1] Video duration limit: 3 minutes (180 seconds) maximum
-        - [P2] Fast validation: <2 seconds per video
-
     Args:
         video_path: Path to the video file to validate
-        max_duration_seconds: Maximum allowed duration (default: 180 seconds = 3 minutes)
+        max_duration_seconds: Maximum allowed duration (default: 180 seconds)
 
     Returns:
         Tuple of (is_valid, duration_seconds, error_message)
-        - If FFprobe is not available, returns (True, None, "") with warning logged
     """
     if not os.path.exists(video_path):
         return False, None, "Video file not found"
@@ -473,7 +431,6 @@ def validate_video_duration(video_path: str, max_duration_seconds: int = 180) ->
 
     except FileNotFoundError:
         # FFprobe not installed - skip duration validation
-        # This allows development to proceed before FFmpeg is installed (Issue #51)
         return True, None, ""
 
     except subprocess.TimeoutExpired:

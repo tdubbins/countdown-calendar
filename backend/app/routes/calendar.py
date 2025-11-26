@@ -163,22 +163,16 @@ def get_calendar(calendar_id):
 @token_required
 def update_calendar(calendar_id):
     """
-    Update a specific calendar for the authenticated user
-
-    Issue #81: Extended to support door ordering customization for shared calendars
+    Update a specific calendar for the authenticated user.
 
     Accepts optional fields:
-        - title: str - Calendar title
-        - startDate: str - Start date (YYYY-MM-DD)
-        - duration: int - Number of days (1-31)
-        - doorOrder: str - "sequential" or "random" (Issue #81)
-        - doorPositions: list - Shuffled day positions for random order (Issue #81)
-        - theme: str - Theme identifier like "christmas" (Issue #81)
-        - timezone: str - IANA timezone like "Europe/Berlin" (Issue #81)
-
-    NFR Compliance:
-        - [S4] Input validation via service layer
-        - [SC3] Modular architecture with service separation
+        title: Calendar title
+        startDate: Start date (YYYY-MM-DD)
+        duration: Number of days (1-31)
+        doorOrder: "sequential" or "random"
+        doorPositions: Shuffled day positions for random order
+        theme: Theme identifier (e.g., "christmas")
+        timezone: IANA timezone (e.g., "Europe/Berlin")
     """
     try:
         # Get JSON data from request
@@ -188,16 +182,15 @@ def update_calendar(calendar_id):
                 'error': 'Request must contain JSON data'
             }), 400
         
-        # Extract update fields (only process allowed fields)
+        # Extract update fields
         title = data.get('title')
-        description = data.get('description')        # Optional calendar description
+        description = data.get('description')
         start_date = data.get('startDate')
         duration = data.get('duration')
-        # Issue #81: Add door ordering fields for shared calendar customization
-        door_order = data.get('doorOrder')           # "sequential" or "random"
-        door_positions = data.get('doorPositions')   # Array of shuffled positions
-        theme = data.get('theme')                    # Theme identifier (e.g., "christmas")
-        timezone = data.get('timezone')              # IANA timezone (e.g., "Europe/Berlin")
+        door_order = data.get('doorOrder')
+        door_positions = data.get('doorPositions')
+        theme = data.get('theme')
+        timezone = data.get('timezone')
 
         # Validate calendar ID format
         if not calendar_id or not calendar_id.strip():
@@ -206,18 +199,17 @@ def update_calendar(calendar_id):
             }), 400
 
         # Update calendar using service layer
-        # Service layer handles validation for all fields including door ordering
         success, calendar_data, error_message = update_calendar_service(
             calendar_id=calendar_id.strip(),
             user_id=request.current_user['user_id'],
             title=title,
-            description=description,         # Optional calendar description
+            description=description,
             start_date=start_date,
             duration=duration,
-            door_order=door_order,           # Issue #81: Pass door ordering
-            door_positions=door_positions,   # Issue #81: Pass door positions
-            theme=theme,                     # Issue #81: Pass theme
-            tz=timezone                      # Issue #81: Pass timezone
+            door_order=door_order,
+            door_positions=door_positions,
+            theme=theme,
+            tz=timezone
         )
         
         if not success:
@@ -287,34 +279,7 @@ def delete_calendar(calendar_id):
 @calendar_bp.route('/calendars/<calendar_id>/publish', methods=['POST'])
 @token_required
 def publish_calendar_route(calendar_id):
-    """
-    Publish calendar (make it publicly accessible)
-
-    Sets published: true in calendar meta.json, making it accessible via
-    direct link /calendar/<calendar_id>
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership verified
-        - [S4] Input validation - calendar ID validated
-        - [SC3] RESTful API design
-
-    Request:
-        POST /api/calendars/<calendar_id>/publish
-        Headers: Authorization: Bearer <jwt_token>
-
-    Returns:
-        200: Calendar published successfully
-        {
-            "success": true,
-            "message": "Calendar published successfully"
-        }
-
-        400: Invalid calendar ID
-        403: User doesn't own calendar
-        404: Calendar not found
-        500: Internal server error
-    """
+    """Publish calendar to make it publicly accessible via direct link."""
     try:
         user_id = request.current_user['user_id']
 
@@ -356,33 +321,7 @@ def publish_calendar_route(calendar_id):
 @calendar_bp.route('/calendars/<calendar_id>/unpublish', methods=['POST'])
 @token_required
 def unpublish_calendar_route(calendar_id):
-    """
-    Unpublish calendar (make it private again)
-
-    Sets published: false in calendar meta.json, removing public access
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership verified
-        - [S4] Input validation - calendar ID validated
-        - [SC3] RESTful API design
-
-    Request:
-        POST /api/calendars/<calendar_id>/unpublish
-        Headers: Authorization: Bearer <jwt_token>
-
-    Returns:
-        200: Calendar unpublished successfully
-        {
-            "success": true,
-            "message": "Calendar unpublished successfully"
-        }
-
-        400: Invalid calendar ID
-        403: User doesn't own calendar
-        404: Calendar not found
-        500: Internal server error
-    """
+    """Unpublish calendar to make it private again."""
     try:
         user_id = request.current_user['user_id']
 
@@ -425,31 +364,12 @@ def unpublish_calendar_route(calendar_id):
 @token_required
 def upload_video(calendar_id):
     """
-    Upload video for a specific day in the calendar (RESTful nested endpoint)
+    Upload video for a specific day in the calendar.
 
-    NFR Compliance:
-        - [R1] Video size limit: 50MB, duration: 3 minutes max
-        - [S1] HTTPS for secure file uploads (configured in production)
-        - [S2] JWT authentication required - user_id implicit from token
-        - [S4] Input validation and sanitization
-        - [SC2] Storage quota: 1GB per user limit
-        - [P1] Upload processing <5 seconds before returning response
-        - [U5] Clear error messages for accessibility
-
-    Request:
-        - multipart/form-data with 'video' file and 'day' integer
-        - Authorization: Bearer <jwt_token>
-
-    Returns:
-        201: Video upload started successfully
-        400: Invalid request (missing file, invalid day, validation errors)
-        403: User doesn't own calendar
-        404: Calendar not found
-        413: Storage quota exceeded
-        500: Internal server error
+    Accepts multipart/form-data with 'video' file and 'day' integer.
+    Video is processed in background after upload.
     """
     try:
-        # Extract user ID from JWT token (NFR [S2]: Implicit authentication)
         user_id = request.current_user['user_id']
 
         # Validate calendar ID format
@@ -458,7 +378,7 @@ def upload_video(calendar_id):
                 'error': 'Invalid calendar ID'
             }), 400
 
-        # Get calendar and verify ownership (NFR [S2]: Multi-tenant security)
+        # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
             calendar_id.strip(),
             user_id
@@ -497,14 +417,14 @@ def upload_video(calendar_id):
                 'error': 'Invalid day number. Day must be a number between 1 and 31.'
             }), 400
 
-        # Validate day number is within calendar duration (NFR [S4]: Input validation)
+        # Validate day number is within calendar duration
         day_valid, day_error = validate_video_day_number(day, calendar_data['duration'])
         if not day_valid:
             return jsonify({
                 'error': day_error
             }), 400
 
-        # Validate file type (NFR [S4]: Input validation)
+        # Validate file type
         filename = secure_filename(video_file.filename)
         filetype_valid, filetype_error = validate_video_file_type(filename)
         if not filetype_valid:
@@ -512,26 +432,25 @@ def upload_video(calendar_id):
                 'error': filetype_error
             }), 400
 
-        # Get file size (NFR [R1]: 50MB limit)
+        # Get and validate file size
         video_file.seek(0, os.SEEK_END)
         file_size = video_file.tell()
-        video_file.seek(0)  # Reset file pointer
+        video_file.seek(0)
 
-        # Validate file size (NFR [R1]: 50MB max)
         filesize_valid, filesize_error = validate_video_file_size(file_size)
         if not filesize_valid:
             return jsonify({
                 'error': filesize_error
             }), 400
 
-        # Check storage quota (NFR [SC2]: 1GB per user)
+        # Check storage quota
         has_space, remaining_bytes, quota_error = check_storage_quota(user_id, file_size)
         if not has_space:
             return jsonify({
                 'error': quota_error
             }), 413  # 413 Payload Too Large
 
-        # Create temp directory within calendar folder (NFR [P1]: Fast upload processing)
+        # Create temp directory within calendar folder
         from app.utils.constants import StoragePaths
         temp_dir = os.path.join(StoragePaths.CALENDARS_DIR, calendar_id, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
@@ -543,7 +462,7 @@ def upload_video(calendar_id):
 
         video_file.save(temp_path)
 
-        # Validate video duration using FFprobe (NFR [R1]: 3 minutes max)
+        # Validate video duration
         duration_valid, duration_seconds, duration_error = validate_video_duration(temp_path)
         if not duration_valid:
             # Clean up temp file on validation failure
@@ -556,7 +475,7 @@ def upload_video(calendar_id):
                 'error': duration_error
             }), 400
 
-        # Create background compression task (NFR [P1]: Returns quickly, processing in background)
+        # Create background compression task
         task_success, task_id, task_error = VideoCompressionTask.create_video_task(
             user_id=user_id,
             calendar_id=calendar_id,
@@ -599,20 +518,7 @@ def upload_video(calendar_id):
 @calendar_bp.route('/calendars/<calendar_id>/videos', methods=['GET'])
 @token_required
 def list_videos(calendar_id):
-    """
-    List all videos for a calendar (RESTful nested endpoint)
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership validation
-        - [P3] Video listing response <3 seconds
-        - [SC3] RESTful API design - videos as calendar sub-resources
-
-    Returns:
-        200: List of videos with metadata
-        404: Calendar not found or access denied
-        500: Internal server error
-    """
+    """List all videos for a calendar with metadata."""
     try:
         user_id = request.current_user['user_id']
 
@@ -633,9 +539,7 @@ def list_videos(calendar_id):
         videos_dict = calendar_data.get('videos', {})
         calendar_duration = calendar_data.get('duration', 31)
 
-        # Convert to list format with metadata
-        # BUG FIX: Only include videos within current calendar duration
-        # When duration is reduced (e.g., 5 days → 4 days), exclude videos beyond new duration
+        # Only include videos within current calendar duration
         videos_list = []
         for day_str, video_info in videos_dict.items():
             day_number = int(day_str)
@@ -673,19 +577,7 @@ def list_videos(calendar_id):
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>', methods=['GET'])
 @token_required
 def get_video_metadata(calendar_id, day):
-    """
-    Get metadata for a specific day's video (RESTful nested endpoint)
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership validation
-        - [SC3] RESTful API design
-
-    Returns:
-        200: Video metadata with streaming URLs
-        404: Video not found
-        500: Internal server error
-    """
+    """Get metadata for a specific day's video including streaming URLs."""
     try:
         user_id = request.current_user['user_id']
 
@@ -738,22 +630,7 @@ def get_video_metadata(calendar_id, day):
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/status', methods=['GET'])
 @token_required
 def get_video_status(calendar_id, day):
-    """
-    Get processing status for a video upload (RESTful nested endpoint)
-
-    This endpoint allows the frontend to poll for video processing status
-    after upload. Returns task status and progress.
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership validation
-        - [P2] Fast status check
-
-    Returns:
-        200: Status information (pending, processing, completed, failed)
-        404: No task found for this video
-        500: Internal server error
-    """
+    """Get processing status for a video upload. Used for polling during background processing."""
     try:
         user_id = request.current_user['user_id']
 
@@ -833,24 +710,9 @@ def get_video_status(calendar_id, day):
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/thumbnail', methods=['GET'])
 def get_video_thumbnail(calendar_id, day):
     """
-    Get thumbnail image for a video (RESTful nested endpoint)
+    Get thumbnail image for a video.
 
-    Returns the actual image file for display.
-
-    Access Control (NEW):
-        - If authenticated and owner: Access all thumbnails regardless of lock state
-        - If not owner (or not authenticated): Only access unlocked days (403 for locked)
-
-    NFR Compliance:
-        - [S2] Optional JWT authentication (owner gets full access)
-        - [S3] Multi-tenant isolation - ownership validation
-        - [P3] Fast thumbnail delivery
-
-    Returns:
-        200: Thumbnail image file (image/jpeg)
-        403: Day is locked (for non-owners)
-        404: Thumbnail not found or calendar not published
-        500: Internal server error
+    Owners can access all thumbnails. Non-owners can only access unlocked days.
     """
     try:
         # Validate calendar ID
@@ -915,24 +777,9 @@ def get_video_thumbnail(calendar_id, day):
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/stream', methods=['GET'])
 def stream_video(calendar_id, day):
     """
-    Stream video file for playback (RESTful nested endpoint)
+    Stream video file for playback.
 
-    Returns the actual video file for HTML5 video player.
-
-    Access Control (NEW):
-        - If authenticated and owner: Access all videos regardless of lock state
-        - If not owner (or not authenticated): Only access unlocked days (403 for locked)
-
-    NFR Compliance:
-        - [S2] Optional JWT authentication (owner gets full access)
-        - [S3] Multi-tenant isolation - ownership validation
-        - [P3] Fast video delivery
-
-    Returns:
-        200: Video file (video/mp4)
-        403: Day is locked (for non-owners)
-        404: Video not found or calendar not published
-        500: Internal server error
+    Owners can access all videos. Non-owners can only access unlocked days.
     """
     try:
         # Validate calendar ID
@@ -997,27 +844,7 @@ def stream_video(calendar_id, day):
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>', methods=['DELETE'])
 @token_required
 def delete_video(calendar_id, day):
-    """
-    Delete video and thumbnail for a specific day (RESTful nested endpoint)
-
-    Performs atomic cleanup:
-    - Deletes video file
-    - Deletes thumbnail file
-    - Updates calendar.videos array
-    - Updates calendar.videoCount
-    - Updates calendar.videoStorageUsed
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership validation
-        - [SC3] RESTful API design
-        - GDPR: Complete data removal
-
-    Returns:
-        204: Video deleted successfully (No Content)
-        404: Video or calendar not found
-        500: Internal server error
-    """
+    """Delete video and thumbnail for a specific day."""
     try:
         user_id = request.current_user['user_id']
 
@@ -1084,34 +911,9 @@ def delete_video(calendar_id, day):
 @token_required
 def reassign_video(calendar_id):
     """
-    Reassign a video from one day to another (move or swap)
+    Reassign a video from one day to another.
 
     If targetDay is empty, moves the video. If targetDay has a video, swaps them.
-
-    NFR Compliance:
-        - [S2] JWT authentication required
-        - [S3] Multi-tenant isolation - ownership validation
-        - [SC3] RESTful API design
-
-    Request Body:
-        {
-            "sourceDay": 1,  // Day to move video from (required)
-            "targetDay": 5   // Day to move video to (required)
-        }
-
-    Returns:
-        200: Video reassigned/swapped successfully
-        {
-            "success": true,
-            "message": "Videos swapped successfully" | "Video reassigned successfully",
-            "swapped": true | false,
-            "sourceDay": { day info },
-            "targetDay": { day info }
-        }
-
-        400: Invalid request (missing fields, invalid days)
-        404: Calendar or source video not found
-        500: Internal server error
     """
     try:
         user_id = request.current_user['user_id']

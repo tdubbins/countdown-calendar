@@ -61,8 +61,7 @@ export function isDoorClickable(state: DoorState): boolean {
 }
 
 /**
- * Get ARIA label for door state
- * Provides accessible description for screen readers (NFR [U5])
+ * Get ARIA label for door state.
  *
  * @param dayNumber - The day number
  * @param state - The door state

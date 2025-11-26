@@ -1,9 +1,7 @@
 // Calendar Data Types
 
 /**
- * Door ordering type for shared calendars (Issue #81)
- * - sequential: Doors appear in order 1, 2, 3, ...
- * - random: Doors appear in shuffled order
+ * Door ordering type for shared calendars
  */
 export type DoorOrder = 'sequential' | 'random';
 
@@ -21,11 +19,10 @@ export interface Calendar {
   isOwner?: boolean;                // New: Is authenticated user the owner
   createdAt: string;
   updatedAt?: string;
-  // Issue #81: Door ordering fields for shared calendar customization
-  doorOrder?: DoorOrder | null;     // How doors appear to viewers ("sequential" or "random")
-  doorPositions?: number[] | null;  // Shuffled positions array for random ordering
-  theme?: string | null;            // Theme identifier (e.g., "christmas")
-  timezone?: string | null;         // IANA timezone (e.g., "Europe/Berlin")
+  doorOrder?: DoorOrder | null;
+  doorPositions?: number[] | null;
+  theme?: string | null;
+  timezone?: string | null;
 }
 
 export interface CalendarSummary {
@@ -47,18 +44,18 @@ export interface CalendarCreateData {
 }
 
 /**
- * Data for updating an existing calendar (Issue #81)
- * All fields are optional - only provided fields will be updated
+ * Data for updating an existing calendar.
+ * All fields are optional - only provided fields will be updated.
  */
 export interface CalendarUpdateData {
   title?: string;
-  description?: string;        // Optional calendar description visible to viewers
+  description?: string;
   startDate?: string;
   duration?: number;
-  doorOrder?: DoorOrder;       // Issue #81: Change door ordering for shared view
-  doorPositions?: number[];    // Issue #81: Update shuffled positions
-  theme?: string;              // Issue #81: Change theme
-  timezone?: string;           // Issue #81: Change timezone
+  doorOrder?: DoorOrder;
+  doorPositions?: number[];
+  theme?: string;
+  timezone?: string;
 }
 
 // API Response Types

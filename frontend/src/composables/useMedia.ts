@@ -3,15 +3,6 @@
  *
  * Handles fetching images and videos with optional authentication.
  * Returns blob URLs for secure media display.
- *
- * Usage:
- *   const { fetchMedia } = useMedia()
- *   const blobUrl = await fetchMedia('/api/calendars/123/videos/1/thumbnail', true)
- *
- * NFR Compliance:
- *   - [S2] JWT authentication support for owner access
- *   - [S4] Proper error handling with meaningful messages
- *   - [U5] WCAG 2.1 AA - Accessible error messages
  */
 
 export const useMedia = () => {
@@ -48,7 +39,6 @@ export const useMedia = () => {
     // Fetch media from API with optional authentication
     const response = await fetch(url, { headers })
 
-    // Handle HTTP errors with user-friendly messages (NFR [U5]: Accessible errors)
     if (!response.ok) {
       if (response.status === 403) {
         throw new Error('This day is locked')

@@ -1,21 +1,14 @@
 <!--
   VideoModal Component
 
-  Displays calendar day videos in a modal overlay (larger view, not fullscreen).
+  Displays calendar day videos in a modal overlay.
   Opens when user clicks an unlocked/opened door card.
 
   Features:
   - Modal backdrop with click-to-close
   - Keyboard controls (ESC to close)
   - Reuses MediaPlayer component for video playback
-  - Responsive sizing (80% mobile, 70% desktop, max 900px)
-  - Accessible with ARIA labels and focus management
-
-  NFR Compliance:
-  - [U5] WCAG 2.1 AA - Keyboard navigation, ARIA labels, focus trap
-  - [U2] Touch-friendly - Close button 44px minimum
-  - [U1] Responsive - Works on 320px+ screens
-  - [SC3] Modular - Reuses MediaPlayer component
+  - Responsive sizing with accessibility support
 -->
 
 <template>
@@ -253,7 +246,7 @@ const handleMobileVideoEnded = () => {
   --color: white;
   --padding: 0.5rem;
 
-  /* NFR [U2]: Touch-friendly minimum size */
+  /* Touch-friendly minimum size */
   min-width: 44px;
   min-height: 44px;
   width: 44px;
@@ -266,7 +259,7 @@ const handleMobileVideoEnded = () => {
   font-size: 1.5rem;
 }
 
-/* NFR [U5]: Focus indicator for keyboard navigation */
+/* Focus indicator for keyboard navigation */
 .close-button:focus-visible {
   outline: 2px solid white;
   outline-offset: 2px;
@@ -304,7 +297,7 @@ const handleMobileVideoEnded = () => {
   border-width: 0;
 }
 
-/* NFR [U1]: Responsive - Mobile - Only applies to desktop modal when shown on smaller screens */
+/* Mobile - Only applies to desktop modal when shown on smaller screens */
 @media (max-width: 640px) {
   .video-modal-container {
     width: 95%;
@@ -324,14 +317,14 @@ const handleMobileVideoEnded = () => {
   }
 }
 
-/* NFR [U5]: Reduced motion support */
+/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .video-modal-container {
     animation: none;
   }
 }
 
-/* NFR [U5]: High contrast mode */
+/* High contrast mode */
 @media (prefers-contrast: high) {
   .close-button {
     border: 2px solid white;

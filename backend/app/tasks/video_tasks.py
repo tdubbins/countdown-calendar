@@ -11,37 +11,19 @@ from app.utils.json_db import calendars_db
 
 class VideoCompressionTask:
     """
-    Video Compression Task Handler
+    Video Compression Task Handler.
 
-    NFR Compliance:
-        - [P2] Video compression processing <30 seconds per video
-        - [R1] Compressed videos <50% of original size
-        - [SC3] Modular architecture: Separate task execution logic
-        - [RE1] Graceful error handling with retry logic
-
-    This class handles the execution of video compression tasks.
-    It coordinates between the task queue, video service, and calendar updates.
+    Handles execution of video compression tasks, coordinating between
+    the task queue, video service, and calendar updates.
     """
 
     @staticmethod
     def execute(task_data: Dict[str, Any]) -> Tuple[bool, str]:
         """
-        Execute video compression task
-
-        This is the main entry point called by the Worker.
-        It orchestrates the complete video processing workflow:
-        1. Mark task as processing
-        2. Compress video and generate thumbnail
-        3. Update calendar with video metadata
-        4. Mark task as completed or failed
+        Execute video compression task.
 
         Args:
-            task_data: Task data from task queue containing:
-                - task_id: Task identifier
-                - user_id: User who owns the video
-                - calendar_id: Calendar ID
-                - day: Day number (1-31)
-                - metadata: Contains file paths
+            task_data: Task data containing task_id, user_id, calendar_id, day, and metadata
 
         Returns:
             Tuple of (success, error_message)
@@ -91,7 +73,6 @@ class VideoCompressionTask:
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            # Log compression stats (NFR [P2] and [R1] monitoring)
             print(f"Video compression completed in {processing_time:.2f}s")
             print(f"Original size: {stats['original_size_mb']}MB")
             print(f"Compressed size: {stats['compressed_size_mb']}MB")
@@ -143,18 +124,7 @@ class VideoCompressionTask:
         compression_stats: Dict[str, Any]
     ) -> Tuple[bool, str]:
         """
-        Update calendar with video information
-
-        This updates the calendar's videos object and videoCount.
-        NFR Compliance: [SC3] Modular architecture
-
-        Args:
-            calendar_id: Calendar ID to update
-            day: Day number (1-31)
-            compressed_path: Path to compressed video file
-            thumbnail_path: Path to thumbnail image
-            video_metadata: Video metadata (duration, size, etc.)
-            compression_stats: Compression statistics
+        Update calendar with video information.
 
         Returns:
             Tuple of (success, error_message)

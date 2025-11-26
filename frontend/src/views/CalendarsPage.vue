@@ -56,7 +56,7 @@
 
       <div class="dashboard-container">
 
-        <!-- Loading State with Skeleton (NFR [P1]: Dashboard loads under 5 seconds) -->
+        <!-- Loading State with Skeleton -->
         <div v-if="isLoading" class="loading-section">
           <h2><ion-skeleton-text animated style="width: 30%; height: 32px;"></ion-skeleton-text></h2>
           <div class="calendars-grid">
@@ -81,7 +81,7 @@
           </div>
         </div>
 
-        <!-- Calendar Content (NFR [U1][U2]: Mobile responsive with 44px+ touch targets) -->
+        <!-- Calendar Content -->
         <div v-else-if="hasCalendars" class="calendars-section">
           <h2>Your Calendars ({{ calendars.length }})</h2>
 
@@ -189,7 +189,7 @@ const isEditModalOpen = ref(false);
 const selectedCalendar = ref<Calendar | null>(null);
 const isSubmitting = ref(false);
 
-// Lifecycle (NFR [P1]: Dashboard loads under 5 seconds)
+// Lifecycle
 onMounted(async () => {
   if (!isAuthenticated.value) {
     redirectToLogin();

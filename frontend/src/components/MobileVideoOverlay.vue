@@ -10,10 +10,7 @@
   - Touch-friendly close button (44px minimum)
   - No aspect-ratio constraints for natural video display
 
-  NFR Compliance:
-  - [U1] Mobile responsive - Optimized for mobile devices
-  - [U2] Touch-friendly - 44px+ close button
-  - [U5] WCAG 2.1 AA - Accessible with ARIA labels
+  Optimized for mobile with accessible controls.
 -->
 
 <template>
@@ -124,7 +121,7 @@ const handleVideoEnded = () => {
   color: white;
   border: none;
   border-radius: 50%;
-  /* NFR [U2]: Touch-friendly minimum size */
+  /* Touch-friendly minimum size */
   width: 44px;
   height: 44px;
   min-width: 44px;
@@ -141,7 +138,7 @@ const handleVideoEnded = () => {
   background: rgba(0, 0, 0, 0.9);
 }
 
-/* NFR [U5]: Focus indicator for keyboard navigation */
+/* Focus indicator for keyboard navigation */
 .mobile-close-button:focus-visible {
   outline: 2px solid white;
   outline-offset: 2px;

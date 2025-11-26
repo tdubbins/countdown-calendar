@@ -39,20 +39,10 @@ import { lockClosedOutline } from 'ionicons/icons';
 import { THEME_OPTIONS, DEFAULT_THEME } from '@/utils/constants';
 
 /**
- * Theme Selector Component (Issue #82)
+ * Theme Selector Component
  *
  * Allows calendar creators to choose visual theme for shared calendars.
- * Currently supports single "Christmas" theme with architecture prepared
- * for future theme expansion (birthday, holiday, custom).
- *
- * Design Decision: Locked after share token is generated to ensure consistent
- * viewer experience. Theme styling applied in SharedCalendar viewer (Issue #86).
- *
- * NFR Compliance:
- * - [U5] WCAG 2.1 AA: ARIA labels, keyboard navigation
- * - [U2] Touch-friendly: 44px+ touch targets
- * - [U1] Responsive: Works on 320px+ screens
- * - [SC3] Modular: Architecture prepared for future themes
+ * Locked after share token is generated for consistent viewer experience.
  */
 
 interface Props {
@@ -74,8 +64,7 @@ const emit = defineEmits<Emits>();
 // Local reactive state
 const localTheme = ref<string>(props.theme || DEFAULT_THEME);
 
-// Theme options for dropdown (Issue #82)
-// NFR [SC3]: Prepared for future theme expansion
+// Theme options for dropdown
 const themeOptions = [
   { value: THEME_OPTIONS.CHRISTMAS, label: 'Christmas' },
   { value: THEME_OPTIONS.BIRTHDAY, label: 'Birthday' }

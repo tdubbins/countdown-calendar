@@ -9,35 +9,20 @@ from app.tasks.video_tasks import VideoCompressionTask
 
 class Worker:
     """
-    Background Worker for processing tasks from the queue
+    Background Worker for processing tasks from the queue.
 
-    NFR Compliance:
-        - [P2] Task processing starts within 5 seconds of upload
-        - [P3] Handle up to 10 concurrent video processing tasks
-        - [RE1] System continues processing tasks after errors
-        - [SC3] Modular architecture: Separate worker process
-
-    Design Pattern: Worker Thread Pattern
-    - Runs in separate thread to avoid blocking Flask application
-    - Continuously polls for pending tasks
-    - Executes tasks and handles failures with retry logic
-    - Graceful shutdown mechanism
-
-    Usage:
-        worker = Worker()
-        worker.start()  # Start background processing
-        # ... application runs ...
-        worker.stop()   # Graceful shutdown
+    Runs in a separate thread, continuously polling for pending tasks
+    and executing them with retry logic on failures.
     """
 
     def __init__(self, poll_interval: int = 2, max_concurrent: int = 10, cleanup_interval: int = 3600):
         """
-        Initialize worker
+        Initialize worker.
 
         Args:
             poll_interval: Seconds between queue polls (default: 2)
-            max_concurrent: Maximum concurrent tasks to process (default: 10, NFR [P3])
-            cleanup_interval: Seconds between cleanup runs (default: 3600 = 1 hour)
+            max_concurrent: Maximum concurrent tasks to process (default: 10)
+            cleanup_interval: Seconds between cleanup runs (default: 3600)
         """
         self.poll_interval = poll_interval
         self.max_concurrent = max_concurrent
@@ -48,14 +33,7 @@ class Worker:
         self._lock = threading.Lock()
 
     def start(self) -> None:
-        """
-        Start the background worker thread and cleanup scheduler
-
-        This creates and starts daemon threads for:
-        - Task processing (polls queue every 2 seconds)
-        - Cleanup scheduler (runs every hour to delete old tasks)
-        Daemon threads automatically terminate when the main program exits.
-        """
+        """Start the background worker thread and cleanup scheduler."""
         with self._lock:
             if self.running:
                 print("Worker is already running")
@@ -74,11 +52,7 @@ class Worker:
             print("Background worker started (task processing + cleanup scheduler)")
 
     def stop(self) -> None:
-        """
-        Stop the background worker and cleanup scheduler gracefully
-
-        Sets the running flag to False and waits for both threads to finish.
-        """
+        """Stop the background worker and cleanup scheduler gracefully."""
         with self._lock:
             if not self.running:
                 print("Worker is not running")
@@ -103,12 +77,7 @@ class Worker:
             return self.running
 
     def _run(self) -> None:
-        """
-        Main worker loop
-
-        Continuously polls for pending tasks and processes them.
-        Implements retry logic and error handling per NFR [RE1].
-        """
+        """Main worker loop - polls for pending tasks and processes them."""
         print("Worker thread started - polling for tasks")
 
         while self.running:
@@ -132,23 +101,14 @@ class Worker:
                 self._process_task(task_data)
 
             except Exception as e:
-                # Worker continues running even if task processing fails (NFR [RE1])
+                # Worker continues running even if task processing fails
                 print(f"Worker error: {str(e)}")
                 time.sleep(self.poll_interval)
 
         print("Worker thread stopped")
 
     def _run_cleanup(self) -> None:
-        """
-        Cleanup scheduler loop
-
-        Runs periodically to delete old completed/failed tasks from the queue.
-        Prevents tasks.json from growing indefinitely.
-
-        NFR Compliance:
-            - Resource management: Keep tasks.json size manageable
-            - [SC3] Modular architecture: Automatic maintenance
-        """
+        """Cleanup scheduler loop - periodically deletes old tasks."""
         print("Cleanup scheduler started - will run every hour")
 
         # Run initial cleanup on startup
@@ -218,14 +178,7 @@ class Worker:
             self._handle_task_failure(task_id)
 
     def _handle_task_failure(self, task_id: str) -> None:
-        """
-        Handle task failure with retry logic
-
-        NFR Compliance: [RE1] System continues after errors
-
-        Args:
-            task_id: Failed task ID
-        """
+        """Handle task failure with retry logic."""
         try:
             # Increment retry count and check if should retry
             success, should_retry, error = TaskQueue.increment_retry_count(task_id)

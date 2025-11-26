@@ -282,7 +282,7 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* Error State - NFR [U5]: Accessible error messaging */
+/* Error State */
 .error-container {
   display: flex;
   flex-direction: column;
@@ -350,7 +350,7 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* Door Grid - NFR [U1]: Responsive 320px+ */
+/* Door Grid */
 .door-grid {
   display: grid;
   gap: clamp(0.75rem, 2vw, 1rem);
@@ -358,7 +358,7 @@ onMounted(async () => {
   padding-bottom: var(--spacing-xl);
 }
 
-/* Mobile: 2 columns (320px+) - NFR [U1] */
+/* Mobile: 2 columns */
 @media (max-width: 640px) {
   .door-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -424,7 +424,6 @@ onMounted(async () => {
 }
 
 .mode-button {
-  /* NFR [U2]: Touch-friendly button size (44px+) */
   min-height: 44px;
   min-width: 140px;
   transition: all 0.2s ease;
@@ -437,7 +436,6 @@ onMounted(async () => {
 /* Re-close All Doors Button */
 .reset-doors-button {
   margin-top: var(--spacing-md, 1rem);
-  /* NFR [U2]: Touch-friendly button size (44px+) */
   min-height: 44px;
 }
 
@@ -464,7 +462,7 @@ onMounted(async () => {
   }
 }
 
-/* Accessibility - NFR [U5]: Reduced motion support */
+/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .loading-spinner {
     animation: none;

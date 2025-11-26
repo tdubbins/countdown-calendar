@@ -96,8 +96,8 @@ const handleClick = () => {
 }
 
 .delete-button--default {
-  min-width: 44px;  /* NFR [U2]: Accessible touch target */
-  min-height: 44px; /* NFR [U2]: Accessible touch target */
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .delete-button--large {

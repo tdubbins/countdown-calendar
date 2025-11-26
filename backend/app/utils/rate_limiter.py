@@ -9,11 +9,7 @@ def check_rate_limit(
     window_hours: int
 ) -> Tuple[bool, int, str]:
     """
-    Generic rate limiting checker for user actions
-
-    NFR Compliance:
-        - [S2] Rate limiting for security
-        - [SC3] Modular architecture - DRY principle
+    Check if a user action is within rate limits.
 
     Args:
         user: User dictionary with rate limiting fields
@@ -23,33 +19,6 @@ def check_rate_limit(
 
     Returns:
         Tuple of (is_allowed, current_count, error_message)
-        - is_allowed: True if request is within rate limit
-        - current_count: Updated count after this check
-        - error_message: Empty string if allowed, error message if rate limited
-
-    Example:
-        >>> is_allowed, count, error = check_rate_limit(
-        ...     user=user_dict,
-        ...     action='verification_email',
-        ...     limit=3,
-        ...     window_hours=1
-        ... )
-        >>> if not is_allowed:
-        ...     return False, error
-
-    Usage in User Dictionary:
-        User dict should have these fields for each action:
-        - f'{action}_last_sent': ISO timestamp of last request
-        - f'{action}_count': Count of requests in current window
-
-    Design Pattern:
-        This function only CHECKS the rate limit.
-        The calling code is responsible for:
-        1. Updating the user's rate limit fields after successful action
-        2. Persisting the updated user data
-
-        This separation of concerns makes the function more testable
-        and flexible (can be used with any storage backend).
     """
     current_time = datetime.now()
 

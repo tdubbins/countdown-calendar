@@ -163,11 +163,6 @@ defineExpose({
  *
  * Uses native HTML input/textarea for maximum accessibility while maintaining
  * professional appearance matching DatePickerField.
- *
- * NFR Compliance:
- * - [U1] Mobile responsive (320px+)
- * - [U2] Touch-friendly (56px+ targets)
- * - [U5] WCAG 2.1 AA accessibility (CRITICAL)
  */
 
 .native-form-field {

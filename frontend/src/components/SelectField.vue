@@ -90,13 +90,8 @@ const handleBlur = () => {
 /**
  * SelectField - Modern Ionic 7 Select Component
  *
- * Migrated from legacy ion-item + ion-label pattern to modern ion-select with label prop
- * Matches IonFormField.vue styling for consistency
- *
- * NFR Compliance:
- * - [U1] Mobile responsive (320px+)
- * - [U2] Touch-friendly (44px+ targets via Ionic defaults)
- * - [U5] WCAG 2.1 AA accessibility (ARIA labels, keyboard navigation)
+ * Migrated from legacy ion-item + ion-label pattern to modern ion-select with label prop.
+ * Matches IonFormField.vue styling for consistency.
  */
 
 .form-group {

@@ -2,17 +2,12 @@
 """
 This module handles the day unlock logic for shared calendars.
 
-NFR Compliance:
-    - [P3] Calendar Rendering: Optimized calculations for <3 second response time
-    - [SC3] Modular Architecture: Separated unlock logic for reusability
-    - [U5] Accessibility: Clear, testable unlock logic
-
 Business Rules:
-    - Days unlock at midnight in the calendar's timezone (Berlin for Phase 2)
+    - Days unlock at midnight in the calendar's timezone
     - Day 1 unlocks on start_date at 00:00
-    - Day 2 unlocks on start_date + 1 day at 00:00
+    - Day N unlocks on start_date + (N-1) days at 00:00
     - Past days remain accessible (can rewatch)
-    - Future days are locked (not accessible yet)
+    - Future days are locked
 """
 
 from datetime import datetime, timedelta
@@ -24,39 +19,12 @@ def is_day_unlocked(calendar: Dict[str, Any], day_number: int) -> bool:
     """
     Determine if a specific day is unlocked based on current time.
 
-    This function implements the core unlock logic for shared calendar doors.
-    It compares the current date in the calendar's timezone against the
-    calculated unlock date for the requested day.
-
-    NFR Compliance:
-        - [P3] Performance: O(1) time complexity, <10ms execution
-        - [S4] Input Validation: Handles edge cases gracefully
-        - [SC3] Modular: Pure function, easy to test
-
     Args:
-        calendar: Calendar dict containing:
-            - startDate: str in YYYY-MM-DD format
-            - timezone: str IANA timezone (e.g., "Europe/Berlin")
-            - duration: int number of days in calendar
-        day_number: int The day number to check (1-indexed, must be 1 to duration)
+        calendar: Calendar dict with startDate, timezone, and duration
+        day_number: The day number to check (1-indexed)
 
     Returns:
-        bool: True if day is unlocked (current date >= unlock date), False otherwise
-
-    Examples:
-        >>> calendar = {
-        ...     'startDate': '2025-12-01',
-        ...     'timezone': 'Europe/Berlin',
-        ...     'duration': 24
-        ... }
-        >>> # On December 1st, 2025 at 00:00 Berlin time
-        >>> is_day_unlocked(calendar, 1)  # True - Day 1 is unlocked
-        >>> is_day_unlocked(calendar, 2)  # False - Day 2 unlocks tomorrow
-        >>> # On December 3rd, 2025 at 10:00 Berlin time
-        >>> is_day_unlocked(calendar, 1)  # True - Past day
-        >>> is_day_unlocked(calendar, 2)  # True - Past day
-        >>> is_day_unlocked(calendar, 3)  # True - Today (unlocked at midnight)
-        >>> is_day_unlocked(calendar, 4)  # False - Future day
+        bool: True if day is unlocked, False otherwise
     """
     try:
         # Get timezone from calendar (default to Europe/Berlin for Phase 2)
@@ -103,24 +71,11 @@ def get_all_unlock_statuses(calendar: Dict[str, Any]) -> Dict[int, bool]:
     """
     Get unlock status for all days in a calendar.
 
-    This is a convenience function for generating unlock status for all doors
-    at once, useful for the public calendar viewer API.
-
-    NFR Compliance:
-        - [P3] Performance: O(n) where n = duration, typically <31 iterations
-        - [SC3] Modular: Reuses is_day_unlocked for consistency
-
     Args:
         calendar: Calendar dict with startDate, timezone, and duration
 
     Returns:
-        Dict mapping day_number (int) to unlock status (bool)
-
-    Example:
-        >>> calendar = {'startDate': '2025-12-01', 'timezone': 'Europe/Berlin', 'duration': 24}
-        >>> statuses = get_all_unlock_statuses(calendar)
-        >>> # Returns: {1: True, 2: True, 3: True, 4: False, ..., 24: False}
-        >>> # (assuming current date is Dec 3, 2025)
+        Dict mapping day_number to unlock status
     """
     duration = calendar.get('duration', 0)
 

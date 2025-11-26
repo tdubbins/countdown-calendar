@@ -6,18 +6,13 @@ from typing import Tuple, Optional, Dict, Any
 
 def get_video_metadata(video_path: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Extract video metadata using ffprobe
-
-    NFR Compliance:
-        - [P2] Fast metadata extraction: <2 seconds per video
-        - [SC3] Modular architecture: Separate video processing service
+    Extract video metadata using ffprobe.
 
     Args:
         video_path: Path to the video file
 
     Returns:
         Tuple of (success, metadata_dict, error_message)
-        metadata_dict contains: duration, width, height, codec, size
     """
     if not os.path.exists(video_path):
         return False, None, "Video file not found"
@@ -58,22 +53,16 @@ def compress_video(
     max_resolution: Tuple[int, int] = (1920, 1080)
 ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Compress video for web streaming using H.264 codec
-
-    NFR Compliance:
-        - [P2] Video compression: <30 seconds per video
-        - [R1] Compressed videos <50% of original size while maintaining quality
-        - [SC3] Modular architecture: Service layer separation
+    Compress video for web streaming using H.264 codec.
 
     Args:
         input_path: Path to original video file
         output_path: Path where compressed video will be saved
-        target_bitrate: Target video bitrate (default: 1000k for web streaming)
-        max_resolution: Maximum resolution as (width, height) tuple (default: 1080p)
+        target_bitrate: Target video bitrate (default: 1000k)
+        max_resolution: Maximum resolution tuple (default: 1080p)
 
     Returns:
         Tuple of (success, compression_stats, error_message)
-        compression_stats contains: original_size, compressed_size, reduction_percent
     """
     if not os.path.exists(input_path):
         return False, None, "Input video file not found"
@@ -158,17 +147,13 @@ def generate_thumbnail(
     width: int = 320
 ) -> Tuple[bool, str]:
     """
-    Generate thumbnail image from video at specified time offset
-
-    NFR Compliance:
-        - [P2] Fast thumbnail generation: <2 seconds
-        - [SC3] Modular architecture: Separate thumbnail generation
+    Generate thumbnail image from video at specified time offset.
 
     Args:
         video_path: Path to video file
         thumbnail_path: Path where thumbnail will be saved
-        time_offset: Time in seconds to extract frame (default: 1.0 second)
-        width: Thumbnail width in pixels (default: 320px, height auto-calculated)
+        time_offset: Time in seconds to extract frame (default: 1.0)
+        width: Thumbnail width in pixels (default: 320)
 
     Returns:
         Tuple of (success, error_message)
@@ -209,25 +194,16 @@ def process_uploaded_video(
     delete_original: bool = True
 ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Complete video processing workflow: compress video and generate thumbnail
-
-    This is a convenience function that combines compression and thumbnail generation
-    into a single atomic operation.
-
-    NFR Compliance:
-        - [P2] Complete processing: <35 seconds per video
-        - [R1] Achieve <50% size reduction
-        - [SC3] Service layer orchestration
+    Complete video processing workflow: compress video and generate thumbnail.
 
     Args:
         original_path: Path to original uploaded video
         compressed_path: Path for compressed output video
         thumbnail_path: Path for thumbnail output image
-        delete_original: Whether to delete original after successful compression (default: True)
+        delete_original: Whether to delete original after compression (default: True)
 
     Returns:
         Tuple of (success, processing_stats, error_message)
-        processing_stats contains compression stats plus thumbnail confirmation
     """
     # Step 1: Compress video
     success, stats, error = compress_video(original_path, compressed_path)

@@ -22,21 +22,10 @@ class TaskType(Enum):
 
 class TaskQueue:
     """
-    Task Queue Manager for background job processing
+    Task Queue Manager for background job processing.
 
-    NFR Compliance:
-        - [P2] Task processing starts within 5 seconds of creation
-        - [P3] Handle up to 10 concurrent video processing tasks
-        - [SC3] Modular architecture - reusable task queue system
-        - [RE1] System continues processing tasks after errors
-
-    This class manages the lifecycle of background tasks using JSON-based persistence.
+    Manages the lifecycle of background tasks using JSON-based persistence.
     Tasks are stored in tasks.json and processed by Worker instances.
-
-    Design Pattern: Producer-Consumer Queue Pattern
-    - Producers create tasks via create_task()
-    - Consumers (Workers) retrieve tasks via get_next_pending_task()
-    - State machine ensures task lifecycle integrity
     """
 
     @staticmethod
@@ -290,14 +279,10 @@ class TaskQueue:
     @staticmethod
     def cleanup_old_tasks(hours_old: int = 24) -> Tuple[bool, int, str]:
         """
-        Clean up completed and failed tasks older than specified hours
-
-        NFR Compliance:
-            - Resource management: Prevent tasks.json from growing indefinitely
-            - [SC3] Modular architecture: Automatic cleanup mechanism
+        Clean up completed and failed tasks older than specified hours.
 
         Args:
-            hours_old: Delete tasks completed/failed more than this many hours ago (default: 24)
+            hours_old: Delete tasks older than this many hours (default: 24)
 
         Returns:
             Tuple of (success, deleted_count, error_message)
@@ -336,9 +321,7 @@ class TaskQueue:
     @staticmethod
     def get_active_task_count() -> Tuple[bool, int, str]:
         """
-        Get count of active tasks (pending or processing)
-
-        Used to enforce concurrency limits (NFR [P3]: max 10 concurrent tasks)
+        Get count of active tasks (pending or processing).
 
         Returns:
             Tuple of (success, active_count, error_message)

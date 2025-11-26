@@ -59,7 +59,7 @@ export const useVideoManagement = (calendarId: string) => {
   const uploadProgress = ref(0);
   const isUploading = ref(false);
 
-  // FIX BUG #2: Move polling state INSIDE composable (not global)
+  // Polling state (per-composable instance)
   const pollInterval = ref<number | null>(null);
   const activePollDays = ref<Set<number>>(new Set());
 
@@ -85,7 +85,6 @@ export const useVideoManagement = (calendarId: string) => {
     try {
       isLoading.value = true;
 
-      // FIX BUG #1: Use getAuthHeaders() instead of localStorage directly
       const headers = getAuthHeaders();
 
       const response = await fetch(
@@ -290,7 +289,6 @@ export const useVideoManagement = (calendarId: string) => {
       const token = headers['Authorization']?.replace('Bearer ', '');
 
       if (!token) {
-        // FIX BUG #5: Reset state on error
         isUploading.value = false;
         uploadProgress.value = 0;
         resolve({
@@ -315,13 +313,11 @@ export const useVideoManagement = (calendarId: string) => {
       });
 
       xhr.addEventListener('load', () => {
-        // FIX BUG #3: Reset state in handlers
         isUploading.value = false;
         uploadProgress.value = 0;
 
         if (xhr.status === 201) {
           try {
-            // FIX BUG #6: Wrap JSON.parse in try-catch
             const response = JSON.parse(xhr.responseText);
 
             // Update day status to processing
@@ -364,7 +360,6 @@ export const useVideoManagement = (calendarId: string) => {
       });
 
       xhr.addEventListener('error', () => {
-        // FIX BUG #5: Reset state on error
         isUploading.value = false;
         uploadProgress.value = 0;
         resolve({

@@ -214,7 +214,7 @@ const handleClick = () => {
   padding: var(--door-padding, var(--spacing-md));
   border-radius: var(--door-border-radius, var(--radius-md));
 
-  /* NFR [U2]: Touch-friendly minimum size (44px+) */
+  /* Touch-friendly minimum size */
   /* Use clamp for fluid sizing that works in all orientations */
   min-width: clamp(44px, 12vmin, 160px);
   min-height: clamp(44px, 12vmin, 160px);
@@ -228,7 +228,7 @@ const handleClick = () => {
   font-family: inherit;
 }
 
-/* NFR [U5]: Focus indicator for keyboard navigation */
+/* Focus indicator for keyboard navigation */
 .door-card:focus-visible {
   outline: 2px solid var(--ion-color-primary);
   outline-offset: 2px;
@@ -347,7 +347,7 @@ const handleClick = () => {
   pointer-events: none;
 }
 
-/* NFR [U5]: Accessibility - Reduced motion support */
+/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .door-card {
     transition: none;

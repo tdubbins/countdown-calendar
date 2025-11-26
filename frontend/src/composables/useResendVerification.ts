@@ -2,11 +2,6 @@
  * Resend Verification Email Composable
  *
  * Centralized logic for resending email verification links.
- * Eliminates code duplication between LoginPage and EmailVerificationPage.
- *
- * NFR Compliance:
- * - [SC3] Modular architecture - DRY principle
- * - [S4] Input validation
  */
 
 import { ref } from 'vue';

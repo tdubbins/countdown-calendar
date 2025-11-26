@@ -152,10 +152,6 @@ defineExpose({
  * - Min/max constraints enforced by browser
  * - WCAG 2.1 AA compliant
  *
- * NFR Compliance:
- * - [U1] Mobile responsive (320px+)
- * - [U2] Touch-friendly (56px+ targets)
- * - [U5] WCAG 2.1 AA accessibility (CRITICAL)
  */
 
 .date-picker-field {
@@ -170,7 +166,7 @@ defineExpose({
   border: 2px solid var(--color-border, #e9ecef);
   border-radius: var(--radius-md, 12px);
   transition: all var(--transition-base, 0.3s ease);
-  min-height: 56px; /* NFR [U2]: Touch-friendly targets */
+  min-height: 56px;
   display: flex;
   align-items: center;
   padding: var(--spacing-md, 16px);

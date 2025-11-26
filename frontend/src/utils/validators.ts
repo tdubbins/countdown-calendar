@@ -1,12 +1,7 @@
 /**
  * Input Validation Utilities
  *
- * Centralized validation functions to ensure consistency across the app
- * and prevent code duplication.
- *
- * NFR Compliance:
- * - [S4] Input validation and sanitization
- * - [SC3] Modular architecture - DRY principle
+ * Centralized validation functions for consistency across the app.
  */
 
 /**

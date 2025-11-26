@@ -41,7 +41,7 @@
       />
     </div>
 
-    <!-- ARIA Live Region for Status Announcements (Issue #58) -->
+    <!-- ARIA Live Region for Status Announcements -->
     <div
       aria-live="polite"
       aria-atomic="true"
@@ -61,7 +61,7 @@
       aria-label="Choose video file"
     />
 
-    <!-- Video Playback Modal (Issue #59) -->
+    <!-- Video Playback Modal -->
     <ion-modal
       :is-open="isPlaybackModalOpen"
       @didDismiss="closePlaybackModal"
@@ -219,11 +219,11 @@ const { showSuccess, showError } = useToast();
 
 // Local state
 const loadError = ref<string>('');
-const statusAnnouncement = ref<string>(''); // ARIA live region (Issue #58)
+const statusAnnouncement = ref<string>(''); // ARIA live region
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const selectedDay = ref<number | null>(null);
 
-// Playback modal state (Issue #59)
+// Playback modal state
 const isPlaybackModalOpen = ref(false);
 const playbackDay = ref<number | null>(null);
 const videoMetadata = ref<VideoMetadata | null>(null);
@@ -350,8 +350,8 @@ const handleFileSelect = async (event: Event) => {
 };
 
 /**
- * Watch for completion to announce (ARIA - Issue #58)
- * FIX BUG #4: Store interval IDs to prevent memory leaks
+ * Watch for completion to announce via ARIA.
+ * Stores interval IDs to prevent memory leaks.
  */
 const activeWatchers = ref<Map<number, number>>(new Map());
 
@@ -409,7 +409,7 @@ const handlePlaybackVideoMetadata = (e: Event) => {
 };
 
 /**
- * Open playback modal (Issue #59)
+ * Open playback modal for a day's video.
  */
 const openPlaybackModal = async (day: number) => {
   playbackDay.value = day;
@@ -483,14 +483,14 @@ const closePlaybackModal = () => {
 };
 
 /**
- * Show delete confirmation (Issue #59)
+ * Show delete confirmation dialog.
  */
 const showDeleteConfirmation = () => {
   isDeleteAlertOpen.value = true;
 };
 
 /**
- * Handle video deletion (Issue #59)
+ * Handle video deletion.
  */
 const handleDeleteVideo = async () => {
   if (!playbackDay.value) return;
@@ -500,7 +500,7 @@ const handleDeleteVideo = async () => {
   const result = await deleteVideo(day);
 
   if (result.success) {
-    // Announce deletion (ARIA - Issue #58)
+    // Announce deletion via ARIA
     statusAnnouncement.value = `Day ${day} video deleted`;
 
     await showSuccess('Video deleted successfully');
@@ -617,7 +617,7 @@ onUnmounted(() => {
   // Clean up polling
   stopPolling();
 
-  // FIX BUG #4: Clean up all active watchers on unmount
+  // Clean up all active watchers on unmount
   activeWatchers.value.forEach((intervalId) => {
     clearInterval(intervalId);
   });
@@ -729,7 +729,7 @@ onUnmounted(() => {
   height: 1px;
 }
 
-/* Playback Modal Content (Issue #59) */
+/* Playback Modal Content */
 .playback-modal-content {
   --padding-top: 0;
   --padding-bottom: 0;

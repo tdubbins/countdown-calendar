@@ -96,7 +96,7 @@
               @edit="openEditModal()"
             />
 
-            <!-- Door Ordering Toggle (Issue #81) - Always editable -->
+            <!-- Door Ordering Toggle - Always editable -->
             <DoorOrderToggle
               :door-order="calendar.doorOrder"
               :door-positions="calendar.doorPositions"
@@ -105,7 +105,7 @@
               @update="handleDoorOrderUpdate"
             />
 
-            <!-- Theme Selector (Issue #82) - Always editable -->
+            <!-- Theme Selector - Always editable -->
             <ThemeSelector
               :theme="calendar.theme"
               :is-locked="false"
@@ -155,7 +155,7 @@
             </ion-card>
           </div>
 
-          <!-- Day Grid Component (Issue #57, #58, #59) -->
+          <!-- Day Grid Component -->
           <div class="day-grid-section">
             <h3>Upload Videos</h3>
             <CalendarDayGrid
@@ -462,10 +462,7 @@ const handleEditSubmit = async (data: CalendarCreateData) => {
 };
 
 /**
- * Handle door order update (Issue #81)
- * Called when user changes door ordering settings via DoorOrderToggle component
- * Updates calendar's doorOrder and doorPositions fields
- *
+ * Handle door order update.
  * @param data Object containing doorOrder and doorPositions
  */
 const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions: number[] | null }) => {
@@ -505,10 +502,7 @@ const handleDoorOrderUpdate = async (data: { doorOrder: DoorOrder; doorPositions
 };
 
 /**
- * Handle theme update (Issue #82)
- * Called when user changes theme via ThemeSelector component
- * Updates calendar's theme field
- *
+ * Handle theme update.
  * @param theme Theme identifier (e.g., "christmas")
  */
 const handleThemeUpdate = async (theme: string) => {

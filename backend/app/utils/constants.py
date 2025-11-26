@@ -107,7 +107,7 @@ class ValidationLimits:
     MAX_PASSWORD_LENGTH = 128
     EMAIL_MAX_LENGTH = 254
 
-    # Rate limiting (NFR [S5])
+    # Rate limiting
     MAX_REQUESTS_PER_MINUTE = 60
     MAX_LOGIN_ATTEMPTS = 5
     LOGIN_LOCKOUT_MINUTES = 15
@@ -135,7 +135,7 @@ class TokenConfig:
     SHARE_TOKEN_LENGTH = 32
 
 
-# Performance Constants (NFR [P1], [P2])
+# Performance Constants
 class Performance:
     """Performance-related constants"""
     MAX_CONCURRENT_USERS = 20

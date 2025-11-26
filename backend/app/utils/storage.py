@@ -4,14 +4,9 @@ Video and thumbnail storage utilities for per-calendar file management.
 This module provides secure file path resolution, directory management,
 and cleanup utilities for user-uploaded videos and generated thumbnails.
 
-Storage Structure (NEW):
+Storage Structure:
 - Videos: /backend/data/calendars/{calendar_id}/videos/day_{day}.mp4
 - Thumbnails: /backend/data/calendars/{calendar_id}/thumbnails/day_{day}_thumb.jpg
-
-Security:
-- Path validation to prevent directory traversal attacks
-- Per-calendar isolation
-- Atomic cleanup operations for GDPR compliance
 """
 
 import os
@@ -353,11 +348,6 @@ def get_user_total_storage(user_id: str) -> int:
     """
     Calculate total storage used by a user across all calendars.
 
-    Reads user's calendar_ids and sums storage for each calendar.
-
-    NFR Compliance:
-        - [SC2] Video storage: 1GB per user capacity check
-
     Args:
         user_id: User ID to calculate storage for
 
@@ -384,9 +374,6 @@ def check_storage_quota(user_id: str, additional_bytes: int, quota_bytes: int = 
     """
     Check if user has enough storage quota for additional upload.
 
-    NFR Compliance:
-        - [SC2] Video storage: 1GB (1,073,741,824 bytes) per user limit
-
     Args:
         user_id: User ID to check quota for
         additional_bytes: Size of new upload in bytes
@@ -394,9 +381,6 @@ def check_storage_quota(user_id: str, additional_bytes: int, quota_bytes: int = 
 
     Returns:
         Tuple of (has_space, remaining_bytes, error_message)
-        - has_space: True if upload would fit within quota
-        - remaining_bytes: Bytes remaining after this upload (negative if over quota)
-        - error_message: Error message if quota exceeded, empty string otherwise
     """
     try:
         current_usage = get_user_total_storage(user_id)

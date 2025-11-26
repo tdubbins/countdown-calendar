@@ -3,28 +3,6 @@
 
   A unified component for displaying images and videos with optional authentication.
   Fetches media from API, converts to blob URL, and displays with proper loading/error states.
-
-  Usage:
-    <Media
-      src="/api/calendars/123/videos/1/thumbnail"
-      mediaType="image"
-      :requireAuth="true"
-      alt="Day 1 thumbnail"
-    />
-
-  Features:
-    - Supports both images and videos
-    - Optional JWT authentication for owner access
-    - Loading state while fetching
-    - Error handling with user-friendly messages
-    - Automatic blob URL cleanup on unmount
-    - Memory management (revokes old blob URLs)
-
-  NFR Compliance:
-    - [S2] JWT authentication support
-    - [U5] WCAG 2.1 AA - Accessible with ARIA labels and alt text
-    - [P1] Fast loading with minimal blocking
-    - [SC3] Modular, reusable component
 -->
 
 <template>
@@ -136,7 +114,7 @@ const loadMedia = async () => {
     // Fetch media and get blob URL
     blobUrl.value = await fetchMedia(props.src, props.requireAuth)
   } catch (err: any) {
-    // Set user-friendly error message (NFR [U5]: Accessible errors)
+    // Set user-friendly error message
     error.value = err.message || 'Failed to load media'
     console.error('Media loading error:', err)
   } finally {

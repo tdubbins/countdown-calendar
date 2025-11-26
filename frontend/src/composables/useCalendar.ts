@@ -100,15 +100,12 @@ export const useCalendar = () => {
       });
       
       if (result.success && result.data) {
-        // Ensure calendars array is properly initialized
         if (!Array.isArray(calendars.value)) {
           calendars.value = [];
         }
-        
-        // Extract calendar data from the response (backend returns nested structure)
+
         const calendarData = result.data.calendar;
-        
-        // Add the new calendar to our local state
+
         const newCalendarSummary: CalendarSummary = {
           id: calendarData.id,
           title: calendarData.title,
@@ -210,7 +207,7 @@ export const useCalendar = () => {
     }
   };
   
-  // Update a calendar (Issue #81: Now accepts door ordering fields)
+  // Update a calendar
   const updateCalendar = async (calendarId: string, updateData: CalendarUpdateData): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     

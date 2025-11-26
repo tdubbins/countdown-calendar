@@ -41,21 +41,13 @@ import { generateShuffledPositions } from '@/utils/shuffle';
 import type { DoorOrder } from '@/types/calendar';
 
 /**
- * Door Order Toggle Component (Issue #81)
+ * Door Order Toggle Component
  *
  * Allows calendar creators to choose how doors appear in shared calendars:
  * - Sequential: Doors appear in order 1, 2, 3, ...
- * - Random: Doors appear in shuffled order using Fisher-Yates algorithm
+ * - Random: Doors appear in shuffled order
  *
- * Design Decision: Locked after share token is generated to ensure consistent
- * viewer experience. All viewers see the same door order.
- *
- * NFR Compliance:
- * - [U5] WCAG 2.1 AA: ARIA labels, keyboard navigation
- * - [U2] Touch-friendly: 44px+ touch targets
- * - [U1] Responsive: Works on 320px+ screens
- * - [P3] Performance: Fast shuffle algorithm O(n)
- * - [SC3] Modular: Reusable component with props/events
+ * Locked after share token is generated for consistent viewer experience.
  */
 
 interface Props {
@@ -84,12 +76,6 @@ const localDoorOrder = ref<DoorOrder>(props.doorOrder || 'sequential');
 const localDoorPositions = ref<number[] | null>(props.doorPositions);
 const isShuffling = ref(false);
 
-// Preview: Show first 5 door positions
-// TODO: Use this for displaying door position preview in UI
-// const previewPositions = computed(() => {
-//   if (!localDoorPositions.value) return [];
-//   return localDoorPositions.value.slice(0, Math.min(5, localDoorPositions.value.length));
-// });
 
 // Watch props for external changes (e.g., from API response)
 watch(() => props.doorOrder, (newOrder) => {
@@ -162,13 +148,13 @@ const handleShuffleAgain = () => {
 
 /* Ionic Segment Styling (Unlocked state) */
 ion-segment {
-  min-height: 40px; /* NFR [U2]: Touch-friendly */
+  min-height: 40px;
   max-width: 300px;
 }
 
 /* Segment buttons - ensure touch-friendly size */
 ion-segment-button {
-  min-height: 40px; /* NFR [U2]: Touch-friendly */
+  min-height: 40px;
   font-size: var(--font-size-base);
 }
 

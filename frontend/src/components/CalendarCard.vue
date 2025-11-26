@@ -284,7 +284,7 @@ const handleDelete = async () => {
   cursor: pointer;
   transition: all var(--transition-base);
   border: 2px solid transparent;
-  min-height: clamp(2.75rem, 8vh, 4rem); /* NFR [U2]: Touch-friendly targets */
+  min-height: clamp(2.75rem, 8vh, 4rem);
   text-align: left;
   position: relative;
   container-type: inline-size;
@@ -298,8 +298,8 @@ const handleDelete = async () => {
   z-index: 10;
   --padding-start: 0.5rem;
   --padding-end: 0.5rem;
-  min-width: 44px; /* NFR [U2]: Touch-friendly minimum */
-  min-height: 44px; /* NFR [U2]: Touch-friendly minimum */
+  min-width: 44px;
+  min-height: 44px;
   color: var(--color-text-secondary);
   transition: color var(--transition-base);
 }
@@ -334,7 +334,7 @@ const handleDelete = async () => {
   outline-offset: 2px;
 }
 
-/* Card header with title and status chip - Adaptive layout (NFR [U1]: Responsive design) */
+/* Card header with title and status chip */
 .calendar-header {
   display: flex;
   flex-wrap: wrap; /* Allow wrapping when title is long */
@@ -450,7 +450,7 @@ const handleDelete = async () => {
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-/* Container queries for micro-layouts (NFR [U1]: Mobile responsiveness) */
+/* Container queries for micro-layouts */
 @container (max-width: 15rem) {
   .calendar-header {
     flex-direction: column;
@@ -478,7 +478,7 @@ const handleDelete = async () => {
   }
 }
 
-/* Additional responsive support for mobile devices (NFR [U1]: 320px+ screens) */
+/* Mobile device support */
 @media (max-width: 480px) {
   .calendar-header {
     flex-wrap: wrap;
