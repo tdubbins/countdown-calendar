@@ -1,24 +1,11 @@
 """
-Structured Logging Utility
-
-Provides consistent, structured logging across the backend application.
-Replaces scattered print() calls with a centralized logging system.
-
-Benefits:
-- Consistent log format across the app
-- Log levels for filtering (DEBUG, INFO, WARNING, ERROR)
-- Structured data for easier debugging
-- Can be configured per environment
-- Easy to integrate with log aggregation services
-- Performance insights with timestamps
-- Context-rich error reporting
+Structured logging utility for consistent logging across the backend.
 
 Usage:
     from app.utils.logger import logger
 
-    logger.info("User logged in", extra={"user_id": user_id, "email": email})
-    logger.error("API call failed", extra={"endpoint": "/api/calendars", "error": str(error)})
-    logger.debug("Processing video", extra={"video_id": video_id, "size": file_size})
+    logger.info("User logged in", extra={"user_id": user_id})
+    logger.error("API call failed", extra={"endpoint": "/api/calendars"})
 """
 
 import logging

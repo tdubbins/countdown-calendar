@@ -257,7 +257,6 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
                 return False, {}, desc_error
             updates['description'] = clean_desc
 
-        # Recalculate endDate and dateRange if startDate or duration changed
         if 'startDate' in updates or 'duration' in updates:
             new_start_date = updates.get('startDate', calendar_data['startDate'])
             new_duration = updates.get('duration', calendar_data['duration'])
@@ -270,29 +269,22 @@ def update_calendar(calendar_id: str, user_id: str, title: Optional[str] = None,
             updates['endDate'] = new_end_date
             updates['dateRange'] = f"{new_start_date} to {new_end_date}"
 
-            # If duration was reduced, delete videos for days that no longer exist
             if new_duration < old_duration:
-                # Get current videos
                 videos = calendar_data.get('videos', {})
                 videos_to_delete = []
                 storage_to_free = 0
 
-                # Find videos for days beyond new duration
                 for day_str in list(videos.keys()):
                     day_num = int(day_str)
                     if day_num > new_duration:
                         videos_to_delete.append(day_num)
                         storage_to_free += videos[day_str].get('size', 0)
 
-                # Delete video files and update metadata
                 if videos_to_delete:
                     for day in videos_to_delete:
-                        # Delete physical files (video + thumbnail in one call)
                         delete_video_file(calendar_id, day)
-                        # Remove from videos dict
                         del videos[str(day)]
 
-                    # Update videos dict and videoCount
                     updates['videos'] = videos
                     updates['videoCount'] = len(videos)
 

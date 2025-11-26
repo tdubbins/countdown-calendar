@@ -1,16 +1,4 @@
-"""
-Application Constants
-
-Centralized constants for the Advent Calendar backend to ensure consistency
-and make maintenance easier across the entire codebase.
-
-Benefits:
-- Single source of truth for configuration values
-- Easy to update across the entire app
-- Self-documenting code (names explain purpose)
-- Prevents typos in repeated strings
-- Easier testing with consistent values
-"""
+"""Centralized constants for the Advent Calendar backend."""
 
 # HTTP Status Codes
 class HTTPStatus:

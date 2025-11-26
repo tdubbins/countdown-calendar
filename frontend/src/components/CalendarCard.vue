@@ -112,14 +112,13 @@ const publishedChipColor = computed(() => {
   return isCalendarPublished.value ? 'success' : 'medium';
 });
 
-// Calculate calendar state (upcoming/ongoing/expired)
 const calendarState = computed(() => {
   if (!props.calendar.startDate || !props.calendar.endDate) {
     return 'Unknown';
   }
 
   const now = new Date();
-  now.setHours(0, 0, 0, 0); // Reset to start of day for date comparison
+  now.setHours(0, 0, 0, 0);
 
   const startDate = new Date(props.calendar.startDate);
   startDate.setHours(0, 0, 0, 0);
@@ -136,7 +135,6 @@ const calendarState = computed(() => {
   }
 });
 
-// Calendar state chip color
 const calendarStateChipColor = computed(() => {
   switch (calendarState.value) {
     case 'Upcoming':
@@ -150,16 +148,11 @@ const calendarStateChipColor = computed(() => {
   }
 });
 
-// Constants for date calculations
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-// Calculate total days from date range (cached computed property for performance)
 const totalDays = computed(() => {
   try {
-    // Parse date range "YYYY-MM-DD to YYYY-MM-DD" format
     const dateRange = props.calendar.dateRange;
-
-    // Null/undefined check to prevent crashes
     if (!dateRange) return 1;
 
     const dates = dateRange.split(' to ');
@@ -170,18 +163,15 @@ const totalDays = computed(() => {
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 1;
 
-    // Calculate days difference (inclusive)
     const timeDiff = endDate.getTime() - startDate.getTime();
     const dayDiff = Math.ceil(timeDiff / MS_PER_DAY) + 1;
 
     return dayDiff > 0 ? dayDiff : 1;
   } catch {
-    // Fallback: if we can't parse, assume single day
     return 1;
   }
 });
 
-// Video progress completion status
 const progressPercentage = computed(() => {
   const videoCount = props.calendar.videoCount || 0;
   const duration = totalDays.value;

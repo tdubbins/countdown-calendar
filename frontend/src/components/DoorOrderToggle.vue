@@ -97,11 +97,9 @@ const handleOrderChange = (event: CustomEvent) => {
   localDoorOrder.value = newOrder;
 
   if (newOrder === 'sequential') {
-    // Sequential: No positions array needed
     localDoorPositions.value = null;
     emit('update', { doorOrder: 'sequential', doorPositions: null });
   } else {
-    // Random: Generate shuffled positions immediately
     handleShuffleAgain();
   }
 };

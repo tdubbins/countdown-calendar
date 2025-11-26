@@ -27,14 +27,7 @@ export const THEMES: Record<string, ThemeConfig> = {
     name: 'Birthday',
     description: 'Gift boxes with floating balloons',
     cssClass: 'theme-birthday'
-  },
-  // Future themes
-  // generic: {
-  //   id: 'generic',
-  //   name: 'Generic',
-  //   description: 'Clean and minimal design',
-  //   cssClass: 'theme-generic'
-  // }
+  }
 };
 
 export const DEFAULT_THEME = 'christmas';

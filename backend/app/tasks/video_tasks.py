@@ -35,10 +35,8 @@ class VideoCompressionTask:
         metadata = task_data.get('metadata', {})
 
         try:
-            # Step 1: Mark task as processing
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=0)
 
-            # Step 2: Get file paths from metadata
             original_path = metadata.get('original_path')
             compressed_path = metadata.get('compressed_path')
             thumbnail_path = metadata.get('thumbnail_path')
@@ -48,16 +46,13 @@ class VideoCompressionTask:
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            # Verify original file exists
             if not os.path.exists(original_path):
                 error_msg = f"Original video file not found: {original_path}"
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            # Step 3: Update progress - starting compression
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=20)
 
-            # Step 4: Process video (compress + generate thumbnail)
             start_time = time.time()
             success, stats, error = process_uploaded_video(
                 original_path=original_path,
@@ -78,17 +73,13 @@ class VideoCompressionTask:
             print(f"Compressed size: {stats['compressed_size_mb']}MB")
             print(f"Size reduction: {stats['reduction_percent']}%")
 
-            # Step 5: Update progress - compression complete
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=80)
 
-            # Step 6: Get video metadata for calendar update
             metadata_success, video_metadata, metadata_error = get_video_metadata(compressed_path)
             if not metadata_success:
-                # Non-critical error - continue without metadata
                 print(f"Warning: Could not extract video metadata: {metadata_error}")
                 video_metadata = {}
 
-            # Step 7: Update calendar with video information
             update_success, update_error = VideoCompressionTask._update_calendar_video(
                 calendar_id=calendar_id,
                 day=day,
@@ -103,7 +94,6 @@ class VideoCompressionTask:
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            # Step 8: Mark task as completed
             TaskQueue.update_task_status(task_id, TaskStatus.COMPLETED, progress=100)
 
             return True, ""

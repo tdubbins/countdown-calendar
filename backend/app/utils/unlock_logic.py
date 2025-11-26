@@ -27,7 +27,7 @@ def is_day_unlocked(calendar: Dict[str, Any], day_number: int) -> bool:
         bool: True if day is unlocked, False otherwise
     """
     try:
-        # Get timezone from calendar (default to Europe/Berlin for Phase 2)
+        # Default timezone: Europe/Berlin
         timezone_str = calendar.get('timezone', 'Europe/Berlin')
         tz = ZoneInfo(timezone_str)
 

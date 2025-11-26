@@ -82,7 +82,6 @@ class Worker:
 
         while self.running:
             try:
-                # Check if we can process more tasks (concurrency limit)
                 success, active_count, error = TaskQueue.get_active_task_count()
                 if success and active_count >= self.max_concurrent:
                     # Too many active tasks, wait before polling again

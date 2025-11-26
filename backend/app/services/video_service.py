@@ -79,9 +79,6 @@ def compress_video(
         # Apply video scaling filter (maintain aspect ratio)
         video = input_stream.video.filter('scale', max_resolution[0], max_resolution[1], force_original_aspect_ratio='decrease')
 
-        # Build output stream with audio if present
-        # Use explicit stream selection to avoid copying metadata streams
-        # Select only the first audio stream to avoid spatial audio codecs
         if has_audio:
             audio = input_stream['a:0']  # Select first audio stream only
             stream = ffmpeg.output(
@@ -94,7 +91,7 @@ def compress_video(
                 audio_bitrate='128k',
                 preset='medium',
                 movflags='faststart',
-                map_metadata=-1  # Strip all metadata to avoid incompatible streams
+                map_metadata=-1
             )
         else:
             stream = ffmpeg.output(
@@ -105,7 +102,7 @@ def compress_video(
                 bufsize='2000k',
                 preset='medium',
                 movflags='faststart',
-                map_metadata=-1  # Strip all metadata to avoid incompatible streams
+                map_metadata=-1
             )
 
         # Execute compression

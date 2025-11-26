@@ -212,13 +212,8 @@ export const Z_INDEX = {
  * Available themes for shared calendar customization
  */
 export const THEME_OPTIONS = {
-  /** Christmas theme - wooden cabin doors with falling snow */
   CHRISTMAS: 'christmas',
-  /** Birthday theme - gift boxes with floating balloons */
   BIRTHDAY: 'birthday'
-  // Future themes:
-  // HOLIDAY: 'holiday',
-  // CUSTOM: 'custom'
 } as const;
 
 /**

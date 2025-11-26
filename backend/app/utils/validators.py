@@ -265,9 +265,6 @@ def validate_theme(theme: str) -> Tuple[bool, str, str]:
     """
     Validate theme is a non-empty string.
 
-    Note: For Phase 2, only "christmas" theme is used, but validation is lenient
-    to support future theme additions without code changes.
-
     Args:
         theme: Theme identifier string
 

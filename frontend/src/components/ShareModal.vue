@@ -86,8 +86,6 @@ import {
 } from '@ionic/vue';
 import {
   close,
-  // shareSocialOutline, // Reserved for future social sharing feature
-  // linkOutline, // Reserved for future use
   checkmarkCircle,
   copyOutline,
   checkmarkOutline

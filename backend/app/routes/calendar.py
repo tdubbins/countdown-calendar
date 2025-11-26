@@ -398,7 +398,6 @@ def upload_video(calendar_id):
 
         video_file = request.files['video']
 
-        # Validate file was actually selected
         if video_file.filename == '':
             return jsonify({
                 'error': 'No video file selected. Please select a video file to upload.'
@@ -450,13 +449,10 @@ def upload_video(calendar_id):
                 'error': quota_error
             }), 413  # 413 Payload Too Large
 
-        # Create temp directory within calendar folder
         from app.utils.constants import StoragePaths
         temp_dir = os.path.join(StoragePaths.CALENDARS_DIR, calendar_id, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Save to temporary storage
-        # Path format: data/calendars/{calendar_id}/temp/{day}.mp4
         temp_filename = f"{day}.mp4"
         temp_path = os.path.join(temp_dir, temp_filename)
 

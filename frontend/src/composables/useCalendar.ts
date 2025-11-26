@@ -3,19 +3,16 @@ import { useAuth } from '@/composables/useAuth';
 import { API_ENDPOINTS } from '@/config/api';
 import type { Calendar, CalendarSummary, CalendarCreateData, CalendarUpdateData, CalendarCreateResponse, CalendarListResponse, CalendarGetResponse, CalendarUpdateResponse } from '@/types/calendar';
 
-// Global calendar state
 const calendars = ref<CalendarSummary[]>([]);
 const isLoading = ref(false);
 const currentCalendar = ref<Calendar | null>(null);
 
-// Standalone function to clear calendar data (exported to avoid circular dependency with useAuth)
 export const clearCalendarData = () => {
   calendars.value = [];
   currentCalendar.value = null;
   isLoading.value = false;
 };
 
-// Types for API responses following existing patterns
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -24,20 +21,17 @@ interface ApiResponse<T = any> {
 
 export const useCalendar = () => {
   const { getAuthHeaders } = useAuth();
-  
-  // Computed properties
+
   const hasCalendars = computed(() => calendars.value.length > 0);
   const calendarCount = computed(() => calendars.value.length);
-  
-  // Helper function to check if response has content
+
   const hasResponseContent = (response: Response): boolean => {
     const contentType = response.headers.get('content-type');
     return response.status !== 204 && 
            response.headers.get('content-length') !== '0' &&
            (contentType?.includes('application/json') ?? false);
   };
-  
-  // Helper function to parse error response
+
   const parseErrorResponse = async (response: Response): Promise<string> => {
     try {
       const errorData = await response.json();
@@ -46,8 +40,7 @@ export const useCalendar = () => {
       return `Request failed with status ${response.status}: ${response.statusText}`;
     }
   };
-  
-  // Helper function to parse success response
+
   const parseSuccessResponse = async <T>(response: Response): Promise<T | undefined> => {
     if (!hasResponseContent(response)) {
       return undefined;
@@ -59,8 +52,7 @@ export const useCalendar = () => {
       return undefined;
     }
   };
-  
-  // Clean API call helper with proper error handling
+
   const makeApiCall = async <T>(
     url: string, 
     options: RequestInit = {}
@@ -76,8 +68,7 @@ export const useCalendar = () => {
         const error = await parseErrorResponse(response);
         return { success: false, error };
       }
-      
-      // Handle successful responses
+
       const data = await parseSuccessResponse<T>(response);
       return { success: true, data };
       
@@ -88,8 +79,7 @@ export const useCalendar = () => {
       };
     }
   };
-  
-  // Calendar operations with consistent return types
+
   const createCalendar = async (calendarData: CalendarCreateData): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
@@ -137,8 +127,7 @@ export const useCalendar = () => {
       isLoading.value = false;
     }
   };
-  
-  // Get all calendars for the current user
+
   const loadCalendars = async (): Promise<ApiResponse<CalendarSummary[]>> => {
     isLoading.value = true;
     
@@ -176,8 +165,7 @@ export const useCalendar = () => {
       isLoading.value = false;
     }
   };
-  
-  // Get a specific calendar by ID
+
   const getCalendar = async (calendarId: string): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
@@ -206,8 +194,7 @@ export const useCalendar = () => {
       isLoading.value = false;
     }
   };
-  
-  // Update a calendar
+
   const updateCalendar = async (calendarId: string, updateData: CalendarUpdateData): Promise<ApiResponse<Calendar>> => {
     isLoading.value = true;
     
@@ -218,7 +205,6 @@ export const useCalendar = () => {
       });
       
       if (result.success && result.data) {
-        // Update the calendar in our local state
         const index = calendars.value.findIndex(cal => cal.id === calendarId);
         if (index !== -1) {
           calendars.value[index] = {
@@ -256,8 +242,7 @@ export const useCalendar = () => {
       isLoading.value = false;
     }
   };
-  
-  // Delete a calendar
+
   const deleteCalendar = async (calendarId: string): Promise<ApiResponse<void>> => {
     isLoading.value = true;
     
@@ -267,10 +252,8 @@ export const useCalendar = () => {
       });
       
       if (result.success) {
-        // Remove from local state
         calendars.value = calendars.value.filter(cal => cal.id !== calendarId);
-        
-        // Clear current calendar if it was deleted
+
         if (currentCalendar.value?.id === calendarId) {
           currentCalendar.value = null;
         }
@@ -292,8 +275,7 @@ export const useCalendar = () => {
       isLoading.value = false;
     }
   };
-  
-  // Publish calendar (make it publicly accessible)
+
   const publishCalendar = async (calendarId: string): Promise<ApiResponse<void>> => {
     isLoading.value = true;
 
@@ -306,7 +288,6 @@ export const useCalendar = () => {
       );
 
       if (result.success) {
-        // Update current calendar's published status if it's loaded
         if (currentCalendar.value?.id === calendarId) {
           currentCalendar.value.published = true;
         }
@@ -332,7 +313,6 @@ export const useCalendar = () => {
     }
   };
 
-  // Unpublish calendar (make it private again)
   const unpublishCalendar = async (calendarId: string): Promise<ApiResponse<void>> => {
     isLoading.value = true;
 
@@ -345,7 +325,6 @@ export const useCalendar = () => {
       );
 
       if (result.success) {
-        // Update current calendar's published status if it's loaded
         if (currentCalendar.value?.id === calendarId) {
           currentCalendar.value.published = false;
         }
@@ -372,14 +351,11 @@ export const useCalendar = () => {
   };
 
   return {
-    // State
     calendars: computed(() => calendars.value),
     currentCalendar: computed(() => currentCalendar.value),
     isLoading: computed(() => isLoading.value),
     hasCalendars,
     calendarCount,
-
-    // Actions
     createCalendar,
     loadCalendars,
     getCalendar,

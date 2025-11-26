@@ -33,7 +33,6 @@ class JSONDatabase:
     
     def create(self, collection: str, item_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create new item in collection"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
 
         if collection not in self.data:
@@ -45,19 +44,16 @@ class JSONDatabase:
 
     def find_by_id(self, collection: str, item_id: str) -> Optional[Dict[str, Any]]:
         """Find item by ID in collection"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
         return self.data.get(collection, {}).get(item_id)
 
     def find_all(self, collection: str) -> Dict[str, Any]:
         """Get all items in collection"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
         return self.data.get(collection, {})
 
     def update(self, collection: str, item_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update existing item"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
 
         if collection in self.data and item_id in self.data[collection]:
@@ -68,7 +64,6 @@ class JSONDatabase:
 
     def delete(self, collection: str, item_id: str) -> bool:
         """Delete item from collection"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
 
         if collection in self.data and item_id in self.data[collection]:
@@ -79,7 +74,6 @@ class JSONDatabase:
 
     def find_by_field(self, collection: str, field: str, value: Any) -> Optional[Dict[str, Any]]:
         """Find first item where field equals value"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
 
         items = self.data.get(collection, {})
@@ -90,7 +84,6 @@ class JSONDatabase:
 
     def list_by_field(self, collection: str, field: str, value: Any) -> list:
         """List all items where field equals value"""
-        # Reload data to ensure we have latest state
         self.data = self._load_data()
 
         items = self.data.get(collection, {})

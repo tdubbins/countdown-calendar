@@ -251,8 +251,6 @@ def swap_video_files(calendar_id: str, day_a: int, day_b: int) -> Tuple[bool, st
 
     except Exception as e:
         logger.error(f"Error swapping video files between day {day_a} and {day_b}: {e}")
-        # Note: If swap fails mid-way, files may be in inconsistent state
-        # Consider implementing rollback in production
         return False, f"Failed to swap video files: {str(e)}"
 
 

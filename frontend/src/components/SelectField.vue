@@ -87,13 +87,6 @@ const handleBlur = () => {
 </script>
 
 <style scoped>
-/**
- * SelectField - Modern Ionic 7 Select Component
- *
- * Migrated from legacy ion-item + ion-label pattern to modern ion-select with label prop.
- * Matches IonFormField.vue styling for consistency.
- */
-
 .form-group {
   margin-bottom: var(--spacing-lg, 24px);
   width: 100%;

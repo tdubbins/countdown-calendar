@@ -365,7 +365,6 @@ class AuthService:
         if not is_allowed:
             return False, rate_limit_error
 
-        # Invalidate all old unused tokens for this user
         from app.services.email_service import EmailService
         all_tokens = email_tokens_db.find_all('tokens')
         for token_id, token_data in all_tokens.items():
