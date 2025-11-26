@@ -38,11 +38,12 @@
                   <li>Enter a title for your calendar (e.g., "Christmas 2025")</li>
                   <li>Choose the number of days (1-31)</li>
                   <li>Select start and end dates</li>
-                  <li>Add an optional description</li>
+                  <li>Add an optional description (this will be visible to everyone viewing your calendar)</li>
                   <li>Choose a theme (Christmas or Birthday)</li>
                   <li>Set door ordering (sequential or random)</li>
                   <li>Click "Create Calendar" to save</li>
                 </ol>
+                <p><strong>Tip:</strong> Use the description to add a personal message, explain the occasion, or give instructions to your viewers.</p>
               </div>
             </ion-accordion>
 
@@ -76,6 +77,92 @@
                   <li><strong>Birthday:</strong> Gift-wrapped doors with floating balloons and celebration colors</li>
                 </ul>
                 <p>You can select your theme when creating or editing a calendar.</p>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </section>
+
+        <!-- Account Management -->
+        <section class="help-section">
+          <h2 class="section-title">Account Management</h2>
+
+          <ion-accordion-group>
+            <ion-accordion value="access-profile">
+              <ion-item slot="header">
+                <ion-label>
+                  <h3>How do I access my profile?</h3>
+                </ion-label>
+              </ion-item>
+              <div class="accordion-content" slot="content">
+                <p>To access your profile:</p>
+                <ol>
+                  <li>Click on the user icon in the top-right corner of the header</li>
+                  <li>Select "Profile" from the menu</li>
+                </ol>
+                <p>Your profile page shows:</p>
+                <ul>
+                  <li>Your email address</li>
+                  <li>Your display name</li>
+                  <li>Account creation date</li>
+                  <li>Email verification status</li>
+                  <li>Number of calendars you've created</li>
+                </ul>
+              </div>
+            </ion-accordion>
+
+            <ion-accordion value="change-display-name">
+              <ion-item slot="header">
+                <ion-label>
+                  <h3>How do I change my display name?</h3>
+                </ion-label>
+              </ion-item>
+              <div class="accordion-content" slot="content">
+                <p>Your display name is shown to viewers of your shared calendars. To change it:</p>
+                <ol>
+                  <li>Go to your Profile page</li>
+                  <li>Click "Edit Profile"</li>
+                  <li>Update your display name</li>
+                  <li>Click "Save Changes"</li>
+                </ol>
+                <p><strong>Tip:</strong> Choose a name that helps recipients identify who the calendar is from.</p>
+              </div>
+            </ion-accordion>
+
+            <ion-accordion value="change-password">
+              <ion-item slot="header">
+                <ion-label>
+                  <h3>How do I change my password?</h3>
+                </ion-label>
+              </ion-item>
+              <div class="accordion-content" slot="content">
+                <p>To update your password:</p>
+                <ol>
+                  <li>Go to your Profile page</li>
+                  <li>Click "Change Password"</li>
+                  <li>Enter your current password</li>
+                  <li>Enter your new password (minimum 8 characters)</li>
+                  <li>Confirm your new password</li>
+                  <li>Click "Change Password" to save</li>
+                </ol>
+                <p><strong>Note:</strong> You will be logged out after changing your password and need to log in again with your new credentials.</p>
+              </div>
+            </ion-accordion>
+
+            <ion-accordion value="verification-email">
+              <ion-item slot="header">
+                <ion-label>
+                  <h3>I didn't receive my verification email</h3>
+                </ion-label>
+              </ion-item>
+              <div class="accordion-content" slot="content">
+                <p>If you haven't received your verification email:</p>
+                <ol>
+                  <li>Check your spam or junk folder</li>
+                  <li>Wait a few minutes - emails can sometimes be delayed</li>
+                  <li>On the verification page, click "Resend verification email"</li>
+                  <li>Check that your email address was entered correctly</li>
+                </ol>
+                <p>If you still don't receive it, contact support at <a :href="`mailto:${supportEmail}?subject=Verification Email Issue`">{{ supportEmail }}</a></p>
               </div>
             </ion-accordion>
           </ion-accordion-group>
@@ -139,6 +226,37 @@
                   <li>Optimal viewing experience</li>
                 </ul>
                 <p>The compression happens in the background, so you can continue working while your videos are being processed.</p>
+              </div>
+            </ion-accordion>
+
+            <ion-accordion value="video-drag-drop">
+              <ion-item slot="header">
+                <ion-label>
+                  <h3>How do I move videos between days?</h3>
+                </ion-label>
+              </ion-item>
+              <div class="accordion-content" slot="content">
+                <p>You can easily rearrange videos using drag and drop:</p>
+                <p><strong>To move a video to an empty day:</strong></p>
+                <ol>
+                  <li>Click and hold on a day card that has a video</li>
+                  <li>Drag it to an empty day</li>
+                  <li>Release to drop the video in its new location</li>
+                </ol>
+                <p><strong>To swap videos between two days:</strong></p>
+                <ol>
+                  <li>Click and hold on a day card that has a video</li>
+                  <li>Drag it onto another day that also has a video</li>
+                  <li>Release to swap the videos between the two days</li>
+                </ol>
+                <p><strong>Visual feedback:</strong></p>
+                <ul>
+                  <li>The card you're dragging becomes semi-transparent</li>
+                  <li>Valid drop targets are highlighted as you hover</li>
+                  <li>Empty days show a teal highlight (move)</li>
+                  <li>Days with videos show an amber highlight (swap)</li>
+                </ul>
+                <p><strong>Note:</strong> Drag and drop works on desktop browsers. On mobile devices, use the delete and re-upload method to reassign videos.</p>
               </div>
             </ion-accordion>
           </ion-accordion-group>
@@ -375,6 +493,7 @@
                 <ul>
                   <li>Change title, description, or theme</li>
                   <li>Upload or replace videos</li>
+                  <li>Drag and drop videos to rearrange them between days</li>
                   <li>Modify dates or duration (affects unlock schedule)</li>
                   <li>Toggle door ordering</li>
                   <li>Publish or unpublish</li>
@@ -454,9 +573,33 @@
                 </ion-label>
               </ion-item>
               <div class="accordion-content" slot="content">
-                <p>To delete your account and all associated data, please contact support at:</p>
-                <p><a :href="`mailto:${supportEmail}?subject=Account Deletion Request`">{{ supportEmail }}</a></p>
-                <p>We will process your request within 48 hours. Please note that account deletion is permanent and cannot be undone.</p>
+                <p>You can delete your account directly from the Profile page:</p>
+                <ol>
+                  <li>Click on your profile icon in the header</li>
+                  <li>Navigate to Profile</li>
+                  <li>Click the "Delete Account" button</li>
+                  <li>Enter your password to confirm</li>
+                  <li>Confirm the deletion</li>
+                </ol>
+                <p><strong>Warning:</strong> This will permanently delete your account and all associated calendars and videos. This action cannot be undone.</p>
+              </div>
+            </ion-accordion>
+
+            <ion-accordion value="change-email">
+              <ion-item slot="header">
+                <ion-label>
+                  <h3>Can I change my email address?</h3>
+                </ion-label>
+              </ion-item>
+              <div class="accordion-content" slot="content">
+                <p>Yes, you can update your email address:</p>
+                <ol>
+                  <li>Go to your Profile page</li>
+                  <li>Click "Edit Profile"</li>
+                  <li>Enter your new email address</li>
+                  <li>Save changes</li>
+                </ol>
+                <p><strong>Note:</strong> You may need to verify your new email address before the change takes effect.</p>
               </div>
             </ion-accordion>
           </ion-accordion-group>
