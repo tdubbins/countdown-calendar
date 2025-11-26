@@ -778,7 +778,7 @@ ion-accordion ion-item h3 {
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .contact-icon {

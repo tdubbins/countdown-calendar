@@ -29,7 +29,7 @@ defineProps({
 #container p {
   font-size: 16px;
   line-height: 22px;
-  color: #8c8c8c;
+  color: var(--color-text-muted);
   margin: 0;
 }
 

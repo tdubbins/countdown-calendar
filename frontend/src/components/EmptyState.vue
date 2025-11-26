@@ -64,20 +64,20 @@ withDefaults(defineProps<EmptyStateProps>(), {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 24px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .description-content {
-  background: white;
+  background: var(--color-surface);
   padding: 24px 20px;
   border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-md);
   margin-bottom: 20px;
 }
 
 .description-content p {
   font-size: 0.95rem;
-  color: #555;
+  color: var(--color-text-secondary);
   margin-bottom: 12px;
   line-height: 1.4;
   text-align: left;
@@ -110,7 +110,7 @@ withDefaults(defineProps<EmptyStateProps>(), {
 @media (prefers-contrast: high) {
   .description-content {
     border-width: 2px;
-    border-color: #333;
+    border-color: var(--color-text-primary);
   }
 }
 </style>

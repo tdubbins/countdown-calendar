@@ -70,7 +70,7 @@ const iconName = computed(() => {
 .status-card {
   max-width: 500px;
   width: 100%;
-  background: white;
+  background: var(--color-surface);
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   padding: 40px 32px;
@@ -92,7 +92,7 @@ const iconName = computed(() => {
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 /* Loading state */
@@ -111,11 +111,11 @@ const iconName = computed(() => {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .loading-section p {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 1rem;
   margin: 0;
 }
@@ -129,14 +129,14 @@ const iconName = computed(() => {
   font-size: 1.8rem;
   font-weight: 700;
   margin-bottom: 16px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .result-section p {
   font-size: 1.1rem;
   line-height: 1.5;
   margin-bottom: 24px;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 /* Status icons */
@@ -214,10 +214,17 @@ const iconName = computed(() => {
   }
 }
 
+/* Accessibility: Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .status-card {
+    animation: none;
+  }
+}
+
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .status-card {
-    border: 3px solid #333;
+    border: 3px solid var(--color-text-primary);
   }
 }
 </style>

@@ -761,7 +761,7 @@ ion-back-button::part(native) {
 /* Calendar Link Card */
 .calendar-link-card {
   margin-top: var(--spacing-md);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   border-radius: var(--radius-md);
 }
 

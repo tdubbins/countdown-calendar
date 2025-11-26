@@ -315,7 +315,7 @@ const goToLogin = () => {
 
 /* Form styling */
 .register-form {
-  background: white;
+  background: var(--color-surface);
   padding: 32px 24px;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
@@ -357,15 +357,15 @@ const goToLogin = () => {
 }
 
 .success-message {
-  background: #d1f2d1;
-  color: #0f5132;
-  border: 1px solid #a3d977;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
 }
 
 .error-message {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
 }
 
 .message-icon {

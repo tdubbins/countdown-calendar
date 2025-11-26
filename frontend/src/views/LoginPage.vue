@@ -316,7 +316,7 @@ const goToRegister = () => {
 
 /* Form styling */
 .login-form {
-  background: white;
+  background: var(--color-surface);
   padding: 32px 24px;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
@@ -358,15 +358,15 @@ const goToRegister = () => {
 }
 
 .success-message {
-  background: #d1f2d1;
-  color: #0f5132;
-  border: 1px solid #a3d977;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
 }
 
 .error-message {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
 }
 
 .message-icon {
@@ -384,13 +384,13 @@ const goToRegister = () => {
 .resend-section {
   margin-top: 16px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background);
   border-radius: 12px;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border: 1px dashed var(--color-border);
 }
 
 .resend-text {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   margin: 0 0 12px 0;
   text-align: center;
@@ -412,18 +412,18 @@ const goToRegister = () => {
 
 .resend-success-message {
   margin-top: 12px;
-  background: rgba(209, 242, 209, 0.95);
-  color: #0f5132;
-  border: 1px solid #a3d977;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
   font-size: 0.9rem;
   padding: 12px;
 }
 
 .resend-error-message {
   margin-top: 12px;
-  background: rgba(248, 215, 218, 0.95);
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
   font-size: 0.9rem;
   padding: 12px;
 }

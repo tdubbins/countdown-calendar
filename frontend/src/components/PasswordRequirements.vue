@@ -75,9 +75,9 @@ defineExpose({
 .password-requirements {
   margin: 20px 0;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--color-background);
   border-radius: 12px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--color-border);
   animation: fadeInUp 0.6s ease-out;
 }
 
@@ -85,7 +85,7 @@ defineExpose({
   font-weight: 600;
   margin-bottom: 12px;
   font-size: 0.9rem;
-  color: #495057;
+  color: var(--color-text-primary);
 }
 
 .requirements-grid {
@@ -99,14 +99,14 @@ defineExpose({
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--color-text-secondary);
   padding: 4px 0;
   transition: all 0.3s ease;
 }
 
 .requirement ion-icon {
   font-size: 1rem;
-  color: #dee2e6;
+  color: var(--color-border);
 }
 
 .requirement-met {
@@ -124,12 +124,12 @@ defineExpose({
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #d1f2d1;
-  color: #0f5132;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
-  border: 1px solid #a3d977;
+  border: 1px solid var(--color-success-border);
   animation: fadeInScale 0.3s ease-out;
 }
 
@@ -157,6 +157,14 @@ defineExpose({
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Accessibility: Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .password-requirements,
+  .requirements-summary {
+    animation: none;
   }
 }
 </style>

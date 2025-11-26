@@ -470,7 +470,7 @@ const handleDrop = () => {
   right: clamp(0.25rem, 1vw, 0.5rem);
   font-size: clamp(1rem, 3vw, 1.25rem);
   color: var(--ion-color-success);
-  background: white;
+  background: var(--color-surface);
   border-radius: var(--radius-full);
   z-index: 2;
 }

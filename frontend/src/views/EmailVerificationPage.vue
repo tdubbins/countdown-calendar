@@ -275,13 +275,13 @@ onMounted(() => {
 .resend-container {
   margin-top: 24px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-background);
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border);
 }
 
 .resend-info {
-  color: #4a5568;
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   font-weight: 600;
   margin: 0 0 16px 0;
@@ -311,15 +311,15 @@ onMounted(() => {
 }
 
 .resend-message.success {
-  background: #d1f2d1;
-  color: #0f5132;
-  border: 1px solid #a3d977;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
 }
 
 .resend-message.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
 }
 
 .resend-message p {

@@ -45,11 +45,11 @@ withDefaults(defineProps<Props>(), {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
   border-radius: 8px;
   padding: 16px;
-  color: #c53030;
+  color: var(--color-error-text);
   font-weight: 500;
   margin-bottom: 20px;
 }
@@ -60,7 +60,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .help-section {
-  background: #f7fafc;
+  background: var(--color-background);
   border-radius: 8px;
   padding: 20px;
 }
@@ -69,7 +69,7 @@ withDefaults(defineProps<Props>(), {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .help-section ul {
@@ -79,7 +79,7 @@ withDefaults(defineProps<Props>(), {
 
 .help-section li {
   margin-bottom: 8px;
-  color: #555;
+  color: var(--color-text-secondary);
   line-height: 1.4;
 }
 
@@ -88,9 +88,9 @@ withDefaults(defineProps<Props>(), {
   .error-message {
     border-width: 2px;
   }
-  
+
   .help-section {
-    border: 2px solid #ccc;
+    border: 2px solid var(--color-border);
   }
 }
 </style>

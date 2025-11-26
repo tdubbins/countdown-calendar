@@ -474,7 +474,7 @@ const handleAccountDelete = async (password: string) => {
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .info-row {
