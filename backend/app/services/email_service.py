@@ -38,48 +38,47 @@ class EmailService:
         return token
     
     @staticmethod
-    def send_verification_email(email: str, token: str) -> Tuple[bool, str]:
-        """Send verification email using clean configuration and templates"""
+    def send_email(to_email: str, subject: str, body: str) -> Tuple[bool, str]:
+        """
+        Generic email sending function that can send any email template
+
+        Args:
+            to_email: Recipient email address
+            subject: Email subject line
+            body: Email body content
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
         try:
-            # Get frontend URL (no fallback - must be configured)
-            frontend_url = current_app.config.get('FRONTEND_URL')
-            if not frontend_url:
-                logger.error("FRONTEND_URL not configured")
-                return False, "Frontend URL not configured"
-            
-            verification_url = f"{frontend_url}/verify-email/{token}"
-            
             # Get clean email configuration
             email_config = current_app.config.get('EMAIL_CONFIG', {})
-            
+
             # Validate email configuration
             required_fields = ['server', 'username', 'password', 'sender']
             missing_fields = [field for field in required_fields if not email_config.get(field)]
             if missing_fields:
                 logger.error(f"Missing email configuration: {missing_fields}")
                 return False, f"Email configuration incomplete: {missing_fields}"
-            
-            # Generate email content using template
-            email_template = EmailTemplates.verification_email(verification_url)
-            
+
             # Create email message
             msg = MIMEMultipart()
             msg['From'] = email_config['sender']
-            msg['To'] = email
-            msg['Subject'] = email_template['subject']
-            msg.attach(MIMEText(email_template['body'], 'plain'))
-            
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
             # Send email using SMTP_SSL
             with smtplib.SMTP_SSL(
-                email_config['server'], 
+                email_config['server'],
                 email_config['port']
             ) as server:
                 server.login(email_config['username'], email_config['password'])
                 server.send_message(msg)
-            
-            logger.info(f"Verification email sent successfully to {email}")
-            return True, "Verification email sent successfully"
-            
+
+            logger.info(f"Email sent successfully to {to_email}")
+            return True, "Email sent successfully"
+
         except smtplib.SMTPAuthenticationError as e:
             logger.error(f"SMTP authentication failed: {e}")
             return False, "Email authentication failed"
@@ -89,6 +88,32 @@ class EmailService:
         except smtplib.SMTPException as e:
             logger.error(f"SMTP error: {e}")
             return False, f"Email sending failed: {str(e)}"
+        except Exception as e:
+            logger.error(f"Unexpected email error: {e}")
+            return False, "Email sending failed"
+
+    @staticmethod
+    def send_verification_email(email: str, token: str) -> Tuple[bool, str]:
+        """Send verification email using clean configuration and templates"""
+        try:
+            # Get frontend URL (no fallback - must be configured)
+            frontend_url = current_app.config.get('FRONTEND_URL')
+            if not frontend_url:
+                logger.error("FRONTEND_URL not configured")
+                return False, "Frontend URL not configured"
+
+            verification_url = f"{frontend_url}/verify-email/{token}"
+
+            # Generate email content using template
+            email_template = EmailTemplates.verification_email(verification_url)
+
+            # Use generic send_email function
+            return EmailService.send_email(
+                to_email=email,
+                subject=email_template['subject'],
+                body=email_template['body']
+            )
+
         except Exception as e:
             logger.error(f"Unexpected email error: {e}")
             return False, "Email sending failed"

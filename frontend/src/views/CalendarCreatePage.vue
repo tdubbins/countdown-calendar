@@ -2,10 +2,11 @@
   <ion-page>
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-buttons slot="start">
+        <!-- Desktop only: Back button -->
+        <ion-buttons v-if="!isMobile()" slot="start">
           <ion-back-button
             default-href="/calendar"
-            :text="isMobile() ? '' : 'Calendars'"
+            text="Calendars"
             aria-label="Back to calendar overview"
           ></ion-back-button>
         </ion-buttons>

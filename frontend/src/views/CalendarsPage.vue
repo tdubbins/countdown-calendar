@@ -4,7 +4,7 @@
       <ion-toolbar color="primary">
         <ion-title>Countdown Calendar</ion-title>
         <ion-buttons slot="end">
-          <!-- Desktop: Create button in header -->
+          <!-- Desktop: New button in header -->
           <ActionButton
             v-if="!isMobile()"
             @click="goToCreateCalendar"
@@ -18,17 +18,27 @@
           >
             New
           </ActionButton>
-          
-          <ActionButton 
-            @click="handleLogout" 
-            fill="clear" 
-            color="light" 
-            variant="secondary"
-            size="small"
-            aria-label="Logout from dashboard"
+
+          <!-- Desktop only: Profile and Help (mobile uses tab bar) -->
+          <ion-button
+            v-if="!isMobile()"
+            @click="goToProfile"
+            fill="clear"
+            color="light"
+            aria-label="View profile"
           >
-            🚪 Logout
-          </ActionButton>
+            <ion-icon slot="icon-only" :icon="personCircle"></ion-icon>
+          </ion-button>
+
+          <ion-button
+            v-if="!isMobile()"
+            @click="goToHelp"
+            fill="clear"
+            color="light"
+            aria-label="Help and support"
+          >
+            <ion-icon slot="icon-only" :icon="helpCircle"></ion-icon>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -101,19 +111,6 @@
           </template>
         </EmptyState>
 
-        <!-- Secondary Actions -->
-        <div class="secondary-actions">
-          <ActionButton
-            @click="goToHelp"
-            fill="clear"
-            color="medium"
-            variant="secondary"
-            :icon="helpCircle"
-            icon-slot="start"
-          >
-            Help & Support
-          </ActionButton>
-        </div>
       </div>
 
       <!-- Edit Calendar Modal - Same for Desktop & Mobile -->
@@ -142,30 +139,13 @@
         </ion-content>
       </ion-modal>
 
-      <!-- Mobile: Floating Action Button (NFR [U2]: 44px+ touch target for mobile) -->
-      <ion-fab
-        v-if="isMobile()"
-        slot="fixed"
-        vertical="bottom"
-        horizontal="end"
-        edge
-        class="fab-create"
-      >
-        <ion-fab-button
-          @click="goToCreateCalendar"
-          color="primary"
-          aria-label="Create new calendar"
-        >
-          <ion-icon name="add"></ion-icon>
-        </ion-fab-button>
-      </ion-fab>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { onMounted, watch, ref } from 'vue';
-import { chevronDownCircleOutline, add, helpCircle } from 'ionicons/icons';
+import { chevronDownCircleOutline, add, helpCircle, personCircle } from 'ionicons/icons';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
@@ -176,8 +156,6 @@ import {
   IonButtons,
   IonButton,
   IonModal,
-  IonFab,
-  IonFabButton,
   IonIcon,
   IonRefresher,
   IonRefresherContent,
@@ -197,7 +175,7 @@ import type { Calendar, CalendarCreateData } from '@/types/calendar';
 // Composables
 const router = useRouter();
 const route = useRoute();
-const { isAuthenticated, logout, redirectToLogin } = useAuth();
+const { isAuthenticated, redirectToLogin } = useAuth();
 const { calendars, isLoading, hasCalendars, loadCalendars, updateCalendar } = useCalendar();
 const { isMobile } = useResponsive();
 const { showSuccess } = useToast();
@@ -249,15 +227,6 @@ const loadUserCalendars = async () => {
   }
 };
 
-// Logout functionality
-const handleLogout = async () => {
-  // Blur the active element to prevent aria-hidden focus warning during page transition
-  if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur();
-  }
-  await logout();
-};
-
 // Navigation functions
 const goToCreateCalendar = () => {
   router.push('/calendar/create');
@@ -265,6 +234,10 @@ const goToCreateCalendar = () => {
 
 const openCalendar = (calendarId: string) => {
   router.push(`/calendar/${calendarId}/edit`);
+};
+
+const goToProfile = () => {
+  router.push('/profile');
 };
 
 const goToHelp = () => {
@@ -412,51 +385,6 @@ const closeEditModal = () => {
   margin-bottom: var(--spacing-lg);
 }
 
-/* Secondary actions */
-.secondary-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-2xl);
-  align-items: center;
-}
-
-/* Floating Action Button (NFR [U2]: Mobile-optimized touch target) */
-.fab-create {
-  --background: var(--brand-primary);
-  --color: white;
-
-  /* Positioning & spacing - safe from screen edges */
-  margin-bottom: 20px;  /* Space from bottom edge */
-  margin-right: 16px;   /* Space from right edge */
-
-  /* Ensure FAB stays on top of all content */
-  z-index: 999;
-
-  /* Enhanced visibility with shadow */
-  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.10);
-}
-
-/* FAB button size optimization for thumb reach */
-.fab-create ion-fab-button {
-  --size: 56px;  /* Standard Material Design FAB size (44px+ for NFR [U2]) */
-
-  /* Smooth interactions */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* Active state feedback */
-.fab-create ion-fab-button:active {
-  transform: scale(0.95);
-}
-
-/* Ensure adequate spacing from secondary actions */
-@media (max-width: 480px) {
-  .fab-create {
-    margin-bottom: 80px;  /* Extra space to avoid overlapping secondary actions */
-  }
-}
-
 /* Edit Modal Styling */
 .modal-content {
   --padding-top: var(--spacing-md);
@@ -486,12 +414,6 @@ const closeEditModal = () => {
   .calendars-grid {
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: var(--spacing-lg);
-  }
-  
-  .secondary-actions {
-    flex-direction: row;
-    gap: var(--spacing-md);
-    justify-content: center;
   }
 }
 

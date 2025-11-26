@@ -40,6 +40,11 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/profile',
+    component: () => import('@/views/ProfilePage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/help',
     component: () => import('@/views/HelpPage.vue'),
     meta: { requiresAuth: false }

@@ -18,7 +18,7 @@ const getBaseUrl = (): string => {
 const API_CONFIG = {
   // Base URL for all API requests
   BASE_URL: getBaseUrl(),
-  
+
   // Authentication endpoints
   AUTH: {
     REGISTER: '/auth/register',
@@ -28,7 +28,14 @@ const API_CONFIG = {
     VERIFY_EMAIL: '/auth/verify-email',
     RESEND_VERIFICATION: '/auth/resend-verification'
   },
-  
+
+  // User profile endpoints
+  USERS: {
+    PROFILE: '/users/profile',
+    PASSWORD: '/users/password',
+    ACCOUNT: '/users/account'
+  },
+
   // Calendar endpoints (for future use)
   CALENDARS: {
     LIST: '/calendars',
@@ -53,7 +60,12 @@ export const API_ENDPOINTS = {
   PROFILE: () => buildApiUrl(API_CONFIG.AUTH.PROFILE),
   VERIFY_EMAIL: (token: string) => buildApiUrl(`${API_CONFIG.AUTH.VERIFY_EMAIL}/${token}`),
   RESEND_VERIFICATION: () => buildApiUrl(API_CONFIG.AUTH.RESEND_VERIFICATION),
-  
+
+  // User Profile
+  UPDATE_PROFILE: () => buildApiUrl(API_CONFIG.USERS.PROFILE),
+  CHANGE_PASSWORD: () => buildApiUrl(API_CONFIG.USERS.PASSWORD),
+  DELETE_ACCOUNT: () => buildApiUrl(API_CONFIG.USERS.ACCOUNT),
+
   // Calendars
   CALENDARS_LIST: () => buildApiUrl(API_CONFIG.CALENDARS.LIST),
   CALENDARS_CREATE: () => buildApiUrl(API_CONFIG.CALENDARS.CREATE),

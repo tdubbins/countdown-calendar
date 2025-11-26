@@ -2,7 +2,8 @@
   <ion-page>
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-buttons slot="start">
+        <!-- Desktop only: Back button -->
+        <ion-buttons v-if="!isMobile()" slot="start">
           <ion-button @click="goBack" color="light">
             <ion-icon :icon="arrowBack" slot="start"></ion-icon>
             Back
@@ -500,8 +501,10 @@ import {
   IonLabel
 } from '@ionic/vue';
 import { arrowBack, mail } from 'ionicons/icons';
+import { useResponsive } from '@/composables/useResponsive';
 
 const router = useRouter();
+const { isMobile } = useResponsive();
 const supportEmail = 'countdown-calendars@dubbins.de';
 
 const goBack = () => {

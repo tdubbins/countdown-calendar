@@ -19,8 +19,8 @@ class AuthService:
     """Authentication business logic"""
     
     @staticmethod
-    def register_user(email: str, password: str, confirm_password: str) -> Tuple[bool, str, Optional[Dict]]:
-        """Register a new user"""
+    def register_user(email: str, password: str, confirm_password: str, display_name: Optional[str] = None) -> Tuple[bool, str, Optional[Dict]]:
+        """Register a new user with optional display name"""
         # Validate required fields
         is_valid, error = validate_required_fields(
             {'email': email, 'password': password, 'confirmPassword': confirm_password},
@@ -28,43 +28,44 @@ class AuthService:
         )
         if not is_valid:
             return False, error, None
-        
+
         # Validate email format
         is_valid, normalized_email, error = validate_email_address(email)
         if not is_valid:
             return False, error, None
-        
+
         # Validate passwords match
         is_valid, error = validate_passwords_match(password, confirm_password)
         if not is_valid:
             return False, error, None
-        
+
         # Validate password strength
         is_valid, error = validate_password_strength(password)
         if not is_valid:
             return False, error, None
-        
+
         # Check if email already exists
         existing_user = users_db.find_by_field('users', 'email', normalized_email.lower())
         if existing_user:
             return False, "Email address is already registered", None
-        
+
         # Create new user
         user_id = str(uuid.uuid4())
         password_hash = AuthService._hash_password(password)
-        
+
         user_data = {
             'id': user_id,
             'email': normalized_email,
             'password_hash': password_hash,
             'created_at': datetime.now().isoformat(),
             'email_verified': False,
-            'calendar_ids': []  # Initialize empty calendar_ids array
+            'calendar_ids': [],  # Initialize empty calendar_ids array
+            'display_name': display_name.strip() if display_name else None  # Optional display name
         }
-        
+
         # Save user to database
         users_db.create('users', user_id, user_data)
-        
+
         return True, "User registered successfully", {
             'user_id': user_id,
             'email': normalized_email
@@ -111,7 +112,8 @@ class AuthService:
                 'id': user['id'],
                 'email': user['email'],
                 'email_verified': user['email_verified'],
-                'created_at': user['created_at']
+                'created_at': user['created_at'],
+                'display_name': user.get('display_name')  # Include display name if present
             }
         }
     
@@ -125,7 +127,191 @@ class AuthService:
             user_copy.pop('password_hash', None)
             return user_copy
         return None
-    
+
+    @staticmethod
+    def update_user_profile(user_id: str, update_fields: Dict[str, Any]) -> Tuple[bool, str, Optional[Dict]]:
+        """
+        Update user profile information
+
+        Args:
+            user_id: User's unique identifier
+            update_fields: Dict containing fields to update (e.g., {'email': '...', 'display_name': '...'})
+
+        Returns:
+            Tuple of (success, message, result_data)
+        """
+        # Get current user
+        user = users_db.find_by_id('users', user_id)
+        if not user:
+            return False, "User not found", None
+
+        update_data = {}
+        changes = []
+
+        # Handle email update
+        if 'email' in update_fields:
+            email = update_fields['email']
+
+            if not email:
+                return False, "Email cannot be empty", None
+
+            if email != user.get('email'):
+                # Validate email format
+                is_valid, normalized_email, error = validate_email_address(email)
+                if not is_valid:
+                    return False, error, None
+
+                # Check if new email is already taken
+                existing_user = users_db.find_by_field('users', 'email', normalized_email.lower())
+                if existing_user and existing_user['id'] != user_id:
+                    return False, "Email address is already in use", None
+
+                update_data['email'] = normalized_email
+                changes.append('email')
+
+        # Handle display name update (can be None to clear it)
+        if 'display_name' in update_fields:
+            display_name = update_fields['display_name']
+            # Strip whitespace and convert empty strings to None
+            cleaned_display_name = display_name.strip() if display_name else None
+            current_display_name = user.get('display_name')
+
+            # Check if display name is actually changing
+            if cleaned_display_name != current_display_name:
+                update_data['display_name'] = cleaned_display_name
+                changes.append('display name')
+
+        # Check if there are any changes
+        if not update_data:
+            return False, "No changes detected", None
+
+        # Add updated timestamp
+        update_data['updated_at'] = datetime.now().isoformat()
+
+        # Update user in database
+        users_db.update('users', user_id, update_data)
+
+        # Get updated user data
+        updated_user = AuthService.get_user_by_id(user_id)
+
+        return True, "Profile updated successfully", {
+            'user': updated_user,
+            'changes': changes
+        }
+
+    @staticmethod
+    def change_user_password(user_id: str, current_password: str, new_password: str, confirm_password: str) -> Tuple[bool, str]:
+        """
+        Change user's password with current password verification
+
+        Args:
+            user_id: User's unique identifier
+            current_password: Current password for verification
+            new_password: New password to set
+            confirm_password: Confirmation of new password
+
+        Returns:
+            Tuple of (success, message)
+        """
+        # Get current user
+        user = users_db.find_by_id('users', user_id)
+        if not user:
+            return False, "User not found"
+
+        # Verify current password
+        if not AuthService._verify_password(user['password_hash'], current_password):
+            return False, "Current password is incorrect"
+
+        # Validate passwords match
+        is_valid, error = validate_passwords_match(new_password, confirm_password)
+        if not is_valid:
+            return False, error
+
+        # Validate new password strength
+        is_valid, error = validate_password_strength(new_password)
+        if not is_valid:
+            return False, error
+
+        # Check that new password is different from current
+        if AuthService._verify_password(user['password_hash'], new_password):
+            return False, "New password must be different from current password"
+
+        # Hash new password
+        new_password_hash = AuthService._hash_password(new_password)
+
+        # Update password in database
+        update_data = {
+            'password_hash': new_password_hash,
+            'password_changed_at': datetime.now().isoformat()
+        }
+        users_db.update('users', user_id, update_data)
+
+        return True, "Password changed successfully"
+
+    @staticmethod
+    def delete_user_account(user_id: str, password: str) -> Tuple[bool, str]:
+        """
+        Delete user account and ALL associated data (GDPR compliant)
+
+        Args:
+            user_id: User's unique identifier
+            password: Current password for verification
+
+        Returns:
+            Tuple of (success, message)
+        """
+        # Get current user
+        user = users_db.find_by_id('users', user_id)
+        if not user:
+            return False, "User not found"
+
+        # Verify password (security requirement)
+        if not AuthService._verify_password(user['password_hash'], password):
+            return False, "Password is incorrect"
+
+        # Import calendars_db for folder deletion
+        from app.utils.json_db import calendars_db, email_tokens_db, tasks_db
+
+        # 1. Delete all calendar folders (includes videos, thumbnails, meta.json)
+        calendar_ids = user.get('calendar_ids', [])
+        for calendar_id in calendar_ids:
+            try:
+                calendars_db.delete_calendar_folder(calendar_id)
+                print(f"Deleted calendar folder: {calendar_id}")
+            except Exception as e:
+                print(f"Warning: Failed to delete calendar {calendar_id}: {e}")
+                # Continue deletion process even if one calendar fails
+
+        # 2. Delete all email verification tokens for this user
+        try:
+            all_tokens = email_tokens_db.find_all('tokens')
+            for token_id, token_data in list(all_tokens.items()):
+                if token_data.get('user_id') == user_id:
+                    email_tokens_db.delete('tokens', token_id)
+                    print(f"Deleted email token: {token_id}")
+        except Exception as e:
+            print(f"Warning: Failed to delete email tokens: {e}")
+
+        # 3. Delete all background tasks for this user
+        try:
+            all_tasks = tasks_db.find_all('tasks')
+            for task_id, task_data in list(all_tasks.items()):
+                if task_data.get('user_id') == user_id:
+                    tasks_db.delete('tasks', task_id)
+                    print(f"Deleted task: {task_id}")
+        except Exception as e:
+            print(f"Warning: Failed to delete tasks: {e}")
+
+        # 4. Delete user record (last step - confirms complete deletion)
+        try:
+            users_db.delete('users', user_id)
+            print(f"Deleted user: {user_id}")
+        except Exception as e:
+            print(f"Error: Failed to delete user record: {e}")
+            return False, "Failed to delete user account"
+
+        return True, "Account deleted successfully"
+
     @staticmethod
     def verify_jwt_token(token: str) -> Tuple[Optional[Dict], Optional[str]]:
         """Verify and decode JWT token"""
