@@ -1,6 +1,10 @@
 # Build stage
 FROM node:18-alpine AS build
 
+# Build argument for API URL (passed from docker-compose)
+ARG VUE_APP_API_BASE_URL=http://localhost:5001/api
+ENV VUE_APP_API_BASE_URL=$VUE_APP_API_BASE_URL
+
 WORKDIR /app
 
 # Copy package files
@@ -12,7 +16,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build for production
+# Build for production (environment variable is baked into the build)
 RUN npm run build
 
 # Production stage
