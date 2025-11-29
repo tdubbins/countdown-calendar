@@ -40,7 +40,7 @@ This guide covers deploying the Countdown Calendar App to a Linux server with Do
 |---------|-------|
 | Timezone | UTC (Europe/London) |
 | SSH | Key-only (password disabled) |
-| Firewall | Ports 80, 443 open |
+| Firewall | Ports 22, 80, 443 open |
 
 ## Server Setup
 
