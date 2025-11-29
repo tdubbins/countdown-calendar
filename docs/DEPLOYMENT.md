@@ -34,6 +34,14 @@ This guide covers deploying the Countdown Calendar App to a Linux server with Do
 - Caddy installed
 - Domain pointed to server IP
 
+## Server Configuration
+
+| Setting | Value |
+|---------|-------|
+| Timezone | UTC (Europe/London) |
+| SSH | Key-only (password disabled) |
+| Firewall | Ports 80, 443 open |
+
 ## Server Setup
 
 ### 1. Install Docker
