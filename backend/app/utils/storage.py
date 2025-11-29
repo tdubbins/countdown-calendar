@@ -1,9 +1,6 @@
 """
 Video and thumbnail storage utilities for per-calendar file management.
 
-This module provides secure file path resolution, directory management,
-and cleanup utilities for user-uploaded videos and generated thumbnails.
-
 Storage Structure:
 - Videos: /backend/data/calendars/{calendar_id}/videos/day_{day}.mp4
 - Thumbnails: /backend/data/calendars/{calendar_id}/thumbnails/day_{day}_thumb.jpg
@@ -11,6 +8,7 @@ Storage Structure:
 
 import os
 import shutil
+import uuid
 from pathlib import Path
 from typing import Tuple, Optional, List
 import logging
@@ -23,97 +21,64 @@ CALENDARS_BASE_DIR = BACKEND_ROOT / "data" / "calendars"
 
 
 def _sanitize_path_component(component: str) -> str:
-    """
-    Sanitize a path component to prevent directory traversal attacks.
+    """Validate calendar_id is a valid UUID format"""
+    if not component:
+        raise ValueError("Path component cannot be empty")
 
-    Args:
-        component: Path component to sanitize (calendar_id or day)
+    component = str(component).strip()
 
-    Returns:
-        Sanitized component safe for file system use
+    try:
+        uuid.UUID(component)
+        return component
+    except ValueError:
+        raise ValueError(f"Invalid calendar ID format: {component}")
 
-    Raises:
-        ValueError: If component contains invalid characters
-    """
-    # Remove any path separators or parent directory references
-    sanitized = str(component).replace("/", "").replace("\\", "").replace("..", "")
 
-    if not sanitized or sanitized != str(component):
-        raise ValueError(f"Invalid path component: {component}")
+def _validate_path_containment(path: Path, base_dir: Path) -> Path:
+    """Validate path stays within base directory"""
+    resolved_base = base_dir.resolve()
+    resolved_path = path.resolve()
 
-    return sanitized
+    if not str(resolved_path).startswith(str(resolved_base) + os.sep) and resolved_path != resolved_base:
+        raise ValueError("Path traversal detected")
+
+    return resolved_path
 
 
 def get_video_path(calendar_id: str, day: int) -> Path:
-    """
-    Get the file path for a video file.
-
-    Args:
-        calendar_id: Calendar ID
-        day: Day number (1-31)
-
-    Returns:
-        Path object for the video file
-
-    Raises:
-        ValueError: If any parameter contains invalid characters
-    """
+    """Get the file path for a video file"""
     calendar_id = _sanitize_path_component(calendar_id)
 
     if not 1 <= day <= 31:
         raise ValueError(f"Day must be between 1 and 31, got {day}")
 
-    return CALENDARS_BASE_DIR / calendar_id / "videos" / f"day_{day}.mp4"
+    path = CALENDARS_BASE_DIR / calendar_id / "videos" / f"day_{day}.mp4"
+    return _validate_path_containment(path, CALENDARS_BASE_DIR)
 
 
 def get_thumbnail_path(calendar_id: str, day: int) -> Path:
-    """
-    Get the file path for a video thumbnail.
-
-    Args:
-        calendar_id: Calendar ID
-        day: Day number (1-31)
-
-    Returns:
-        Path object for the thumbnail file
-
-    Raises:
-        ValueError: If any parameter contains invalid characters
-    """
+    """Get the file path for a video thumbnail"""
     calendar_id = _sanitize_path_component(calendar_id)
 
     if not 1 <= day <= 31:
         raise ValueError(f"Day must be between 1 and 31, got {day}")
 
-    return CALENDARS_BASE_DIR / calendar_id / "thumbnails" / f"day_{day}_thumb.jpg"
+    path = CALENDARS_BASE_DIR / calendar_id / "thumbnails" / f"day_{day}_thumb.jpg"
+    return _validate_path_containment(path, CALENDARS_BASE_DIR)
 
 
 def get_calendar_video_dir(calendar_id: str) -> Path:
-    """
-    Get the directory containing all videos for a calendar.
-
-    Args:
-        calendar_id: Calendar ID
-
-    Returns:
-        Path object for the calendar's video directory
-    """
+    """Get the directory containing all videos for a calendar"""
     calendar_id = _sanitize_path_component(calendar_id)
-    return CALENDARS_BASE_DIR / calendar_id / "videos"
+    path = CALENDARS_BASE_DIR / calendar_id / "videos"
+    return _validate_path_containment(path, CALENDARS_BASE_DIR)
 
 
 def get_calendar_thumbnail_dir(calendar_id: str) -> Path:
-    """
-    Get the directory containing all thumbnails for a calendar.
-
-    Args:
-        calendar_id: Calendar ID
-
-    Returns:
-        Path object for the calendar's thumbnail directory
-    """
+    """Get the directory containing all thumbnails for a calendar"""
     calendar_id = _sanitize_path_component(calendar_id)
-    return CALENDARS_BASE_DIR / calendar_id / "thumbnails"
+    path = CALENDARS_BASE_DIR / calendar_id / "thumbnails"
+    return _validate_path_containment(path, CALENDARS_BASE_DIR)
 
 
 def delete_video_file(calendar_id: str, day: int) -> bool:

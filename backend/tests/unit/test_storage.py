@@ -2,6 +2,7 @@
 Unit tests for video storage utilities
 Tests file path generation, cleanup functions, and security
 Updated for per-calendar folder structure (no user_id in paths)
+Updated to use valid UUID format for calendar IDs (security requirement)
 """
 
 import unittest
@@ -17,6 +18,10 @@ if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
 from app.utils import storage
+
+# Valid UUID for testing (must use real UUIDs since security update)
+TEST_CALENDAR_ID = "550e8400-e29b-41d4-a716-446655440000"
+TEST_CALENDAR_ID_2 = "550e8400-e29b-41d4-a716-446655440001"
 
 
 class TestStorageUtilities(unittest.TestCase):
@@ -41,11 +46,11 @@ class TestStorageUtilities(unittest.TestCase):
 
     def test_get_video_path_creates_directory(self):
         """Test that get_video_path returns correct path"""
-        path = storage.get_video_path("cal456", 1)
+        path = storage.get_video_path(TEST_CALENDAR_ID, 1)
 
         # Verify path structure
         self.assertEqual(path.name, "day_1.mp4")
-        self.assertIn("cal456", str(path))
+        self.assertIn(TEST_CALENDAR_ID, str(path))
         self.assertIn("videos", str(path))
 
         # Create directory and verify it works
@@ -62,7 +67,7 @@ class TestStorageUtilities(unittest.TestCase):
 
         for day, expected_name in test_cases:
             with self.subTest(day=day):
-                path = storage.get_video_path("cal456", day)
+                path = storage.get_video_path(TEST_CALENDAR_ID, day)
                 self.assertEqual(path.name, expected_name)
 
     def test_get_video_path_invalid_day(self):
@@ -72,7 +77,7 @@ class TestStorageUtilities(unittest.TestCase):
         for day in invalid_days:
             with self.subTest(day=day):
                 with self.assertRaises(ValueError):
-                    storage.get_video_path("cal456", day)
+                    storage.get_video_path(TEST_CALENDAR_ID, day)
 
     def test_get_video_path_sanitization(self):
         """Test path sanitization prevents directory traversal"""
@@ -90,11 +95,11 @@ class TestStorageUtilities(unittest.TestCase):
 
     def test_get_thumbnail_path_creates_directory(self):
         """Test that get_thumbnail_path returns correct path"""
-        path = storage.get_thumbnail_path("cal456", 1)
+        path = storage.get_thumbnail_path(TEST_CALENDAR_ID, 1)
 
         # Verify path structure
         self.assertEqual(path.name, "day_1_thumb.jpg")
-        self.assertIn("cal456", str(path))
+        self.assertIn(TEST_CALENDAR_ID, str(path))
         self.assertIn("thumbnails", str(path))
 
         # Create directory and verify it works
@@ -111,23 +116,23 @@ class TestStorageUtilities(unittest.TestCase):
 
         for day, expected_name in test_cases:
             with self.subTest(day=day):
-                path = storage.get_thumbnail_path("cal456", day)
+                path = storage.get_thumbnail_path(TEST_CALENDAR_ID, day)
                 self.assertEqual(path.name, expected_name)
 
     def test_multi_tenant_isolation(self):
         """Test that different calendars have isolated directories"""
-        cal1_path = storage.get_video_path("cal1", 1)
-        cal2_path = storage.get_video_path("cal2", 1)
+        cal1_path = storage.get_video_path(TEST_CALENDAR_ID, 1)
+        cal2_path = storage.get_video_path(TEST_CALENDAR_ID_2, 1)
 
         self.assertNotEqual(cal1_path.parent, cal2_path.parent)
-        self.assertIn("cal1", str(cal1_path))
-        self.assertIn("cal2", str(cal2_path))
+        self.assertIn(TEST_CALENDAR_ID, str(cal1_path))
+        self.assertIn(TEST_CALENDAR_ID_2, str(cal2_path))
 
     def test_delete_video_file_removes_both_files(self):
         """Test delete_video_file removes both video and thumbnail"""
         # Create dummy files
-        video_path = storage.get_video_path("cal456", 5)
-        thumbnail_path = storage.get_thumbnail_path("cal456", 5)
+        video_path = storage.get_video_path(TEST_CALENDAR_ID, 5)
+        thumbnail_path = storage.get_thumbnail_path(TEST_CALENDAR_ID, 5)
 
         # Create directories first
         video_path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,7 +146,7 @@ class TestStorageUtilities(unittest.TestCase):
         self.assertTrue(thumbnail_path.exists())
 
         # Delete
-        result = storage.delete_video_file("cal456", 5)
+        result = storage.delete_video_file(TEST_CALENDAR_ID, 5)
 
         # Verify deletion
         self.assertTrue(result)
@@ -150,19 +155,19 @@ class TestStorageUtilities(unittest.TestCase):
 
     def test_delete_video_file_nonexistent(self):
         """Test delete_video_file handles nonexistent files gracefully"""
-        result = storage.delete_video_file("cal456", 5)
+        result = storage.delete_video_file(TEST_CALENDAR_ID, 5)
         self.assertFalse(result)  # Should return False when nothing to delete
 
     def test_delete_calendar_files_removes_directory(self):
         """Test delete_calendar_files removes video and thumbnail subdirectories"""
         # Create directory structure
-        calendar_dir = storage.CALENDARS_BASE_DIR / "cal456"
+        calendar_dir = storage.CALENDARS_BASE_DIR / TEST_CALENDAR_ID
         calendar_dir.mkdir(parents=True, exist_ok=True)
 
         # Create multiple video files
         for day in [1, 2, 3]:
-            video_path = storage.get_video_path("cal456", day)
-            thumbnail_path = storage.get_thumbnail_path("cal456", day)
+            video_path = storage.get_video_path(TEST_CALENDAR_ID, day)
+            thumbnail_path = storage.get_thumbnail_path(TEST_CALENDAR_ID, day)
 
             video_path.parent.mkdir(parents=True, exist_ok=True)
             thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
@@ -170,15 +175,15 @@ class TestStorageUtilities(unittest.TestCase):
             video_path.touch()
             thumbnail_path.touch()
 
-        video_dir = storage.get_calendar_video_dir("cal456")
-        thumbnail_dir = storage.get_calendar_thumbnail_dir("cal456")
+        video_dir = storage.get_calendar_video_dir(TEST_CALENDAR_ID)
+        thumbnail_dir = storage.get_calendar_thumbnail_dir(TEST_CALENDAR_ID)
 
         # Verify directories exist
         self.assertTrue(video_dir.exists())
         self.assertTrue(thumbnail_dir.exists())
 
         # Delete calendar files (videos and thumbnails subdirectories)
-        result = storage.delete_calendar_files("cal456")
+        result = storage.delete_calendar_files(TEST_CALENDAR_ID)
 
         # Verify deletion of subdirectories
         self.assertTrue(result)
@@ -190,16 +195,16 @@ class TestStorageUtilities(unittest.TestCase):
         """Test storage size calculation"""
         # Create test files with known sizes
         for day in [1, 2, 3]:
-            video_path = storage.get_video_path("cal456", day)
+            video_path = storage.get_video_path(TEST_CALENDAR_ID, day)
             video_path.parent.mkdir(parents=True, exist_ok=True)
             video_path.write_bytes(b"x" * 1000)  # 1000 bytes each
 
-        size = storage.get_calendar_storage_size("cal456")
+        size = storage.get_calendar_storage_size(TEST_CALENDAR_ID)
         self.assertEqual(size, 3000)  # 3 files * 1000 bytes
 
     def test_get_calendar_storage_size_empty(self):
         """Test storage size for calendar with no videos"""
-        size = storage.get_calendar_storage_size("cal456")
+        size = storage.get_calendar_storage_size(TEST_CALENDAR_ID)
         self.assertEqual(size, 0)
 
     def test_list_calendar_videos(self):
@@ -207,18 +212,18 @@ class TestStorageUtilities(unittest.TestCase):
         # Create videos for specific days
         days = [1, 5, 10, 15]
         for day in days:
-            video_path = storage.get_video_path("cal456", day)
+            video_path = storage.get_video_path(TEST_CALENDAR_ID, day)
             video_path.parent.mkdir(parents=True, exist_ok=True)
             video_path.touch()
 
-        result = storage.list_calendar_videos("cal456")
+        result = storage.list_calendar_videos(TEST_CALENDAR_ID)
 
         self.assertEqual(sorted(result), sorted(days))
         self.assertIsInstance(result, list)
 
     def test_list_calendar_videos_empty(self):
         """Test listing videos for calendar with no videos"""
-        result = storage.list_calendar_videos("cal456")
+        result = storage.list_calendar_videos(TEST_CALENDAR_ID)
         self.assertEqual(result, [])
 
     def test_ensure_upload_directories(self):
@@ -235,16 +240,18 @@ class TestStorageUtilities(unittest.TestCase):
 
     def test_get_calendar_video_dir(self):
         """Test get_calendar_video_dir returns correct path"""
-        video_dir = storage.get_calendar_video_dir("cal789")
+        video_dir = storage.get_calendar_video_dir(TEST_CALENDAR_ID)
 
-        expected_path = storage.CALENDARS_BASE_DIR / "cal789" / "videos"
+        # Use resolve() for comparison since security code returns resolved paths
+        expected_path = (storage.CALENDARS_BASE_DIR / TEST_CALENDAR_ID / "videos").resolve()
         self.assertEqual(video_dir, expected_path)
 
     def test_get_calendar_thumbnail_dir(self):
         """Test get_calendar_thumbnail_dir returns correct path"""
-        thumbnail_dir = storage.get_calendar_thumbnail_dir("cal789")
+        thumbnail_dir = storage.get_calendar_thumbnail_dir(TEST_CALENDAR_ID)
 
-        expected_path = storage.CALENDARS_BASE_DIR / "cal789" / "thumbnails"
+        # Use resolve() for comparison since security code returns resolved paths
+        expected_path = (storage.CALENDARS_BASE_DIR / TEST_CALENDAR_ID / "thumbnails").resolve()
         self.assertEqual(thumbnail_dir, expected_path)
 
 
