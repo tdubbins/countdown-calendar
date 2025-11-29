@@ -2,11 +2,14 @@
 import re
 import os
 import subprocess
+import uuid
 from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
 from typing import Tuple, Optional, List
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+import bleach
 
 # ============================================================================
 # Constants
@@ -14,6 +17,25 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Valid door ordering options for calendar sharing
 VALID_DOOR_ORDERS = ['sequential', 'random']
+
+
+# ============================================================================
+# Security Validation Functions
+# ============================================================================
+
+def validate_calendar_id(calendar_id: str) -> Tuple[bool, str, str]:
+    """Validate calendar ID is a valid UUID format"""
+    if not calendar_id or not calendar_id.strip():
+        return False, "", "Calendar ID is required"
+
+    clean_id = calendar_id.strip()
+
+    try:
+        uuid.UUID(clean_id)
+        return True, clean_id, ""
+    except ValueError:
+        return False, "", "Invalid calendar ID format"
+
 
 def validate_email_address(email: str) -> Tuple[bool, str, str]:
     """Validate email address format"""
@@ -81,34 +103,15 @@ def validate_calendar_title(title: str) -> Tuple[bool, str, str]:
     return True, title, ""
 
 def validate_calendar_description(description: str) -> Tuple[bool, str, str]:
-    """
-    Validate and sanitize calendar description.
-
-    Args:
-        description: Calendar description string (optional)
-
-    Returns:
-        Tuple of (is_valid, clean_description, error_message)
-    """
+    """Validate and sanitize calendar description"""
     # Description is optional, empty is valid
     if not description or not description.strip():
         return True, "", ""
 
     description = description.strip()
 
-    # Remove HTML tags and dangerous characters for XSS prevention
-    import re
-
-    # Remove HTML tags
-    clean_desc = re.sub(r'<[^>]*>', '', description)
-
-    # Remove JavaScript protocol handlers
-    clean_desc = re.sub(r'javascript:', '', clean_desc, flags=re.IGNORECASE)
-    clean_desc = re.sub(r'data:', '', clean_desc, flags=re.IGNORECASE)
-    clean_desc = re.sub(r'vbscript:', '', clean_desc, flags=re.IGNORECASE)
-
-    # Remove event handler attributes
-    clean_desc = re.sub(r'on\w+\s*=', '', clean_desc, flags=re.IGNORECASE)
+    # Sanitize HTML to prevent XSS
+    clean_desc = bleach.clean(description, tags=[], strip=True)
 
     # Validate length after sanitization
     if len(clean_desc) > 500:
@@ -388,18 +391,18 @@ def validate_video_day_number(day: int, calendar_duration: int) -> Tuple[bool, s
 
 
 def validate_video_duration(video_path: str, max_duration_seconds: int = 180) -> Tuple[bool, Optional[float], str]:
-    """
-    Validate video duration using FFprobe.
-
-    Args:
-        video_path: Path to the video file to validate
-        max_duration_seconds: Maximum allowed duration (default: 180 seconds)
-
-    Returns:
-        Tuple of (is_valid, duration_seconds, error_message)
-    """
+    """Validate video duration using FFprobe"""
     if not os.path.exists(video_path):
         return False, None, "Video file not found"
+
+    # Verify path is within calendars directory
+    from app.utils.constants import StoragePaths
+
+    resolved_path = Path(video_path).resolve()
+    expected_base = Path(StoragePaths.CALENDARS_DIR).resolve()
+
+    if not str(resolved_path).startswith(str(expected_base) + os.sep):
+        return False, None, "Invalid video path"
 
     try:
         # Check if ffprobe is available

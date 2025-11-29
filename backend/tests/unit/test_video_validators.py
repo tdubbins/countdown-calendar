@@ -152,25 +152,32 @@ class TestVideoValidators(unittest.TestCase):
         self.assertIn("not found", error)
 
     def test_validate_video_duration_ffprobe_not_installed(self):
-        """Test graceful handling when FFprobe not installed"""
+        """Test graceful handling when FFprobe not installed or path validation fails"""
         # Create a temporary empty file
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
             tmp_path = tmp.name
 
         try:
-            # This will likely fail because the file isn't a valid video,
+            # This will likely fail because:
+            # 1. The file path is outside CALENDARS_DIR (security validation)
+            # 2. The file isn't a valid video
             # OR it will succeed if FFprobe isn't installed (returns True, None, "")
             valid, duration, error = validators.validate_video_duration(tmp_path)
 
-            # Either it's valid (FFprobe not installed) or invalid (file not valid video)
-            # Both are acceptable outcomes
+            # Accept multiple outcomes:
+            # 1. Valid (FFprobe not installed)
+            # 2. Invalid path (security validation - temp file outside calendars dir)
+            # 3. Invalid metadata (FFprobe installed but file invalid)
             if valid:
                 # FFprobe not installed - should return (True, None, "")
                 self.assertIsNone(duration)
                 self.assertEqual(error, "")
             else:
-                # FFprobe installed but file invalid
-                self.assertIn("metadata", error.lower())
+                # Either path validation failed or FFprobe found invalid file
+                self.assertTrue(
+                    "invalid video path" in error.lower() or "metadata" in error.lower(),
+                    f"Expected 'invalid video path' or 'metadata' in error, got: {error}"
+                )
 
         finally:
             # Clean up temp file

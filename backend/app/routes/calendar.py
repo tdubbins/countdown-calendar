@@ -18,6 +18,7 @@ from app.services.calendar_service import (
 )
 from app.services.auth_service import AuthService
 from app.utils.validators import (
+    validate_calendar_id,
     validate_video_file_type,
     validate_video_file_size,
     validate_video_day_number,
@@ -111,11 +112,11 @@ def get_calendar(calendar_id):
     - Returns isOwner flag if viewer owns calendar
     """
     try:
-        # Validate calendar ID format
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({
-                'error': 'Invalid calendar ID'
-            }), 400
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get optional authentication - extract user_id from JWT
         viewer_user_id = None
@@ -131,7 +132,7 @@ def get_calendar(calendar_id):
 
         # Get calendar using public access service layer
         success, calendar_data, error_message = get_public_calendar(
-            calendar_id.strip(),
+            calendar_id,
             viewer_user_id
         )
         
@@ -192,15 +193,14 @@ def update_calendar(calendar_id):
         theme = data.get('theme')
         timezone = data.get('timezone')
 
-        # Validate calendar ID format
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({
-                'error': 'Invalid calendar ID'
-            }), 400
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
 
         # Update calendar using service layer
         success, calendar_data, error_message = update_calendar_service(
-            calendar_id=calendar_id.strip(),
+            calendar_id=clean_id,
             user_id=request.current_user['user_id'],
             title=title,
             description=description,
@@ -243,15 +243,14 @@ def update_calendar(calendar_id):
 def delete_calendar(calendar_id):
     """Delete a specific calendar for the authenticated user"""
     try:
-        # Validate calendar ID format
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({
-                'error': 'Invalid calendar ID'
-            }), 400
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
 
         # Delete calendar using service layer
         success, error_message = delete_calendar_service(
-            calendar_id.strip(),
+            clean_id,
             request.current_user['user_id']
         )
 
@@ -283,15 +282,14 @@ def publish_calendar_route(calendar_id):
     try:
         user_id = request.current_user['user_id']
 
-        # Validate calendar ID format
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({
-                'error': 'Invalid calendar ID'
-            }), 400
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
 
         # Publish calendar using service layer
         success, error_message = publish_calendar(
-            calendar_id.strip(),
+            clean_id,
             user_id
         )
 
@@ -325,15 +323,14 @@ def unpublish_calendar_route(calendar_id):
     try:
         user_id = request.current_user['user_id']
 
-        # Validate calendar ID format
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({
-                'error': 'Invalid calendar ID'
-            }), 400
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
 
         # Unpublish calendar using service layer
         success, error_message = unpublish_calendar(
-            calendar_id.strip(),
+            clean_id,
             user_id
         )
 
@@ -372,15 +369,15 @@ def upload_video(calendar_id):
     try:
         user_id = request.current_user['user_id']
 
-        # Validate calendar ID format
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({
-                'error': 'Invalid calendar ID'
-            }), 400
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
-            calendar_id.strip(),
+            calendar_id,
             user_id
         )
 
@@ -519,12 +516,14 @@ def list_videos(calendar_id):
         user_id = request.current_user['user_id']
 
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
-            calendar_id.strip(),
+            calendar_id,
             user_id
         )
 
@@ -578,12 +577,14 @@ def get_video_metadata(calendar_id, day):
         user_id = request.current_user['user_id']
 
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
-            calendar_id.strip(),
+            calendar_id,
             user_id
         )
 
@@ -631,12 +632,14 @@ def get_video_status(calendar_id, day):
         user_id = request.current_user['user_id']
 
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
-            calendar_id.strip(),
+            calendar_id,
             user_id
         )
 
@@ -712,8 +715,10 @@ def get_video_thumbnail(calendar_id, day):
     """
     try:
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get optional authentication to check ownership
         viewer_user_id = None
@@ -729,7 +734,7 @@ def get_video_thumbnail(calendar_id, day):
 
         # Get calendar using public access (checks published status and ownership)
         success, calendar_data, error_message = get_public_calendar(
-            calendar_id.strip(),
+            calendar_id,
             viewer_user_id
         )
 
@@ -779,8 +784,10 @@ def stream_video(calendar_id, day):
     """
     try:
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get optional authentication to check ownership
         viewer_user_id = None
@@ -796,7 +803,7 @@ def stream_video(calendar_id, day):
 
         # Get calendar using public access (checks published status and ownership)
         success, calendar_data, error_message = get_public_calendar(
-            calendar_id.strip(),
+            calendar_id,
             viewer_user_id
         )
 
@@ -845,12 +852,14 @@ def delete_video(calendar_id, day):
         user_id = request.current_user['user_id']
 
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
-            calendar_id.strip(),
+            calendar_id,
             user_id
         )
 
@@ -915,8 +924,10 @@ def reassign_video(calendar_id):
         user_id = request.current_user['user_id']
 
         # Validate calendar ID
-        if not calendar_id or not calendar_id.strip():
-            return jsonify({'error': 'Invalid calendar ID'}), 400
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
 
         # Get request data
         data = request.get_json()
@@ -943,7 +954,7 @@ def reassign_video(calendar_id):
 
         # Get calendar and verify ownership
         success, calendar_data, error_message = get_calendar_by_id(
-            calendar_id.strip(),
+            calendar_id,
             user_id
         )
 

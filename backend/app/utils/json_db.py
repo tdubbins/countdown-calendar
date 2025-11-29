@@ -1,6 +1,8 @@
 # JSON Database Operations
 import json
 import os
+import uuid
+from pathlib import Path
 from typing import Dict, Any, Optional
 from app.utils.constants import StoragePaths
 
@@ -96,18 +98,41 @@ class JSONDatabase:
 
 # Calendar-specific file operations
 class CalendarDatabase:
-    """Per-calendar folder-based database operations"""
+    """Per-calendar folder-based database operations with path traversal protection"""
 
     CALENDARS_DIR = StoragePaths.CALENDARS_DIR
+
+    @classmethod
+    def _validate_calendar_path(cls, calendar_id: str) -> Path:
+        """Validate calendar_id and return safe path within CALENDARS_DIR"""
+        # Validate UUID format
+        try:
+            uuid.UUID(calendar_id)
+        except ValueError:
+            raise ValueError(f"Invalid calendar ID format: {calendar_id}")
+
+        # Verify path stays within base directory
+        base_dir = Path(cls.CALENDARS_DIR).resolve()
+        target_path = (base_dir / calendar_id).resolve()
+
+        if not str(target_path).startswith(str(base_dir) + os.sep) and target_path != base_dir:
+            raise ValueError("Invalid calendar ID: path traversal detected")
+
+        return target_path
 
     @classmethod
     def read_calendar_meta(cls, calendar_id: str) -> Optional[Dict[str, Any]]:
         """Read calendar meta.json file"""
         try:
-            meta_path = os.path.join(cls.CALENDARS_DIR, calendar_id, 'meta.json')
-            if os.path.exists(meta_path):
+            calendar_dir = cls._validate_calendar_path(calendar_id)
+            meta_path = calendar_dir / 'meta.json'
+
+            if meta_path.exists():
                 with open(meta_path, 'r') as f:
                     return json.load(f)
+            return None
+        except ValueError as e:
+            print(f"Invalid calendar ID: {e}")
             return None
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading calendar {calendar_id}: {e}")
@@ -117,13 +142,16 @@ class CalendarDatabase:
     def write_calendar_meta(cls, calendar_id: str, data: Dict[str, Any]) -> bool:
         """Write calendar meta.json file"""
         try:
-            calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
-            os.makedirs(calendar_dir, exist_ok=True)
+            calendar_dir = cls._validate_calendar_path(calendar_id)
+            calendar_dir.mkdir(parents=True, exist_ok=True)
 
-            meta_path = os.path.join(calendar_dir, 'meta.json')
+            meta_path = calendar_dir / 'meta.json'
             with open(meta_path, 'w') as f:
                 json.dump(data, f, indent=2)
             return True
+        except ValueError as e:
+            print(f"Invalid calendar ID: {e}")
+            return False
         except Exception as e:
             print(f"Error writing calendar {calendar_id}: {e}")
             return False
@@ -143,10 +171,14 @@ class CalendarDatabase:
         """Delete entire calendar folder"""
         try:
             import shutil
-            calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
-            if os.path.exists(calendar_dir):
+            calendar_dir = cls._validate_calendar_path(calendar_id)
+
+            if calendar_dir.exists():
                 shutil.rmtree(calendar_dir)
                 return True
+            return False
+        except ValueError as e:
+            print(f"Invalid calendar ID: {e}")
             return False
         except Exception as e:
             print(f"Error deleting calendar {calendar_id}: {e}")
@@ -155,18 +187,24 @@ class CalendarDatabase:
     @classmethod
     def calendar_exists(cls, calendar_id: str) -> bool:
         """Check if calendar folder exists"""
-        calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
-        return os.path.exists(calendar_dir) and os.path.isdir(calendar_dir)
+        try:
+            calendar_dir = cls._validate_calendar_path(calendar_id)
+            return calendar_dir.exists() and calendar_dir.is_dir()
+        except ValueError:
+            return False
 
     @classmethod
     def create_calendar_structure(cls, calendar_id: str) -> bool:
         """Create calendar folder structure (folder, meta.json, subfolders)"""
         try:
-            calendar_dir = os.path.join(cls.CALENDARS_DIR, calendar_id)
-            os.makedirs(calendar_dir, exist_ok=True)
-            os.makedirs(os.path.join(calendar_dir, 'videos'), exist_ok=True)
-            os.makedirs(os.path.join(calendar_dir, 'thumbnails'), exist_ok=True)
+            calendar_dir = cls._validate_calendar_path(calendar_id)
+            calendar_dir.mkdir(parents=True, exist_ok=True)
+            (calendar_dir / 'videos').mkdir(exist_ok=True)
+            (calendar_dir / 'thumbnails').mkdir(exist_ok=True)
             return True
+        except ValueError as e:
+            print(f"Invalid calendar ID: {e}")
+            return False
         except Exception as e:
             print(f"Error creating calendar structure {calendar_id}: {e}")
             return False
