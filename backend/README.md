@@ -51,10 +51,6 @@ EMAIL_PASSWORD=your-email-password
 MAIL_DEFAULT_SENDER=Calendar App <noreply@yourdomain.com>
 MAIL_USE_TLS=True
 MAIL_USE_SSL=False
-
-# URLs (auto-detected in development)
-# FRONTEND_URL=http://localhost:8080
-# BACKEND_URL=http://localhost:5001
 ```
 
 See `.env.example` for all available options.
