@@ -335,7 +335,7 @@ class AuthService:
         return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash.encode('utf-8'))
     
     @staticmethod
-    def resend_verification_email(email: str) -> Tuple[bool, str]:
+    def resend_verification_email(email: str, frontend_url: str = None) -> Tuple[bool, str]:
         """Resend verification email to unverified user"""
         # Validate email format
         is_valid, normalized_email, error = validate_email_address(email)
@@ -378,7 +378,8 @@ class AuthService:
         )
         email_sent, email_message = EmailService.send_verification_email(
             user['email'],
-            verification_token
+            verification_token,
+            frontend_url=frontend_url
         )
 
         # Update rate limiting tracking

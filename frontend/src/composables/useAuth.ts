@@ -91,7 +91,12 @@ export const useAuth = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password, confirmPassword }),
+        body: JSON.stringify({
+          email,
+          password,
+          confirmPassword,
+          frontendUrl: window.location.origin
+        }),
       });
 
       if (!response.ok) {
@@ -125,7 +130,10 @@ export const useAuth = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          frontendUrl: window.location.origin
+        }),
       });
 
       const data = await response.json();

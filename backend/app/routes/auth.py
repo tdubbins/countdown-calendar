@@ -24,21 +24,25 @@ def register():
         email = data.get('email', '')
         password = data.get('password', '')
         confirm_password = data.get('confirmPassword', '')
-        
+
+        # Get frontend URL from request (sent by frontend) or fall back to Origin header
+        frontend_url = data.get('frontendUrl') or request.headers.get('Origin')
+
         # Register user
         success, message, user_data = AuthService.register_user(email, password, confirm_password)
-        
+
         if not success:
             return jsonify({'error': message}), 400
-        
+
         # Generate verification token and send email
         verification_token = EmailService.generate_verification_token(
-            user_data['user_id'], 
+            user_data['user_id'],
             user_data['email']
         )
         email_sent, email_message = EmailService.send_verification_email(
-            user_data['email'], 
-            verification_token
+            user_data['email'],
+            verification_token,
+            frontend_url=frontend_url
         )
         
         if not email_sent:
@@ -104,8 +108,11 @@ def resend_verification():
 
         email = data.get('email', '')
 
+        # Get frontend URL from request (sent by frontend) or fall back to Origin header
+        frontend_url = data.get('frontendUrl') or request.headers.get('Origin')
+
         # Resend verification email
-        success, message = AuthService.resend_verification_email(email)
+        success, message = AuthService.resend_verification_email(email, frontend_url=frontend_url)
 
         if not success:
             return jsonify({'error': message}), 429  # 429 Too Many Requests for rate limiting

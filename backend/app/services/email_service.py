@@ -93,14 +93,19 @@ class EmailService:
             return False, "Email sending failed"
 
     @staticmethod
-    def send_verification_email(email: str, token: str) -> Tuple[bool, str]:
-        """Send verification email using clean configuration and templates"""
+    def send_verification_email(email: str, token: str, frontend_url: str = None) -> Tuple[bool, str]:
+        """Send verification email using clean configuration and templates
+
+        Args:
+            email: Recipient email address
+            token: Verification token
+            frontend_url: Frontend URL for verification link (passed from frontend request)
+        """
         try:
-            # Get frontend URL (no fallback - must be configured)
-            frontend_url = current_app.config.get('FRONTEND_URL')
+            # Frontend URL must be provided by the calling code
             if not frontend_url:
-                logger.error("FRONTEND_URL not configured")
-                return False, "Frontend URL not configured"
+                logger.error("Frontend URL not provided in request")
+                return False, "Frontend URL not provided"
 
             verification_url = f"{frontend_url}/verify-email/{token}"
 

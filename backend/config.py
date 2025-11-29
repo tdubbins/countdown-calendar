@@ -34,14 +34,6 @@ class Config:
         'timeout': 30
     }
     
-    # Application URLs - No fallbacks, must be explicitly set
-    FRONTEND_URL = (
-        os.environ.get('FRONTEND_URL') or
-        ('https://yourdomain.com' if os.environ.get('FLASK_ENV') == 'production' 
-         else 'http://localhost:8080')
-    )
-    BACKEND_URL = os.environ.get('BACKEND_URL')
-    
     # Application settings
     APP_NAME = 'Advent Calendar API'
     API_VERSION = '1.0.0'
