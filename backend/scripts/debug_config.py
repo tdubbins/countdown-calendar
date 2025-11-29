@@ -30,10 +30,7 @@ def debug_mail_config():
         print(f"   Use SSL: {email_config.get('use_ssl')}")
         print(f"   Use TLS: {email_config.get('use_tls')}")
         print(f"   Timeout: {email_config.get('timeout')}")
-        
-        print(f"\n📧 Frontend URL: {app.config.get('FRONTEND_URL')}")
-        print(f"📧 Backend URL: {app.config.get('BACKEND_URL')}")
-        
+
         print("\n🌍 Environment Variables:")
         print(f"   SMTP_SERVER: {os.environ.get('SMTP_SERVER')}")
         print(f"   SMTP_PORT: {os.environ.get('SMTP_PORT')}")

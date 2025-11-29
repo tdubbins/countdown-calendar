@@ -83,11 +83,6 @@ SECRET_KEY=your-secure-random-string-min-32-chars
 FLASK_ENV=production
 
 # =============================================================================
-# URL Configuration (REQUIRED for production)
-# =============================================================================
-FRONTEND_URL=https://yourdomain.com
-
-# =============================================================================
 # Email Configuration (REQUIRED for user verification)
 # =============================================================================
 SMTP_SERVER=smtp.gmail.com
@@ -143,7 +138,6 @@ Access the application at `http://localhost:5001`
 | `SECRET_KEY` | Yes | - | JWT signing key (use strong random value) |
 | `FLASK_ENV` | No | `production` | Environment mode |
 | `SERVE_STATIC` | No | `true` | Enable frontend serving (set in Dockerfile) |
-| `FRONTEND_URL` | Yes | - | Public URL for email verification links |
 | `SMTP_SERVER` | Yes* | - | SMTP server hostname |
 | `SMTP_PORT` | No | `465` | SMTP port |
 | `EMAIL_USER` | Yes* | - | SMTP username |
