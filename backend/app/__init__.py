@@ -1,5 +1,5 @@
 # Flask Application Factory
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -58,5 +58,17 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(calendar_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api')
+
+    # Serve static frontend in production (single container deployment)
+    if os.environ.get('SERVE_STATIC', 'false').lower() == 'true':
+        static_folder = os.path.join(os.path.dirname(__file__), '..', 'static')
+
+        @app.route('/', defaults={'path': ''})
+        @app.route('/<path:path>')
+        def serve_frontend(path):
+            """Serve frontend SPA - static files or index.html for client routing"""
+            if path and os.path.exists(os.path.join(static_folder, path)):
+                return send_from_directory(static_folder, path)
+            return send_from_directory(static_folder, 'index.html')
 
     return app
