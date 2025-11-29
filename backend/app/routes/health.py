@@ -16,14 +16,16 @@ def health_check():
         'debug': current_app.config['DEBUG']
     })
 
-@health_bp.route('/')
-def home():
-    """Welcome message for the API"""
-    return jsonify({
-        'message': 'Welcome to Advent Calendar API',
-        'endpoints': {
-            'health': '/health',
-            'auth': '/api/auth/*',
-            'docs': 'Coming soon...'
-        }
-    })
+# Only register API root when NOT serving static frontend
+if os.environ.get('SERVE_STATIC', 'false').lower() != 'true':
+    @health_bp.route('/')
+    def home():
+        """Welcome message for the API"""
+        return jsonify({
+            'message': 'Welcome to Advent Calendar API',
+            'endpoints': {
+                'health': '/health',
+                'auth': '/api/auth/*',
+                'docs': 'Coming soon...'
+            }
+        })

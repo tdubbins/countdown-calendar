@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+dist/
+build/
+venv/
+.venv/
+*.egg
+
+# Node
+frontend/node_modules
+frontend/.npm
+frontend/.cache
+
+# Test files
+tests/
+**/test_*
+**/*_test.py
+.pytest_cache
+.coverage
+htmlcov/
+
+# Data (will be mounted as volume)
+backend/data/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Individual Dockerfiles (not needed for root build)
+backend/Dockerfile
+frontend/Dockerfile
+backend/.dockerignore
+frontend/.dockerignore
+docker-compose*.yml
