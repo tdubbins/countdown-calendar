@@ -1,289 +1,448 @@
 # Production Deployment Guide
 
-This guide covers deploying the Countdown Calendar App using the integrated Docker image.
+This guide covers deploying the Countdown Calendar App to a Linux server with Docker, systemd, and Caddy.
 
-## Overview
-
-The application uses a **single Docker image** that combines both frontend and backend:
+## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────┐
-│           Integrated Container              │
-│  ┌───────────────────────────────────────┐  │
-│  │  Flask (Gunicorn)        Port 5001    │  │
-│  │  ├── /api/*    → REST API routes      │  │
-│  │  └── /*        → Static frontend      │  │
-│  └───────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────┐  │
-│  │  /app/static/  (built Ionic Vue app)  │  │
-│  │  /app/data/    (JSON storage + videos)│  │
-│  └───────────────────────────────────────┘  │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    calendar.hackcrew.de                      │
+├─────────────────────────────────────────────────────────────┤
+│  Caddy (Reverse Proxy)                                       │
+│  - Automatic HTTPS via Let's Encrypt                         │
+│  - Proxies to localhost:${PORT}                              │
+├─────────────────────────────────────────────────────────────┤
+│  systemd (countdown-app.service)                             │
+│  - Manages Docker container lifecycle                        │
+│  - Auto-restart on failure                                   │
+│  - Starts on boot                                            │
+├─────────────────────────────────────────────────────────────┤
+│  Docker Container (ghcr.io/tdubbins/countdown-calendar-app)  │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  Flask + Gunicorn (Port 5001)                           │ │
+│  │  ├── /api/*  → REST API                                 │ │
+│  │  └── /*      → Static frontend (Ionic Vue)              │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│  Volume: /opt/calendar-data → /app/data                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Image Structure
+## Prerequisites
 
-```
-/app/
-├── app/                    # Flask application
-│   ├── __init__.py         # App factory + static serving
-│   ├── routes/             # API endpoints
-│   ├── services/           # Business logic
-│   ├── tasks/              # Background worker
-│   └── utils/              # Helpers
-├── static/                 # Built frontend (from npm build)
-│   ├── index.html          # SPA entry point
-│   ├── js/                 # Compiled JavaScript
-│   ├── css/                # Compiled styles
-│   └── assets/             # Images, fonts
-├── data/                   # Persistent storage (mount as volume!)
-│   ├── users.json          # User accounts
-│   ├── tasks.json          # Task queue
-│   ├── email_tokens.json   # Verification tokens
-│   └── calendars/          # Calendar data + videos
-│       └── {uuid}/
-│           ├── meta.json
-│           ├── videos/
-│           └── thumbnails/
-├── config.py               # Flask configuration
-├── run.py                  # Application entry point
-└── requirements.txt        # Python dependencies
-```
+- Linux server (Ubuntu 22.04+ recommended)
+- Docker installed
+- Caddy installed
+- Domain pointed to server IP
 
-## Build
+## Server Setup
+
+### 1. Install Docker
 
 ```bash
-# From project root
-docker build -t countdown-calendar .
+curl -fsSL https://get.docker.com | sh
+systemctl enable docker
 ```
 
-Build stages:
-1. **Stage 1 (node:18-alpine)**: Builds frontend with `npm run build`
-2. **Stage 2 (python:3.11-slim)**: Sets up backend, copies built frontend to `/app/static`
-
-## Configuration
-
-### Step 1: Create Environment File
-
-Create a `.env` file in your project root:
+### 2. Install Caddy
 
 ```bash
-cp .env.example .env
+apt install -y caddy
+systemctl enable caddy
 ```
 
-### Step 2: Configure Variables
+### 3. Create Data Directory
 
-Edit `.env` with your settings:
+```bash
+mkdir -p /opt/calendar-data
+```
 
-```env
-# =============================================================================
-# Application Settings (REQUIRED)
-# =============================================================================
-SECRET_KEY=your-secure-random-string-min-32-chars
-FLASK_ENV=production
+### 4. Create Environment File
 
-# =============================================================================
-# Email Configuration (REQUIRED for user verification)
-# =============================================================================
-SMTP_SERVER=smtp.gmail.com
+```bash
+cat > /root/.env << 'EOF'
+# Email Configuration
+SMTP_SERVER=smtp.yourprovider.com
 SMTP_PORT=465
-MAIL_USE_SSL=true
-MAIL_USE_TLS=false
-EMAIL_USER=your@gmail.com
-EMAIL_PASSWORD=your-app-password
+EMAIL_USER=noreply@yourdomain.com
+EMAIL_PASSWORD=your-password
+MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+MAIL_USE_TLS=False
+MAIL_USE_SSL=True
+
+# Application Environment
+FLASK_ENV=production
+SECRET_KEY=your-secret-key-here
+
+# Application Port
+PORT=5001
+
+# Data Storage Path
+DATA_PATH=/opt/calendar-data
+EOF
 ```
 
-### Generating a Secure SECRET_KEY
-
+Generate a secure SECRET_KEY:
 ```bash
-# Option 1: Python
 python3 -c "import secrets; print(secrets.token_hex(32))"
-
-# Option 2: OpenSSL
-openssl rand -hex 32
 ```
 
-### Gmail App Password Setup
-
-If using Gmail for email:
-1. Enable 2-Factor Authentication on your Google account
-2. Go to https://myaccount.google.com/apppasswords
-3. Generate a new app password for "Mail"
-4. Use this 16-character password as `EMAIL_PASSWORD`
-
-### SSL vs TLS
-
-| Port | Setting |
-|------|---------|
-| 465 | `MAIL_USE_SSL=true`, `MAIL_USE_TLS=false` |
-| 587 | `MAIL_USE_SSL=false`, `MAIL_USE_TLS=true` |
-
-## Run
+### 5. Create Systemd Service
 
 ```bash
-docker run --rm \
-  --name countdown-app \
-  -p 5001:5001 \
-  -v $(pwd)/data:/app/data \
-  --env-file .env \
-  countdown-calendar
+cat > /etc/systemd/system/countdown-app.service << 'EOF'
+[Unit]
+Description=Countdown Calendar App
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+
+EnvironmentFile=/root/.env
+
+ExecStartPre=-/usr/bin/docker stop countdown-app
+ExecStartPre=-/usr/bin/docker rm countdown-app
+
+ExecStart=/usr/bin/docker run --rm \
+    --name countdown-app \
+    -p 127.0.0.1:${PORT}:5001 \
+    -v ${DATA_PATH}:/app/data \
+    -e SECRET_KEY=${SECRET_KEY} \
+    -e FLASK_ENV=${FLASK_ENV} \
+    -e SMTP_SERVER=${SMTP_SERVER} \
+    -e SMTP_PORT=${SMTP_PORT} \
+    -e EMAIL_USER=${EMAIL_USER} \
+    -e EMAIL_PASSWORD=${EMAIL_PASSWORD} \
+    -e MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER} \
+    -e MAIL_USE_SSL=${MAIL_USE_SSL} \
+    -e MAIL_USE_TLS=${MAIL_USE_TLS} \
+    ghcr.io/tdubbins/countdown-calendar-app:latest
+
+ExecStop=/usr/bin/docker stop countdown-app
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable countdown-app
 ```
 
-Access the application at `http://localhost:5001`
+### 6. Configure Caddy
+
+Create systemd drop-in for Caddy to read PORT from .env:
+
+```bash
+mkdir -p /etc/systemd/system/caddy.service.d
+cat > /etc/systemd/system/caddy.service.d/env.conf << 'EOF'
+[Service]
+EnvironmentFile=/root/.env
+EOF
+```
+
+Configure Caddyfile:
+
+```bash
+cat > /etc/caddy/Caddyfile << 'EOF'
+{
+    email admin@yourdomain.com
+}
+
+calendar.yourdomain.com {
+    reverse_proxy localhost:{$PORT}
+
+    log {
+        output file /var/log/caddy/access.log
+    }
+}
+EOF
+
+systemctl daemon-reload
+systemctl restart caddy
+```
+
+### 7. Pull and Start
+
+```bash
+docker pull ghcr.io/tdubbins/countdown-calendar-app:latest
+systemctl start countdown-app
+```
+
+## Management Scripts
+
+### /root/calendar.sh
+
+```bash
+cat > /root/calendar.sh << 'EOF'
+#!/bin/bash
+SERVICE="countdown-app"
+
+case "$1" in
+    start)
+        echo "Starting $SERVICE..."
+        systemctl start $SERVICE
+        systemctl status $SERVICE --no-pager | head -5
+        ;;
+    stop)
+        echo "Stopping $SERVICE..."
+        systemctl stop $SERVICE
+        echo "Stopped."
+        ;;
+    restart)
+        echo "Restarting $SERVICE..."
+        systemctl restart $SERVICE
+        sleep 2
+        systemctl status $SERVICE --no-pager | head -5
+        ;;
+    status)
+        systemctl status $SERVICE --no-pager
+        ;;
+    logs)
+        journalctl -u $SERVICE -f
+        ;;
+    logs-tail)
+        journalctl -u $SERVICE -n 50 --no-pager
+        ;;
+    config)
+        ${EDITOR:-nano} /root/.env
+        ;;
+    edit)
+        ${EDITOR:-nano} /etc/systemd/system/countdown-app.service
+        echo "Run: systemctl daemon-reload && ./calendar.sh restart"
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|logs|logs-tail|config|edit}"
+        exit 1
+        ;;
+esac
+EOF
+chmod +x /root/calendar.sh
+```
+
+### /root/caddy.sh
+
+```bash
+cat > /root/caddy.sh << 'EOF'
+#!/bin/bash
+SERVICE="caddy"
+
+case "$1" in
+    start)
+        echo "Starting $SERVICE..."
+        systemctl start $SERVICE
+        systemctl status $SERVICE --no-pager | head -5
+        ;;
+    stop)
+        echo "Stopping $SERVICE..."
+        systemctl stop $SERVICE
+        echo "Stopped."
+        ;;
+    restart)
+        echo "Restarting $SERVICE..."
+        systemctl restart $SERVICE
+        sleep 2
+        systemctl status $SERVICE --no-pager | head -5
+        ;;
+    reload)
+        echo "Reloading $SERVICE config..."
+        systemctl reload $SERVICE
+        echo "Reloaded."
+        ;;
+    status)
+        systemctl status $SERVICE --no-pager
+        ;;
+    logs)
+        journalctl -u $SERVICE -f
+        ;;
+    logs-tail)
+        journalctl -u $SERVICE -n 50 --no-pager
+        ;;
+    config)
+        cat /etc/caddy/Caddyfile
+        ;;
+    edit)
+        ${EDITOR:-nano} /etc/caddy/Caddyfile
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|reload|status|logs|logs-tail|config|edit}"
+        exit 1
+        ;;
+esac
+EOF
+chmod +x /root/caddy.sh
+```
+
+## CI/CD Deployment
+
+### Deployer User Setup
+
+Create a restricted user for automated deployments:
+
+```bash
+# Create user
+useradd -m -s /bin/bash deployer
+usermod -aG docker deployer
+
+# Create deploy directory
+mkdir -p /opt/deploy
+chown deployer:deployer /opt/deploy
+
+# Configure sudo access (restricted to service management)
+cat > /etc/sudoers.d/deployer << 'EOF'
+deployer ALL=(root) NOPASSWD: /usr/bin/systemctl restart countdown-app
+deployer ALL=(root) NOPASSWD: /usr/bin/systemctl status countdown-app *
+deployer ALL=(root) NOPASSWD: /usr/bin/systemctl status countdown-app
+deployer ALL=(root) NOPASSWD: /usr/bin/systemctl start countdown-app
+deployer ALL=(root) NOPASSWD: /usr/bin/systemctl stop countdown-app
+EOF
+chmod 440 /etc/sudoers.d/deployer
+```
+
+### Deploy Script
+
+```bash
+cat > /opt/deploy/deploy.sh << 'EOF'
+#!/bin/bash
+set -euo pipefail
+
+LOG_FILE="/var/log/countdown-deploy.log"
+DOCKER_IMAGE="ghcr.io/tdubbins/countdown-calendar-app:latest"
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+log "=== Starting deployment ==="
+
+log "Pulling Docker image: $DOCKER_IMAGE"
+if ! docker pull "$DOCKER_IMAGE" 2>&1 | tee -a "$LOG_FILE"; then
+    log "ERROR: Failed to pull Docker image"
+    exit 1
+fi
+
+log "Restarting countdown-app service..."
+if ! sudo systemctl restart countdown-app 2>&1 | tee -a "$LOG_FILE"; then
+    log "ERROR: Failed to restart service"
+    exit 1
+fi
+
+sleep 3
+if systemctl is-active --quiet countdown-app; then
+    log "Service is running"
+else
+    log "ERROR: Service failed to start"
+    sudo systemctl status countdown-app --no-pager | tee -a "$LOG_FILE"
+    exit 1
+fi
+
+log "Cleaning up old Docker images..."
+docker image prune -f 2>&1 | tee -a "$LOG_FILE" || true
+
+log "=== Deployment completed successfully ==="
+EOF
+chown deployer:deployer /opt/deploy/deploy.sh
+chmod +x /opt/deploy/deploy.sh
+```
+
+### GitHub Actions Integration
+
+Add SSH key for deployer user and create workflow:
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: calendar.hackcrew.de
+          username: deployer
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: /opt/deploy/deploy.sh
+```
 
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SECRET_KEY` | Yes | - | JWT signing key (use strong random value) |
+| `SECRET_KEY` | Yes | - | JWT signing key (min 32 chars) |
 | `FLASK_ENV` | No | `production` | Environment mode |
-| `SERVE_STATIC` | No | `true` | Enable frontend serving (set in Dockerfile) |
+| `PORT` | No | `5001` | Application port |
+| `DATA_PATH` | No | `/opt/calendar-data` | Data storage path |
 | `SMTP_SERVER` | Yes* | - | SMTP server hostname |
 | `SMTP_PORT` | No | `465` | SMTP port |
 | `EMAIL_USER` | Yes* | - | SMTP username |
 | `EMAIL_PASSWORD` | Yes* | - | SMTP password |
-| `MAIL_USE_SSL` | No | `true` | Enable SSL (use with port 465) |
-| `MAIL_USE_TLS` | No | `false` | Enable TLS (use with port 587) |
+| `MAIL_USE_SSL` | No | `True` | Enable SSL (port 465) |
+| `MAIL_USE_TLS` | No | `False` | Enable TLS (port 587) |
 
 *Required for email verification functionality
 
-## Data Persistence
-
-**Important**: Mount `/app/data` as a volume to persist:
-- User accounts
-- Calendar metadata
-- Uploaded videos
-- Thumbnails
-
-```bash
-# Create data directory on host
-mkdir -p ./data
-
-# Run with volume mount
-docker run -v $(pwd)/data:/app/data ...
-```
-
-## Reverse Proxy (Nginx)
-
-For production with SSL, use Nginx as reverse proxy:
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com;
-
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    client_max_body_size 1100M;  # For video uploads (max 1GB + overhead)
-
-    location / {
-        proxy_pass http://localhost:5001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # WebSocket support (if needed)
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        # Timeouts for large uploads
-        proxy_connect_timeout 600;
-        proxy_send_timeout 600;
-        proxy_read_timeout 600;
-    }
-}
-```
-
-## Docker Compose (Optional)
-
-For easier management with Nginx:
-
-```yaml
-version: '3.8'
-
-services:
-  app:
-    build: .
-    container_name: countdown-app
-    restart: unless-stopped
-    volumes:
-      - ./data:/app/data
-    env_file:
-      - .env
-    expose:
-      - "5001"
-
-  nginx:
-    image: nginx:alpine
-    container_name: countdown-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - app
-```
-
 ## Health Check
 
-Verify the application is running:
-
 ```bash
-# Health endpoint
+# Local check
 curl http://localhost:5001/health
 
+# Via domain
+curl https://calendar.hackcrew.de/health
+
 # Expected response
-{"status": "healthy"}
-```
-
-## Logs
-
-```bash
-# View logs
-docker logs countdown-app
-
-# Follow logs
-docker logs -f countdown-app
+{"status":"healthy","environment":"production","message":"Advent Calendar API","version":"1.0.0","debug":false}
 ```
 
 ## Troubleshooting
 
-### Container won't start
+### Check Service Status
 ```bash
-# Check logs for errors
-docker logs countdown-app
-
-# Common issues:
-# - Missing required environment variables
-# - Port 5001 already in use
-# - Permission issues with data volume
+./calendar.sh status
+./caddy.sh status
 ```
 
-### Videos not processing
-- Ensure FFmpeg is available (included in image)
-- Check `/app/data` has write permissions
-- Monitor logs for task queue errors
+### View Logs
+```bash
+./calendar.sh logs      # Follow app logs
+./caddy.sh logs         # Follow Caddy logs
+```
 
-### Frontend not loading
-- Verify `SERVE_STATIC=true` is set
-- Check that `/app/static/index.html` exists in container:
-  ```bash
-  docker exec countdown-app ls -la /app/static/
-  ```
+### Container Issues
+```bash
+# Check if container is running
+docker ps
 
-### Email not sending
-- Verify SMTP credentials
-- Check if SMTP port is not blocked
-- For Gmail: use App Password, not regular password
+# Check container logs directly
+docker logs countdown-app
+
+# Inspect container
+docker inspect countdown-app
+```
+
+### Email Not Sending
+- Verify SMTP credentials in `/root/.env`
+- Test SMTP connectivity: `openssl s_client -connect smtp.server.com:465`
+- Check application logs for email errors
+
+### Permission Issues
+```bash
+# Fix data directory permissions
+chown -R root:root /opt/calendar-data
+chmod -R 755 /opt/calendar-data
+```
+
+## Security Notes
+
+- SSH password authentication is disabled (key-only)
+- Deployer user has restricted sudo access
+- Application runs on localhost only (Caddy handles external traffic)
+- Caddy provides automatic HTTPS via Let's Encrypt
+- SECRET_KEY should be unique and never committed to git
