@@ -1,8 +1,21 @@
 # Video Processing Service - Business Logic for Video Operations
 import ffmpeg
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
+
+# Configure logger (no timestamp - journalctl provides it)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[VIDEO-SVC] %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 def get_video_metadata(video_path: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
@@ -39,11 +52,11 @@ def get_video_metadata(video_path: str) -> Tuple[bool, Optional[Dict[str, Any]],
 
     except ffmpeg.Error as e:
         error_msg = e.stderr.decode() if e.stderr else str(e)
-        print(f"FFprobe error for {video_path}: {error_msg}")
+        logger.error(f"FFprobe error for {video_path}: {error_msg}")
         return False, None, f"Failed to read video metadata: {error_msg}"
 
     except Exception as e:
-        print(f"Unexpected error reading metadata for {video_path}: {str(e)}")
+        logger.error(f"Unexpected error reading metadata for {video_path}: {str(e)}")
         return False, None, f"Error reading video metadata: {str(e)}"
 
 def compress_video(
@@ -70,6 +83,9 @@ def compress_video(
     try:
         # Get original file size
         original_size = os.path.getsize(input_path)
+        original_mb = round(original_size / (1024 * 1024), 2)
+        logger.info(f"Compression starting | size={original_mb}MB | preset=medium")
+        compress_start = time.time()
 
         # Set up input stream and check for audio
         input_stream = ffmpeg.input(input_path)
@@ -108,9 +124,14 @@ def compress_video(
         # Execute compression
         ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
 
+        compress_duration = time.time() - compress_start
+
         # Get compressed file size
         compressed_size = os.path.getsize(output_path)
         reduction_percent = ((original_size - compressed_size) / original_size) * 100
+        compressed_mb = round(compressed_size / (1024 * 1024), 2)
+
+        logger.info(f"Compression complete | time={compress_duration:.1f}s | {original_mb}MB → {compressed_mb}MB | reduction={round(reduction_percent, 1)}%")
 
         stats = {
             'original_size': original_size,
@@ -124,14 +145,14 @@ def compress_video(
 
     except ffmpeg.Error as e:
         error_msg = e.stderr.decode() if e.stderr else str(e)
-        print(f"FFmpeg compression error: {error_msg}")
+        logger.error(f"FFmpeg compression error: {error_msg}")
         # Clean up partial output file if it exists
         if os.path.exists(output_path):
             os.remove(output_path)
         return False, None, f"Video compression failed: {error_msg}"
 
     except Exception as e:
-        print(f"Unexpected compression error: {str(e)}")
+        logger.error(f"Unexpected compression error: {str(e)}")
         # Clean up partial output file if it exists
         if os.path.exists(output_path):
             os.remove(output_path)
@@ -159,6 +180,9 @@ def generate_thumbnail(
         return False, "Video file not found"
 
     try:
+        logger.info(f"Thumbnail generation starting | width={width}px")
+        thumb_start = time.time()
+
         # Extract frame at specified time and resize
         stream = ffmpeg.input(video_path, ss=time_offset)
         stream = ffmpeg.filter(stream, 'scale', width, -1)  # -1 maintains aspect ratio
@@ -167,18 +191,23 @@ def generate_thumbnail(
         # Execute thumbnail generation
         ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
 
+        thumb_duration = time.time() - thumb_start
+        thumb_size = os.path.getsize(thumbnail_path) if os.path.exists(thumbnail_path) else 0
+        thumb_kb = round(thumb_size / 1024, 1)
+        logger.info(f"Thumbnail complete | time={thumb_duration:.2f}s | size={thumb_kb}KB")
+
         return True, ""
 
     except ffmpeg.Error as e:
         error_msg = e.stderr.decode() if e.stderr else str(e)
-        print(f"FFmpeg thumbnail error: {error_msg}")
+        logger.error(f"FFmpeg thumbnail error: {error_msg}")
         # Clean up partial thumbnail if it exists
         if os.path.exists(thumbnail_path):
             os.remove(thumbnail_path)
         return False, f"Thumbnail generation failed: {error_msg}"
 
     except Exception as e:
-        print(f"Unexpected thumbnail error: {str(e)}")
+        logger.error(f"Unexpected thumbnail error: {str(e)}")
         # Clean up partial thumbnail if it exists
         if os.path.exists(thumbnail_path):
             os.remove(thumbnail_path)
@@ -220,7 +249,7 @@ def process_uploaded_video(
         try:
             os.remove(original_path)
         except Exception as e:
-            print(f"Failed to delete original video {original_path}: {str(e)}")
+            logger.warning(f"Failed to delete original video: {str(e)}")
             # Not a critical error, continue
 
     # Add thumbnail confirmation to stats
