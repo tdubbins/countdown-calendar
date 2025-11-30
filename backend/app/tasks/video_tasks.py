@@ -33,11 +33,10 @@ class VideoCompressionTask:
         calendar_id = task_data.get('calendar_id')
         day = task_data.get('day')
         metadata = task_data.get('metadata', {})
+        original_path = metadata.get('original_path')  # For cleanup in except block
 
         try:
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=0)
-
-            original_path = metadata.get('original_path')
             compressed_path = metadata.get('compressed_path')
             thumbnail_path = metadata.get('thumbnail_path')
 
@@ -65,6 +64,13 @@ class VideoCompressionTask:
 
             if not success:
                 error_msg = f"Video processing failed: {error}"
+                # Clean up temp file on failure
+                if os.path.exists(original_path):
+                    try:
+                        os.remove(original_path)
+                        print(f"Cleaned up temp file: {original_path}")
+                    except Exception as cleanup_error:
+                        print(f"Failed to clean up temp file: {cleanup_error}")
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
@@ -101,6 +107,13 @@ class VideoCompressionTask:
         except Exception as e:
             error_msg = f"Unexpected error during video processing: {str(e)}"
             print(f"Video compression task error: {error_msg}")
+            # Clean up temp file on unexpected error
+            if original_path and os.path.exists(original_path):
+                try:
+                    os.remove(original_path)
+                    print(f"Cleaned up temp file: {original_path}")
+                except Exception:
+                    pass
             TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
             return False, error_msg
 

@@ -19,23 +19,28 @@ app = create_app()
 
 def test_verification_email():
     """Test sending verification email using the actual EmailService"""
-    
+
     with app.app_context():
         print("🧪 Testing Flask-Mail with actual EmailService...")
-        
+
+        # Frontend URL is required - no defaults allowed
+        test_frontend_url = os.getenv('TEST_FRONTEND_URL', 'http://localhost:8100')
+        print(f"📍 Using frontend URL: {test_frontend_url}")
+
         # Generate a test token
         test_token = EmailService.generate_verification_token(
-            "test-user-id", 
+            "test-user-id",
             "test@dubbins.de"
         )
-        
+
         print(f"✅ Generated token: {test_token}")
-        
+
         # Try to send verification email
         print("📧 Attempting to send verification email...")
         success, message = EmailService.send_verification_email(
-            "test@dubbins.de", 
-            test_token
+            "test@dubbins.de",
+            test_token,
+            frontend_url=test_frontend_url
         )
         
         if success:
