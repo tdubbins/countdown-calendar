@@ -1,18 +1,25 @@
 # Flask Application Factory
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import config
 import os
 
+
+def rate_limit_error_handler(e):
+    """Custom error handler for rate limiting - hide exact rate details"""
+    return jsonify({'error': 'Too many requests. Please try again later.'}), 429
+
+
 # Initialize rate limiter globally (will be bound to app in create_app)
 limiter = Limiter(
     get_remote_address,
-    default_limits=["200 per hour"],
+    default_limits=["500 per hour"],
     storage_uri="memory://",
     strategy="fixed-window",
-    headers_enabled=True
+    headers_enabled=False,
+    on_breach=rate_limit_error_handler
 )
 
 def create_app(config_name=None):
