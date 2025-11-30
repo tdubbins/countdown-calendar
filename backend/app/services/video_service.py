@@ -218,7 +218,8 @@ def process_uploaded_video(
     compressed_path: str,
     thumbnail_path: str,
     delete_original: bool = True,
-    on_thumbnail_ready: callable = None
+    on_thumbnail_ready: callable = None,
+    skip_thumbnail: bool = False
 ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
     Complete video processing workflow: generate thumbnail first, then compress.
@@ -232,21 +233,26 @@ def process_uploaded_video(
         thumbnail_path: Path for thumbnail output image
         delete_original: Whether to delete original after compression (default: True)
         on_thumbnail_ready: Optional callback when thumbnail is ready
+        skip_thumbnail: If True, skip thumbnail generation (already done at upload)
 
     Returns:
         Tuple of (success, processing_stats, error_message)
     """
     # Step 1: Generate thumbnail from original video (fast - allows early display)
-    success, error = generate_thumbnail(original_path, thumbnail_path)
-    if not success:
-        return False, None, f"Thumbnail generation failed: {error}"
+    # Skip if thumbnail was already generated synchronously at upload time
+    if not skip_thumbnail:
+        success, error = generate_thumbnail(original_path, thumbnail_path)
+        if not success:
+            return False, None, f"Thumbnail generation failed: {error}"
 
-    # Notify that thumbnail is ready (for status updates)
-    if on_thumbnail_ready:
-        try:
-            on_thumbnail_ready()
-        except Exception as e:
-            logger.warning(f"Thumbnail ready callback failed: {str(e)}")
+        # Notify that thumbnail is ready (for status updates)
+        if on_thumbnail_ready:
+            try:
+                on_thumbnail_ready()
+            except Exception as e:
+                logger.warning(f"Thumbnail ready callback failed: {str(e)}")
+    else:
+        logger.info("Skipping thumbnail generation (already done at upload)")
 
     # Step 2: Compress video (slow)
     success, stats, error = compress_video(original_path, compressed_path)

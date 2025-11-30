@@ -18,6 +18,7 @@ from app.services.calendar_service import (
     get_public_calendar
 )
 from app.services.auth_service import AuthService
+from app.services.video_service import generate_thumbnail
 from app.utils.validators import (
     validate_calendar_id,
     validate_video_file_type,
@@ -469,12 +470,40 @@ def upload_video(calendar_id):
                 'error': duration_error
             }), 400
 
-        # Create background compression task
+        # Generate thumbnail synchronously (fast ~1-2s) so it's immediately available
+        # This ensures thumbnails are shown even when compression workers are busy
+        thumbnail_path = str(get_thumbnail_path(calendar_id, day))
+        os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
+
+        thumb_success, thumb_error = generate_thumbnail(temp_path, thumbnail_path)
+        if not thumb_success:
+            # Clean up temp file on thumbnail failure
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+            return jsonify({
+                'error': f'Failed to generate thumbnail: {thumb_error}'
+            }), 500
+
+        # Update calendar metadata with thumbnail info immediately
+        # Status 'processing' indicates compression is pending/in-progress
+        thumbnail_filename = os.path.basename(thumbnail_path)
+        videos = calendar_data.get('videos', {})
+        videos[str(day)] = {
+            'thumbnail': thumbnail_filename,
+            'status': 'processing'
+        }
+        calendars_db.update_calendar_meta(calendar_id, {'videos': videos})
+
+        # Create background compression task (thumbnail already done)
         task_success, task_id, task_error = VideoCompressionTask.create_video_task(
             user_id=user_id,
             calendar_id=calendar_id,
             day=day,
-            original_path=temp_path
+            original_path=temp_path,
+            thumbnail_already_generated=True
         )
 
         if not task_success:

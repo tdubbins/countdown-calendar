@@ -46,6 +46,7 @@ class VideoCompressionTask:
         day = task_data.get('day')
         metadata = task_data.get('metadata', {})
         original_path = metadata.get('original_path')  # For cleanup in except block
+        thumbnail_already_generated = metadata.get('thumbnail_already_generated', False)
 
         try:
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=0)
@@ -62,9 +63,12 @@ class VideoCompressionTask:
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=5)
+            # If thumbnail already generated at upload, start progress higher
+            initial_progress = 10 if thumbnail_already_generated else 5
+            TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=initial_progress)
 
             # Callback when thumbnail is ready (before compression starts)
+            # Only used if thumbnail wasn't already generated at upload
             def on_thumbnail_ready():
                 logger.info(f"Thumbnail ready for calendar={calendar_id[:8]}... day={day}")
                 TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=10)
@@ -81,7 +85,8 @@ class VideoCompressionTask:
                 compressed_path=compressed_path,
                 thumbnail_path=thumbnail_path,
                 delete_original=True,
-                on_thumbnail_ready=on_thumbnail_ready
+                on_thumbnail_ready=on_thumbnail_ready if not thumbnail_already_generated else None,
+                skip_thumbnail=thumbnail_already_generated
             )
 
             processing_time = time.time() - start_time
@@ -237,7 +242,8 @@ class VideoCompressionTask:
         user_id: str,
         calendar_id: str,
         day: int,
-        original_path: str
+        original_path: str,
+        thumbnail_already_generated: bool = False
     ) -> Tuple[bool, Optional[str], str]:
         """
         Create a new video compression task
@@ -250,6 +256,7 @@ class VideoCompressionTask:
             calendar_id: Calendar ID
             day: Day number (1-31)
             original_path: Path to original uploaded video file
+            thumbnail_already_generated: If True, skip thumbnail generation (already done at upload)
 
         Returns:
             Tuple of (success, task_id, error_message)
@@ -269,7 +276,8 @@ class VideoCompressionTask:
             metadata = {
                 'original_path': original_path,
                 'compressed_path': compressed_path,
-                'thumbnail_path': thumbnail_path
+                'thumbnail_path': thumbnail_path,
+                'thumbnail_already_generated': thumbnail_already_generated
             }
 
             # Create task in queue
