@@ -161,7 +161,7 @@ def compress_video(
 def generate_thumbnail(
     video_path: str,
     thumbnail_path: str,
-    time_offset: float = 1.0,
+    time_offset: float = 0.0,
     width: int = 320
 ) -> Tuple[bool, str]:
     """
@@ -170,7 +170,7 @@ def generate_thumbnail(
     Args:
         video_path: Path to video file
         thumbnail_path: Path where thumbnail will be saved
-        time_offset: Time in seconds to extract frame (default: 1.0)
+        time_offset: Time in seconds to extract frame (default: 0.0 = first frame)
         width: Thumbnail width in pixels (default: 320)
 
     Returns:

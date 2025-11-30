@@ -199,10 +199,12 @@ const emit = defineEmits<{
 // Composable
 const {
   isLoading,
+  activePollDays,
   // uploadProgress, // Reserved for future use
   // isUploading, // Reserved for future use
   initializeDayStatuses,
   loadVideoStatuses,
+  pollAllStatuses,
   stopPolling,
   uploadVideo,
   getVideoMetadata,
@@ -353,7 +355,7 @@ const handleFileSelect = async (event: Event) => {
 
 /**
  * Watch for compression completion.
- * Polls every 15 seconds to check if processing videos have completed.
+ * Polls every 15 seconds using lightweight status endpoint (no thumbnail reload).
  * Stores interval IDs to prevent memory leaks.
  */
 const activeWatchers = ref<Map<number, number>>(new Map());
@@ -365,10 +367,13 @@ const watchForCompletion = (day: number) => {
     clearInterval(existingInterval);
   }
 
-  // Poll every 15 seconds to check for completion (compression takes ~30-120s)
+  // Add to active poll days so pollAllStatuses includes this day
+  activePollDays.value.add(day);
+
+  // Poll every 15 seconds using lightweight status endpoint (no thumbnail reload)
   const checkInterval = window.setInterval(async () => {
-    // Reload video statuses from server
-    await loadVideoStatuses();
+    // Use status endpoint - doesn't reload videos/thumbnails, no flicker
+    await pollAllStatuses();
 
     const status = getDayStatus(day);
 
@@ -398,6 +403,7 @@ const watchForCompletion = (day: number) => {
     if (activeWatchers.value.has(day)) {
       clearInterval(checkInterval);
       activeWatchers.value.delete(day);
+      activePollDays.value.delete(day);
     }
   }, 300000);
 };
