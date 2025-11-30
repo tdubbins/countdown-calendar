@@ -192,7 +192,7 @@ export const useVideoManagement = (calendarId: string) => {
   };
 
   /**
-   * Poll video status for a specific day
+   * Poll video status for a specific day (legacy - kept for compatibility)
    * GET /api/calendars/{id}/videos/{day}/status
    */
   const pollVideoStatus = async (day: number): Promise<void> => {
@@ -246,6 +246,62 @@ export const useVideoManagement = (calendarId: string) => {
   };
 
   /**
+   * Poll all video statuses in a single batch request
+   * GET /api/calendars/{id}/videos/status
+   */
+  const pollAllStatuses = async (): Promise<void> => {
+    try {
+      const headers = getAuthHeaders();
+
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/calendars/${calendarId}/videos/status`,
+        {
+          method: 'GET',
+          headers
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to get video statuses');
+      }
+
+      const data = await response.json();
+      const statuses = data.statuses || {};
+
+      // Update status for each day in the response
+      for (const [dayStr, statusData] of Object.entries(statuses)) {
+        const day = parseInt(dayStr, 10);
+        const status = statusData as { status: string; progress?: number; error?: string };
+        const currentStatus = dayStatuses.value.get(day);
+
+        if (currentStatus) {
+          const updatedStatus: VideoStatus = {
+            ...currentStatus,
+            status: status.status as VideoStatus['status'],
+            progress: status.progress || 0,
+            error: status.error
+          };
+
+          dayStatuses.value.set(day, updatedStatus);
+
+          // Stop polling if completed or failed
+          if (status.status === 'completed' || status.status === 'failed') {
+            activePollDays.value.delete(day);
+
+            // Load thumbnail for completed video
+            if (status.status === 'completed') {
+              await loadThumbnailAsDataUrl(day);
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Failed to poll all statuses:', error);
+    }
+  };
+
+  /**
    * Start polling for active uploads (every 3 seconds)
    */
   const startPolling = (): void => {
@@ -257,11 +313,8 @@ export const useVideoManagement = (calendarId: string) => {
         return;
       }
 
-      // Poll all active days
-      const pollPromises = Array.from(activePollDays.value).map(day =>
-        pollVideoStatus(day)
-      );
-      await Promise.all(pollPromises);
+      // Use batch endpoint for efficiency (1 request instead of N)
+      await pollAllStatuses();
 
     }, 3000); // Poll every 3 seconds
   };
@@ -627,6 +680,7 @@ export const useVideoManagement = (calendarId: string) => {
     initializeDayStatuses,
     loadVideoStatuses,
     pollVideoStatus,
+    pollAllStatuses,
     startPolling,
     stopPolling,
     uploadVideo,

@@ -140,6 +140,26 @@ class TaskQueue:
             return False, None, f"Failed to retrieve task: {str(e)}"
 
     @staticmethod
+    def get_tasks_by_calendar(calendar_id: str, user_id: str) -> Dict[int, Dict[str, Any]]:
+        """Get all tasks for a calendar, keyed by day number."""
+        try:
+            all_tasks = tasks_db.find_all('tasks')
+            result = {}
+
+            for task_id, task_data in all_tasks.items():
+                if (task_data.get('calendar_id') == calendar_id and
+                    task_data.get('user_id') == user_id):
+                    day = task_data.get('day')
+                    if day:
+                        result[day] = task_data
+
+            return result
+
+        except Exception as e:
+            print(f"Get tasks by calendar error: {str(e)}")
+            return {}
+
+    @staticmethod
     def get_next_pending_task() -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Get next pending task for processing (FIFO order)

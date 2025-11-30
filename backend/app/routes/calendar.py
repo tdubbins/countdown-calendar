@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
+from app import limiter
 from app.utils.decorators import token_required
 from app.services.calendar_service import (
     create_calendar as create_calendar_service,
@@ -569,6 +570,66 @@ def list_videos(calendar_id):
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@calendar_bp.route('/calendars/<calendar_id>/videos/status', methods=['GET'])
+@limiter.limit("30 per minute")  # Batch polling - 1 call replaces up to 31 individual calls
+@token_required
+def get_all_video_statuses(calendar_id):
+    """Get processing status for all videos in a calendar. Efficient batch polling."""
+    try:
+        user_id = request.current_user['user_id']
+
+        # Validate calendar ID
+        id_valid, clean_id, id_error = validate_calendar_id(calendar_id)
+        if not id_valid:
+            return jsonify({'error': id_error}), 400
+        calendar_id = clean_id
+
+        # Get calendar and verify ownership
+        success, calendar_data, error_message = get_calendar_by_id(
+            calendar_id,
+            user_id
+        )
+
+        if not success:
+            return jsonify({'error': 'Calendar not found or access denied'}), 404
+
+        calendar_duration = calendar_data.get('duration', 31)
+        videos_dict = calendar_data.get('videos', {})
+
+        # Get all tasks for this calendar
+        from app.tasks.task_queue import TaskQueue
+        all_tasks = TaskQueue.get_tasks_by_calendar(calendar_id, user_id)
+
+        # Build status for all days
+        statuses = {}
+        for day in range(1, calendar_duration + 1):
+            day_str = str(day)
+            video_info = videos_dict.get(day_str)
+
+            if video_info and video_info.get('status') == 'completed':
+                statuses[day_str] = {
+                    'status': 'completed',
+                    'progress': 100
+                }
+            elif day in all_tasks:
+                task = all_tasks[day]
+                statuses[day_str] = {
+                    'status': task.get('status', 'pending'),
+                    'progress': task.get('progress', 0),
+                    'error': task.get('error')
+                }
+            # Days without video or task are not included (empty)
+
+        return jsonify({
+            'success': True,
+            'statuses': statuses
+        }), 200
+
+    except Exception as e:
+        print(f"Get all video statuses error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>', methods=['GET'])
 @token_required
 def get_video_metadata(calendar_id, day):
@@ -625,6 +686,7 @@ def get_video_metadata(calendar_id, day):
 
 
 @calendar_bp.route('/calendars/<calendar_id>/videos/<int:day>/status', methods=['GET'])
+@limiter.limit("100 per minute")  # 5 parallel uploads polling every 3s
 @token_required
 def get_video_status(calendar_id, day):
     """Get processing status for a video upload. Used for polling during background processing."""

@@ -354,11 +354,11 @@ class AuthService:
         if user.get('email_verified', False):
             return True, "If this email is registered and unverified, a new verification link has been sent."
 
-        # Check rate limiting using utility (3 requests per hour)
+        # Check rate limiting using utility (5 requests per hour)
         is_allowed, new_count, rate_limit_error = check_rate_limit(
             user=user,
             action='verification_email',
-            limit=3,
+            limit=5,
             window_hours=1
         )
 
