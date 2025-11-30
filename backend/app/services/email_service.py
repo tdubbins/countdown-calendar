@@ -102,10 +102,15 @@ class EmailService:
             frontend_url: Frontend URL for verification link (passed from frontend request)
         """
         try:
-            # Frontend URL must be provided by the calling code
-            if not frontend_url:
-                logger.error("Frontend URL not provided in request")
+            # Frontend URL must be provided - never use a fallback/default
+            if not frontend_url or not frontend_url.strip():
+                logger.error("Frontend URL not provided in request - refusing to send email")
                 return False, "Frontend URL not provided"
+
+            frontend_url = frontend_url.strip()
+            if not frontend_url.startswith(('http://', 'https://')):
+                logger.error(f"Invalid frontend URL format: {frontend_url}")
+                return False, "Invalid frontend URL format"
 
             verification_url = f"{frontend_url}/verify-email/{token}"
 
