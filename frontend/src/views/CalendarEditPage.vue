@@ -329,9 +329,7 @@ const loadCalendarData = async () => {
 /**
  * Handle upload complete - update state locally without page reload
  */
-const handleUploadComplete = async (day: number) => {
-  await showSuccess(`Day ${day} video ready!`);
-
+const handleUploadComplete = (day: number) => {
   // Update video count locally (no need to reload entire calendar)
   // The CalendarDayGrid already updates its own state via polling
   if (calendar.value) {
