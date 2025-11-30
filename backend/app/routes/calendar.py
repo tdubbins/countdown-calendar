@@ -938,6 +938,7 @@ def stream_video(calendar_id, day):
         )
 
         if not success:
+            logger.warning(f"[STREAM] Not found | calendar={calendar_id[:8]}... day={day}")
             return jsonify({'error': 'Calendar not found or not accessible'}), 404
 
         # Extract isOwner flag from calendar_data
@@ -950,13 +951,22 @@ def stream_video(calendar_id, day):
             from app.utils.unlock_logic import is_day_unlocked
 
             if not is_day_unlocked(calendar_data, day):
+                logger.warning(f"[STREAM] Day locked | calendar={calendar_id[:8]}... day={day}")
                 return jsonify({'error': f'Day {day} is locked'}), 403
 
         # Get video path
         video_path = get_video_path(calendar_id, day)
 
         if not video_path.exists():
+            logger.error(f"[STREAM] Video file missing | calendar={calendar_id[:8]}... day={day} path={video_path}")
             return jsonify({'error': f'Video not found for day {day}'}), 404
+
+        # Log request info
+        range_header = request.headers.get('Range', 'none')
+        file_size = video_path.stat().st_size
+        file_size_mb = round(file_size / (1024 * 1024), 2)
+        user_agent = request.headers.get('User-Agent', 'unknown')[:50]
+        logger.info(f"[STREAM] Serving | calendar={calendar_id[:8]}... day={day} size={file_size_mb}MB range={range_header} ua={user_agent}")
 
         # Send file with proper MIME type
         return send_file(
@@ -968,9 +978,10 @@ def stream_video(calendar_id, day):
 
     except ValueError as e:
         # Path validation error
+        logger.error(f"[STREAM] ValueError | calendar={calendar_id[:8]}... day={day} error={str(e)}")
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Stream video error: {str(e)}")
+        logger.error(f"[STREAM] Error | calendar={calendar_id[:8]}... day={day} error={str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
