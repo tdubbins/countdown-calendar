@@ -41,11 +41,25 @@
         <span class="sr-only">Uploading - {{ progress }}% complete</span>
       </div>
 
-      <!-- Processing State -->
+      <!-- Processing State - Show thumbnail if available, otherwise spinner -->
       <div v-else-if="status === 'processing'" class="status-processing">
-        <ion-spinner name="crescent" class="status-spinner" aria-hidden="true"></ion-spinner>
-        <span class="status-text">Processing</span>
-        <span class="sr-only">Processing video</span>
+        <!-- Thumbnail available - show it with processing indicator -->
+        <div v-if="thumbnailUrl" class="status-completed">
+          <img
+            :src="thumbnailUrl"
+            :alt="`Day ${day} video thumbnail`"
+            class="thumbnail-image"
+            loading="lazy"
+          />
+          <ion-spinner name="crescent" class="processing-badge" aria-hidden="true"></ion-spinner>
+          <span class="sr-only">Video uploaded, compression in progress</span>
+        </div>
+        <!-- No thumbnail yet - show spinner -->
+        <div v-else class="processing-spinner-container">
+          <ion-spinner name="crescent" class="status-spinner" aria-hidden="true"></ion-spinner>
+          <span class="status-text">Processing</span>
+          <span class="sr-only">Processing video</span>
+        </div>
       </div>
 
       <!-- Completed State -->
@@ -132,14 +146,20 @@ const canReceiveDrop = computed(() =>
   props.status === 'failed'
 );
 
+// Computed: Does processing state have thumbnail?
+const processingWithThumbnail = computed(() =>
+  props.status === 'processing' && !!props.thumbnailUrl
+);
+
 // Computed classes for status styling
 const dayCardClasses = computed(() => ({
   'day-card--empty': props.status === 'empty',
   'day-card--uploading': props.status === 'uploading',
-  'day-card--processing': props.status === 'processing',
+  'day-card--processing': props.status === 'processing' && !props.thumbnailUrl,
+  'day-card--processing-with-thumb': processingWithThumbnail.value,
   'day-card--completed': props.status === 'completed',
   'day-card--failed': props.status === 'failed',
-  'day-card--interactive': props.status === 'empty' || props.status === 'failed' || props.status === 'completed',
+  'day-card--interactive': props.status === 'empty' || props.status === 'failed' || props.status === 'completed' || processingWithThumbnail.value,
   'day-card--dragging': props.isDragging,
   'day-card--drag-over': props.isDragOver && canReceiveDrop.value,
   'day-card--draggable': isDraggable.value
@@ -389,7 +409,7 @@ const handleDrop = () => {
   border-radius: var(--radius-full);
 }
 
-/* Processing State */
+/* Processing State (no thumbnail yet) */
 .day-card--processing {
   background: rgba(var(--ion-color-warning-rgb), 0.1);
   border-color: var(--ion-color-warning);
@@ -397,14 +417,45 @@ const handleDrop = () => {
   pointer-events: none;
 }
 
+/* Processing State with thumbnail - looks like completed but with indicator */
+.day-card--processing-with-thumb {
+  background: rgba(var(--ion-color-success-rgb), 0.05);
+  border-color: var(--ion-color-success);
+  padding: 0;
+}
+
 .status-processing {
+  width: 100%;
+  height: 100%;
+}
+
+.processing-spinner-container {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.25rem, 1vw, 0.5rem);
 }
 
 .status-spinner {
   --color: var(--ion-color-warning);
   width: clamp(1.5rem, 5vw, 2rem);
   height: clamp(1.5rem, 5vw, 2rem);
+}
+
+/* Processing badge - small spinner in corner when thumbnail is shown */
+.processing-badge {
+  position: absolute;
+  top: clamp(0.25rem, 1vw, 0.5rem);
+  right: clamp(0.25rem, 1vw, 0.5rem);
+  --color: var(--ion-color-warning);
+  width: clamp(1rem, 3vw, 1.25rem);
+  height: clamp(1rem, 3vw, 1.25rem);
+  background: var(--color-surface);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  z-index: 2;
 }
 
 /* Completed State */

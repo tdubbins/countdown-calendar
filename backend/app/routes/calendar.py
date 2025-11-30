@@ -535,6 +535,12 @@ def list_videos(calendar_id):
         videos_dict = calendar_data.get('videos', {})
         calendar_duration = calendar_data.get('duration', 31)
 
+        # Also check task queue for pending/processing tasks (for page reload during processing)
+        processing_tasks = TaskQueue.get_tasks_by_calendar(calendar_id, user_id)
+
+        # Track which days have video info
+        days_with_videos = set()
+
         # Only include videos within current calendar duration
         videos_list = []
         for day_str, video_info in videos_dict.items():
@@ -543,6 +549,8 @@ def list_videos(calendar_id):
             # Skip videos that exceed current calendar duration
             if day_number > calendar_duration:
                 continue
+
+            days_with_videos.add(day_number)
 
             video_metadata = {
                 'day': day_number,
@@ -554,6 +562,25 @@ def list_videos(calendar_id):
                 'status': video_info.get('status', 'completed')
             }
             videos_list.append(video_metadata)
+
+        # Add processing tasks that aren't in calendar metadata yet
+        for day, task_data in processing_tasks.items():
+            if day > calendar_duration:
+                continue
+            if day in days_with_videos:
+                continue  # Already have video info for this day
+
+            task_status = task_data.get('status')
+            if task_status in ['pending', 'processing']:
+                videos_list.append({
+                    'day': day,
+                    'filename': None,
+                    'thumbnail': None,
+                    'size': 0,
+                    'duration': 0,
+                    'uploaded_at': task_data.get('created_at'),
+                    'status': task_status
+                })
 
         # Sort by day number
         videos_list.sort(key=lambda x: x['day'])
