@@ -328,13 +328,16 @@ const loadCalendarData = async () => {
 };
 
 /**
- * Handle upload complete
+ * Handle upload complete - update state locally without page reload
  */
 const handleUploadComplete = async (day: number) => {
-  await showSuccess(`Day ${day} video uploaded successfully!`);
+  await showSuccess(`Day ${day} video ready!`);
 
-  // Reload calendar to update video count
-  await loadCalendarData();
+  // Update video count locally (no need to reload entire calendar)
+  // The CalendarDayGrid already updates its own state via polling
+  if (calendar.value) {
+    calendar.value.videoCount++;
+  }
 };
 
 /**
