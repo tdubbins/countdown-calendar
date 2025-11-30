@@ -155,9 +155,16 @@ export const useVideoManagement = (calendarId: string) => {
 
   /**
    * Load thumbnail as base64 data URL (fixes auth issue with img tags)
+   * Skips loading if thumbnail is already cached
    */
   const loadThumbnailAsDataUrl = async (day: number): Promise<void> => {
     try {
+      // Skip if thumbnail already loaded
+      const currentStatus = dayStatuses.value.get(day);
+      if (currentStatus?.thumbnailUrl) {
+        return;
+      }
+
       const headers = getAuthHeaders();
 
       const response = await fetch(
@@ -248,9 +255,15 @@ export const useVideoManagement = (calendarId: string) => {
   /**
    * Poll all video statuses in a single batch request
    * GET /api/calendars/{id}/videos/status
+   * Only processes days that are actively being polled (processing/pending)
    */
   const pollAllStatuses = async (): Promise<void> => {
     try {
+      // Skip if nothing to poll
+      if (activePollDays.value.size === 0) {
+        return;
+      }
+
       const headers = getAuthHeaders();
 
       const response = await fetch(
@@ -268,9 +281,11 @@ export const useVideoManagement = (calendarId: string) => {
       const data = await response.json();
       const statuses = data.statuses || {};
 
-      // Update status for each day in the response
-      for (const [dayStr, statusData] of Object.entries(statuses)) {
-        const day = parseInt(dayStr, 10);
+      // Only process days that are actively being polled
+      for (const day of activePollDays.value) {
+        const statusData = statuses[day.toString()];
+        if (!statusData) continue;
+
         const status = statusData as { status: string; progress?: number; error?: string };
         const currentStatus = dayStatuses.value.get(day);
 
@@ -288,9 +303,9 @@ export const useVideoManagement = (calendarId: string) => {
           if (status.status === 'completed' || status.status === 'failed') {
             activePollDays.value.delete(day);
 
-            // Load thumbnail for completed video
+            // Load thumbnail for newly completed video (only once)
             if (status.status === 'completed') {
-              await loadThumbnailAsDataUrl(day);
+              loadThumbnailAsDataUrl(day);
             }
           }
         }
