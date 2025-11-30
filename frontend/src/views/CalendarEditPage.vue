@@ -125,9 +125,8 @@
                     fill="solid"
                     size="small"
                     class="publish-toggle-button"
-                    :disabled="!isPublished && !isCalendarComplete"
                     @click="handlePublishToggle"
-                    :aria-label="isPublished ? 'Click to unpublish calendar' : (isCalendarComplete ? 'Click to publish calendar' : 'Complete all videos to enable publishing')"
+                    :aria-label="isPublished ? 'Click to unpublish calendar' : 'Click to publish calendar'"
                   >
                     {{ isPublished ? 'Unpublish' : 'Publish' }}
                   </ion-button>
@@ -367,29 +366,25 @@ const handleVideoDeleted = (day: number) => {
 const handlePublishToggle = async () => {
   if (!calendar.value) return;
 
-  // Check if calendar is complete before publishing
-  if (!isPublished.value && !isCalendarComplete.value) {
-    const missingCount = calendar.value.duration - calendar.value.videoCount;
-    showError(
-      `Upload all videos first. ${missingCount} video${missingCount !== 1 ? 's' : ''} remaining.`
-    );
-    return;
-  }
-
   try {
     isPublishing.value = true;
 
+    // Track what action we're taking before the API call
+    const isCurrentlyPublished = isPublished.value;
+
     // Call appropriate API based on current state
-    const result = isPublished.value
+    const result = isCurrentlyPublished
       ? await unpublishCalendar(calendarId.value)
       : await publishCalendar(calendarId.value);
 
     if (result.success) {
-      // Reload calendar to get updated published status
-      await loadCalendarData();
+      // Update published status locally (no page reload needed)
+      if (calendar.value) {
+        calendar.value.published = !isCurrentlyPublished;
+      }
 
       // Show success message
-      const action = isPublished.value ? 'published' : 'unpublished';
+      const action = isCurrentlyPublished ? 'unpublished' : 'published';
       await showSuccess(`Calendar ${action} successfully!`);
     } else {
       await showError(result.error || 'Failed to update calendar status');
