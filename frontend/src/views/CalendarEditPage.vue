@@ -347,13 +347,14 @@ const handleUploadError = async (day: number, error: string) => {
 };
 
 /**
- * Handle video deleted
+ * Handle video deleted - update state locally without page reload
  */
-const handleVideoDeleted = async (day: number) => {
-  await showSuccess(`Day ${day} video deleted`);
-
-  // Reload calendar to update video count
-  await loadCalendarData();
+const handleVideoDeleted = (day: number) => {
+  // Update video count locally (no need to reload entire calendar)
+  // The CalendarDayGrid already shows success toast and updates its own state
+  if (calendar.value && calendar.value.videoCount > 0) {
+    calendar.value.videoCount--;
+  }
 };
 
 /**
