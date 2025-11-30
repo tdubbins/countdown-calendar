@@ -54,7 +54,6 @@ const handleClick = () => {
 /* Base calendar description styles */
 .calendar-description {
   font-size: clamp(0.85rem, 2vw, 0.95rem);
-  color: var(--color-text-secondary);
   margin: var(--spacing-md) 0;
   line-height: 1.6;
   text-align: left;
@@ -63,7 +62,7 @@ const handleClick = () => {
 }
 
 /* Centered variant (for viewer page) - Base styling */
-/* Theme-specific text styling is defined in theme files */
+/* Color is set by theme CSS files (not scoped, so themes can override) */
 .calendar-description--centered {
   text-align: center;
   margin-left: auto;
@@ -80,6 +79,7 @@ const handleClick = () => {
   border: 2px dashed var(--color-border);
   cursor: pointer;
   transition: all var(--transition-base);
+  color: var(--color-text-secondary);
 }
 
 .calendar-description--editable:hover {
