@@ -287,16 +287,17 @@
 }
 
 /* ============================================
-   TEXT STYLING - Winter Blue Glow
+   TEXT STYLING - Christmas Red with White Glow
    ============================================ */
 
 .calendar-description--centered.theme-christmas {
-  color: #f0f9ff;
+  color: #dc2626;
+  font-weight: 600;
   text-shadow:
-    0 0 15px rgba(255, 255, 255, 0.7),
-    0 0 25px rgba(135, 206, 250, 0.5),
-    0 3px 6px rgba(0, 0, 0, 0.7),
-    0 1px 3px rgba(0, 0, 0, 0.9);
+    0 0 8px rgba(255, 255, 255, 1),
+    0 0 16px rgba(255, 255, 255, 0.9),
+    0 0 24px rgba(255, 255, 255, 0.7),
+    0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
