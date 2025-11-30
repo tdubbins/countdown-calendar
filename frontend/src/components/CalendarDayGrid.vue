@@ -84,7 +84,23 @@
         </ion-toolbar>
       </ion-header>
       <ion-content class="playback-modal-content">
-        <div v-if="videoMetadata" class="playback-container">
+        <!-- Processing State - video still compressing -->
+        <div v-if="isPlaybackProcessing" class="playback-processing">
+          <img
+            v-if="playbackThumbnailUrl"
+            :src="playbackThumbnailUrl"
+            :alt="`Day ${playbackDay} thumbnail`"
+            class="processing-thumbnail"
+          />
+          <div class="processing-overlay">
+            <ion-spinner name="crescent" color="light"></ion-spinner>
+            <p>Video is being compressed...</p>
+            <p class="processing-hint">You can delete this video using the button above.</p>
+          </div>
+        </div>
+
+        <!-- Completed State - video ready for playback -->
+        <div v-else-if="videoMetadata" class="playback-container">
           <!-- Video Player -->
           <video
             ref="videoPlayerRef"
@@ -232,6 +248,7 @@ const videoMetadata = ref<VideoMetadata | null>(null);
 const videoPlayerRef = ref<HTMLVideoElement | null>(null);
 const playbackThumbnailUrl = ref<string | null>(null);
 const playbackVideoUrl = ref<string | null>(null);
+const isPlaybackProcessing = ref(false);
 
 // Delete alert state
 const isDeleteAlertOpen = ref(false);
@@ -275,7 +292,7 @@ const loadVideos = async () => {
  * Handle day card click
  * - Empty/Failed: Open file picker
  * - Completed: Open playback modal
- * - Processing: Show message that video is still compressing
+ * - Processing: Open modal with processing state (allows deletion)
  */
 const handleDayClick = async (day: number) => {
   const status = getDayStatus(day);
@@ -288,8 +305,8 @@ const handleDayClick = async (day: number) => {
     // Open playback modal
     await openPlaybackModal(day);
   } else if (status === 'processing') {
-    // Video still compressing - show message
-    await showError('Video is still being compressed. Please wait a moment.', 3000);
+    // Open modal with processing state (allows deletion)
+    await openProcessingModal(day);
   }
 };
 
@@ -472,6 +489,24 @@ const openPlaybackModal = async (day: number) => {
 };
 
 /**
+ * Open modal for processing video (allows deletion while compressing).
+ */
+const openProcessingModal = async (day: number) => {
+  playbackDay.value = day;
+  videoMetadata.value = null;
+  playbackThumbnailUrl.value = null;
+  playbackVideoUrl.value = null;
+  isPlaybackProcessing.value = true;
+  isPlaybackModalOpen.value = true;
+
+  // Use thumbnail from grid if available
+  const dayThumbnail = getDayThumbnail(day);
+  if (dayThumbnail) {
+    playbackThumbnailUrl.value = dayThumbnail;
+  }
+};
+
+/**
  * Close playback modal
  */
 const closePlaybackModal = () => {
@@ -487,6 +522,7 @@ const closePlaybackModal = () => {
   }
 
   isPlaybackModalOpen.value = false;
+  isPlaybackProcessing.value = false;
   playbackDay.value = null;
   videoMetadata.value = null;
   playbackThumbnailUrl.value = null;
@@ -785,6 +821,51 @@ onUnmounted(() => {
 .metadata-item ion-icon {
   font-size: clamp(1rem, 2.5vw, 1.25rem);
   color: var(--ion-color-primary);
+}
+
+/* Playback Processing State */
+.playback-processing {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  background: #1a1a1a;
+}
+
+.processing-thumbnail {
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  opacity: 0.5;
+}
+
+.processing-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+}
+
+.processing-overlay p {
+  color: #ffffff;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.processing-overlay .processing-hint {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  font-weight: 400;
 }
 
 /* Playback Loading State */
