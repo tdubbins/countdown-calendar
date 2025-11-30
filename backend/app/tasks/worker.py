@@ -1,10 +1,22 @@
 # Background Worker - Task Processing Engine
+import logging
 import threading
 import time
 from typing import Optional
 
 from app.tasks.task_queue import TaskQueue, TaskStatus, TaskType
 from app.tasks.video_tasks import VideoCompressionTask
+
+# Configure logger (no timestamp - journalctl provides it)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[WORKER] %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 
 class Worker:
@@ -36,7 +48,7 @@ class Worker:
         """Start the background worker thread and cleanup scheduler."""
         with self._lock:
             if self.running:
-                print("Worker is already running")
+                logger.warning("Worker is already running")
                 return
 
             self.running = True
@@ -49,16 +61,16 @@ class Worker:
             self.cleanup_thread = threading.Thread(target=self._run_cleanup, daemon=True)
             self.cleanup_thread.start()
 
-            print("Background worker started (task processing + cleanup scheduler)")
+            logger.info("Background worker started (task processing + cleanup scheduler)")
 
     def stop(self) -> None:
         """Stop the background worker and cleanup scheduler gracefully."""
         with self._lock:
             if not self.running:
-                print("Worker is not running")
+                logger.warning("Worker is not running")
                 return
 
-            print("Stopping background worker...")
+            logger.info("Stopping background worker...")
             self.running = False
 
         # Wait for task processing thread to finish (with timeout)
@@ -69,7 +81,7 @@ class Worker:
         if self.cleanup_thread and self.cleanup_thread.is_alive():
             self.cleanup_thread.join(timeout=10)
 
-        print("Background worker stopped")
+        logger.info("Background worker stopped")
 
     def is_running(self) -> bool:
         """Check if worker is currently running"""
@@ -78,7 +90,7 @@ class Worker:
 
     def _run(self) -> None:
         """Main worker loop - polls for pending tasks and processes them."""
-        print("Worker thread started - polling for tasks")
+        logger.info("Worker thread started - polling for tasks")
 
         while self.running:
             try:
@@ -101,22 +113,22 @@ class Worker:
 
             except Exception as e:
                 # Worker continues running even if task processing fails
-                print(f"Worker error: {str(e)}")
+                logger.error(f"Worker error: {str(e)}")
                 time.sleep(self.poll_interval)
 
-        print("Worker thread stopped")
+        logger.info("Worker thread stopped")
 
     def _run_cleanup(self) -> None:
         """Cleanup scheduler loop - periodically deletes old tasks."""
-        print("Cleanup scheduler started - will run every hour")
+        logger.info("Cleanup scheduler started - will run every hour")
 
         # Run initial cleanup on startup
         try:
             success, deleted_count, error = TaskQueue.cleanup_old_tasks(hours_old=24)
             if success and deleted_count > 0:
-                print(f"Initial cleanup: deleted {deleted_count} old task(s)")
+                logger.info(f"Initial cleanup: deleted {deleted_count} old task(s)")
         except Exception as e:
-            print(f"Initial cleanup error: {str(e)}")
+            logger.error(f"Initial cleanup error: {str(e)}")
 
         while self.running:
             try:
@@ -128,16 +140,16 @@ class Worker:
 
                 if success:
                     if deleted_count > 0:
-                        print(f"Cleanup: deleted {deleted_count} old task(s)")
+                        logger.info(f"Cleanup: deleted {deleted_count} old task(s)")
                 else:
-                    print(f"Cleanup error: {error}")
+                    logger.error(f"Cleanup error: {error}")
 
             except Exception as e:
                 # Scheduler continues running even if cleanup fails
-                print(f"Cleanup scheduler error: {str(e)}")
+                logger.error(f"Cleanup scheduler error: {str(e)}")
                 time.sleep(self.cleanup_interval)
 
-        print("Cleanup scheduler stopped")
+        logger.info("Cleanup scheduler stopped")
 
     def _process_task(self, task_data: dict) -> None:
         """
@@ -151,8 +163,14 @@ class Worker:
         """
         task_id = task_data.get('task_id')
         task_type = task_data.get('type')
+        calendar_id = task_data.get('calendar_id', 'unknown')
+        day = task_data.get('day', 'unknown')
+        retry_count = task_data.get('retry_count', 0)
 
-        print(f"Processing task {task_id} (type: {task_type})")
+        # Start timing
+        start_time = time.time()
+
+        logger.info(f"TASK START | id={task_id[:8]}... | type={task_type} | calendar={calendar_id[:8]}... | day={day} | retry={retry_count}")
 
         try:
             # Dispatch to appropriate task handler
@@ -163,16 +181,20 @@ class Worker:
                 success = False
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error)
 
+            # Calculate duration
+            duration = time.time() - start_time
+
             # Handle task failure with retry logic
             if not success:
-                print(f"Task {task_id} failed: {error}")
+                logger.error(f"TASK FAILED | id={task_id[:8]}... | duration={duration:.2f}s | error={error}")
                 self._handle_task_failure(task_id)
             else:
-                print(f"Task {task_id} completed successfully")
+                logger.info(f"TASK COMPLETE | id={task_id[:8]}... | duration={duration:.2f}s | calendar={calendar_id[:8]}... | day={day}")
 
         except Exception as e:
-            error_msg = f"Unexpected error processing task {task_id}: {str(e)}"
-            print(error_msg)
+            duration = time.time() - start_time
+            error_msg = f"Unexpected error: {str(e)}"
+            logger.error(f"TASK ERROR | id={task_id[:8]}... | duration={duration:.2f}s | error={error_msg}")
             TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
             self._handle_task_failure(task_id)
 
@@ -184,14 +206,14 @@ class Worker:
 
             if success:
                 if should_retry:
-                    print(f"Task {task_id} will be retried")
+                    logger.warning(f"TASK RETRY | id={task_id[:8]}... | scheduled for retry")
                 else:
-                    print(f"Task {task_id} failed permanently (max retries exceeded)")
+                    logger.error(f"TASK PERMANENT FAIL | id={task_id[:8]}... | max retries exceeded")
             else:
-                print(f"Failed to handle task failure: {error}")
+                logger.error(f"Failed to handle task failure: {error}")
 
         except Exception as e:
-            print(f"Error handling task failure: {str(e)}")
+            logger.error(f"Error handling task failure: {str(e)}")
 
 
 # Global worker instance (singleton)

@@ -1,4 +1,5 @@
 # Video Compression Tasks - Background Video Processing
+import logging
 import os
 import time
 from typing import Tuple, Dict, Any, Optional
@@ -7,6 +8,17 @@ from pathlib import Path
 from app.services.video_service import process_uploaded_video, get_video_metadata
 from app.tasks.task_queue import TaskQueue, TaskStatus, TaskType
 from app.utils.json_db import calendars_db
+
+# Configure logger (no timestamp - journalctl provides it)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[VIDEO] %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 
 class VideoCompressionTask:
@@ -68,22 +80,19 @@ class VideoCompressionTask:
                 if os.path.exists(original_path):
                     try:
                         os.remove(original_path)
-                        print(f"Cleaned up temp file: {original_path}")
+                        logger.info(f"Cleaned up temp file: {original_path}")
                     except Exception as cleanup_error:
-                        print(f"Failed to clean up temp file: {cleanup_error}")
+                        logger.warning(f"Failed to clean up temp file: {cleanup_error}")
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            print(f"Video compression completed in {processing_time:.2f}s")
-            print(f"Original size: {stats['original_size_mb']}MB")
-            print(f"Compressed size: {stats['compressed_size_mb']}MB")
-            print(f"Size reduction: {stats['reduction_percent']}%")
+            logger.info(f"Compression done | time={processing_time:.2f}s | original={stats['original_size_mb']}MB | compressed={stats['compressed_size_mb']}MB | reduction={stats['reduction_percent']}%")
 
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=80)
 
             metadata_success, video_metadata, metadata_error = get_video_metadata(compressed_path)
             if not metadata_success:
-                print(f"Warning: Could not extract video metadata: {metadata_error}")
+                logger.warning(f"Could not extract video metadata: {metadata_error}")
                 video_metadata = {}
 
             update_success, update_error = VideoCompressionTask._update_calendar_video(
@@ -106,12 +115,12 @@ class VideoCompressionTask:
 
         except Exception as e:
             error_msg = f"Unexpected error during video processing: {str(e)}"
-            print(f"Video compression task error: {error_msg}")
+            logger.error(f"Video compression task error: {error_msg}")
             # Clean up temp file on unexpected error
             if original_path and os.path.exists(original_path):
                 try:
                     os.remove(original_path)
-                    print(f"Cleaned up temp file: {original_path}")
+                    logger.info(f"Cleaned up temp file: {original_path}")
                 except Exception:
                     pass
             TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
@@ -173,7 +182,7 @@ class VideoCompressionTask:
 
         except Exception as e:
             error_msg = f"Calendar update error: {str(e)}"
-            print(error_msg)
+            logger.error(error_msg)
             return False, error_msg
 
     @staticmethod
@@ -232,5 +241,5 @@ class VideoCompressionTask:
 
         except Exception as e:
             error_msg = f"Failed to create video task: {str(e)}"
-            print(error_msg)
+            logger.error(error_msg)
             return False, None, error_msg
