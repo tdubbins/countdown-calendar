@@ -352,12 +352,20 @@ export const useVideoManagement = (calendarId: string) => {
       isUploading.value = true;
       uploadProgress.value = 0;
 
+      // Set day status to 'uploading' immediately
+      dayStatuses.value.set(day, {
+        day,
+        status: 'uploading',
+        progress: 0
+      });
+
       const headers = getAuthHeaders();
       const token = headers['Authorization']?.replace('Bearer ', '');
 
       if (!token) {
         isUploading.value = false;
         uploadProgress.value = 0;
+        dayStatuses.value.set(day, { day, status: 'empty' });
         resolve({
           success: false,
           error: 'No authentication token found'
@@ -375,7 +383,14 @@ export const useVideoManagement = (calendarId: string) => {
 
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
-          uploadProgress.value = Math.round((e.loaded / e.total) * 100);
+          const progress = Math.round((e.loaded / e.total) * 100);
+          uploadProgress.value = progress;
+          // Update day status with progress
+          dayStatuses.value.set(day, {
+            day,
+            status: 'uploading',
+            progress
+          });
         }
       });
 
@@ -413,6 +428,12 @@ export const useVideoManagement = (calendarId: string) => {
             });
           }
         } else {
+          // Upload failed - set status to failed
+          dayStatuses.value.set(day, {
+            day,
+            status: 'failed',
+            error: 'Upload failed'
+          });
           try {
             const errorData = JSON.parse(xhr.responseText);
             resolve({
@@ -431,6 +452,11 @@ export const useVideoManagement = (calendarId: string) => {
       xhr.addEventListener('error', () => {
         isUploading.value = false;
         uploadProgress.value = 0;
+        dayStatuses.value.set(day, {
+          day,
+          status: 'failed',
+          error: 'Network error'
+        });
         resolve({
           success: false,
           error: 'Network error during upload'
@@ -438,9 +464,10 @@ export const useVideoManagement = (calendarId: string) => {
       });
 
       xhr.addEventListener('abort', () => {
-        // Handle abort case
+        // Handle abort case - reset to empty
         isUploading.value = false;
         uploadProgress.value = 0;
+        dayStatuses.value.set(day, { day, status: 'empty' });
         resolve({
           success: false,
           error: 'Upload cancelled'
