@@ -287,17 +287,12 @@
 }
 
 /* ============================================
-   TEXT STYLING - Christmas Red with White Glow
+   TEXT STYLING - Clean White
    ============================================ */
 
 .calendar-description--centered.theme-christmas {
-  color: #dc2626;
-  font-weight: 600;
-  text-shadow:
-    0 0 8px rgba(255, 255, 255, 1),
-    0 0 16px rgba(255, 255, 255, 0.9),
-    0 0 24px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba(0, 0, 0, 0.5);
+  color: white;
+  text-shadow: none;
 }
 
 /* ============================================
