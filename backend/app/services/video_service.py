@@ -9,6 +9,7 @@ from typing import Tuple, Optional, Dict, Any
 # Configure logger (no timestamp - journalctl provides it)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logger.propagate = False  # Prevent duplicate logs from root logger
 
 if not logger.handlers:
     handler = logging.StreamHandler()
