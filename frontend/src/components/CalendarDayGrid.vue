@@ -95,7 +95,6 @@
           <div class="processing-overlay">
             <ion-spinner name="crescent" color="light"></ion-spinner>
             <p>Video is being compressed...</p>
-            <p class="processing-hint">You can delete this video using the button above.</p>
           </div>
         </div>
 
@@ -860,12 +859,6 @@ onUnmounted(() => {
   margin: 0;
   font-size: 1rem;
   font-weight: 500;
-}
-
-.processing-overlay .processing-hint {
-  font-size: 0.85rem;
-  color: #9ca3af;
-  font-weight: 400;
 }
 
 /* Playback Loading State */
