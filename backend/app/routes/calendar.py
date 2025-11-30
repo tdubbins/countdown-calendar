@@ -8,6 +8,7 @@ from flask import Blueprint, request, jsonify, send_file
 # Configure logger with StreamHandler for stdout output
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logger.propagate = False  # Prevent duplicate logs from root logger
 
 if not logger.handlers:
     handler = logging.StreamHandler()
