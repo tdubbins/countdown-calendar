@@ -84,7 +84,7 @@ def compress_video(
         # Get original file size
         original_size = os.path.getsize(input_path)
         original_mb = round(original_size / (1024 * 1024), 2)
-        logger.info(f"Compression starting | size={original_mb}MB | preset=medium")
+        logger.info(f"Compression starting | size={original_mb}MB | preset=fast")
         compress_start = time.time()
 
         # Set up input stream and check for audio
@@ -105,7 +105,7 @@ def compress_video(
                 bufsize='2000k',
                 acodec='aac',
                 audio_bitrate='128k',
-                preset='medium',
+                preset='fast',
                 movflags='faststart',
                 map_metadata=-1
             )
@@ -116,7 +116,7 @@ def compress_video(
                 video_bitrate=target_bitrate,
                 maxrate='1500k',
                 bufsize='2000k',
-                preset='medium',
+                preset='fast',
                 movflags='faststart',
                 map_metadata=-1
             )
@@ -217,31 +217,43 @@ def process_uploaded_video(
     original_path: str,
     compressed_path: str,
     thumbnail_path: str,
-    delete_original: bool = True
+    delete_original: bool = True,
+    on_thumbnail_ready: callable = None
 ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Complete video processing workflow: compress video and generate thumbnail.
+    Complete video processing workflow: generate thumbnail first, then compress.
+
+    Thumbnail is generated first from original video so frontend can display it
+    quickly while compression continues in background.
 
     Args:
         original_path: Path to original uploaded video
         compressed_path: Path for compressed output video
         thumbnail_path: Path for thumbnail output image
         delete_original: Whether to delete original after compression (default: True)
+        on_thumbnail_ready: Optional callback when thumbnail is ready
 
     Returns:
         Tuple of (success, processing_stats, error_message)
     """
-    # Step 1: Compress video
+    # Step 1: Generate thumbnail from original video (fast - allows early display)
+    success, error = generate_thumbnail(original_path, thumbnail_path)
+    if not success:
+        return False, None, f"Thumbnail generation failed: {error}"
+
+    # Notify that thumbnail is ready (for status updates)
+    if on_thumbnail_ready:
+        try:
+            on_thumbnail_ready()
+        except Exception as e:
+            logger.warning(f"Thumbnail ready callback failed: {str(e)}")
+
+    # Step 2: Compress video (slow)
     success, stats, error = compress_video(original_path, compressed_path)
     if not success:
-        return False, None, error
-
-    # Step 2: Generate thumbnail from compressed video
-    success, error = generate_thumbnail(compressed_path, thumbnail_path)
-    if not success:
-        # Clean up compressed video if thumbnail generation fails
-        if os.path.exists(compressed_path):
-            os.remove(compressed_path)
+        # Clean up thumbnail if compression fails
+        if os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
         return False, None, error
 
     # Step 3: Delete original if requested and everything succeeded

@@ -273,7 +273,7 @@ const loadVideos = async () => {
  * Handle day card click
  * - Empty/Failed: Open file picker
  * - Completed: Open playback modal
- * - Processing/Uploading: No action (visual feedback only)
+ * - Processing: Show message that video is still compressing
  */
 const handleDayClick = async (day: number) => {
   const status = getDayStatus(day);
@@ -285,8 +285,10 @@ const handleDayClick = async (day: number) => {
   } else if (status === 'completed') {
     // Open playback modal
     await openPlaybackModal(day);
+  } else if (status === 'processing') {
+    // Video still compressing - show message
+    await showError('Video is still being compressed. Please wait a moment.', 3000);
   }
-  // Processing/uploading: no action
 };
 
 /**
@@ -350,7 +352,8 @@ const handleFileSelect = async (event: Event) => {
 };
 
 /**
- * Watch for completion to announce via ARIA.
+ * Watch for compression completion.
+ * Polls every 15 seconds to check if processing videos have completed.
  * Stores interval IDs to prevent memory leaks.
  */
 const activeWatchers = ref<Map<number, number>>(new Map());
@@ -362,11 +365,15 @@ const watchForCompletion = (day: number) => {
     clearInterval(existingInterval);
   }
 
-  const checkInterval = window.setInterval(() => {
+  // Poll every 15 seconds to check for completion (compression takes ~30-120s)
+  const checkInterval = window.setInterval(async () => {
+    // Reload video statuses from server
+    await loadVideoStatuses();
+
     const status = getDayStatus(day);
 
     if (status === 'completed') {
-      statusAnnouncement.value = `Day ${day} video uploaded successfully`;
+      statusAnnouncement.value = `Day ${day} video ready`;
       emit('uploadComplete', day);
 
       // Clean up
@@ -374,14 +381,14 @@ const watchForCompletion = (day: number) => {
       activeWatchers.value.delete(day);
     } else if (status === 'failed') {
       const error = getDayError(day);
-      statusAnnouncement.value = `Day ${day} upload failed: ${error}`;
+      statusAnnouncement.value = `Day ${day} processing failed: ${error}`;
       emit('uploadError', day, error || 'Processing failed');
 
       // Clean up
       clearInterval(checkInterval);
       activeWatchers.value.delete(day);
     }
-  }, 1000);
+  }, 15000); // Check every 15 seconds
 
   // Store interval ID
   activeWatchers.value.set(day, checkInterval);

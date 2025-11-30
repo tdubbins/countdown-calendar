@@ -126,16 +126,15 @@ export const useVideoManagement = (calendarId: string) => {
         }
 
         // Load thumbnail as data URL if video has one (run in background)
-        if (video.thumbnail && (video.status === 'completed' || !video.status)) {
+        // Also load for 'processing' status - thumbnail is ready before compression finishes
+        if (video.thumbnail && (video.status === 'completed' || video.status === 'processing' || !video.status)) {
           // Don't await - load thumbnails in parallel
           loadThumbnailAsDataUrl(video.day);
         }
       }
 
-      // Start polling if there are active uploads
-      if (activePollDays.value.size > 0) {
-        startPolling();
-      }
+      // No polling needed - thumbnail is generated first and available quickly
+      // Compression happens in background and doesn't affect UI
 
       return {
         success: true,
@@ -396,9 +395,11 @@ export const useVideoManagement = (calendarId: string) => {
             };
             dayStatuses.value.set(day, updatedStatus);
 
-            // Add to polling list
-            activePollDays.value.add(day);
-            startPolling();
+            // Fetch thumbnail after short delay (thumbnail is generated first, before compression)
+            // No continuous polling needed - just one fetch to get the thumbnail
+            setTimeout(async () => {
+              await loadVideoStatuses();
+            }, 3000);
 
             resolve({
               success: true,

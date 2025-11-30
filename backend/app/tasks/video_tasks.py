@@ -62,14 +62,26 @@ class VideoCompressionTask:
                 TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
                 return False, error_msg
 
-            TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=20)
+            TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=5)
+
+            # Callback when thumbnail is ready (before compression starts)
+            def on_thumbnail_ready():
+                logger.info(f"Thumbnail ready for calendar={calendar_id[:8]}... day={day}")
+                TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=10)
+                # Update calendar with thumbnail info so frontend can fetch it early
+                VideoCompressionTask._update_calendar_thumbnail(
+                    calendar_id=calendar_id,
+                    day=day,
+                    thumbnail_path=thumbnail_path
+                )
 
             start_time = time.time()
             success, stats, error = process_uploaded_video(
                 original_path=original_path,
                 compressed_path=compressed_path,
                 thumbnail_path=thumbnail_path,
-                delete_original=True  # Delete original after successful compression
+                delete_original=True,
+                on_thumbnail_ready=on_thumbnail_ready
             )
 
             processing_time = time.time() - start_time
@@ -127,6 +139,41 @@ class VideoCompressionTask:
             return False, error_msg
 
     @staticmethod
+    def _update_calendar_thumbnail(
+        calendar_id: str,
+        day: int,
+        thumbnail_path: str
+    ) -> Tuple[bool, str]:
+        """
+        Update calendar with thumbnail info (called early, before compression).
+        Sets status to 'processing' so frontend knows thumbnail is available.
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        try:
+            calendar = calendars_db.read_calendar_meta(calendar_id)
+            if not calendar:
+                return False, "Calendar not found"
+
+            # Set minimal video info with thumbnail and processing status
+            video_info = {
+                'thumbnail': os.path.basename(thumbnail_path),
+                'status': 'processing'  # Indicates thumbnail ready, compression ongoing
+            }
+
+            videos = calendar.get('videos', {})
+            videos[str(day)] = video_info
+
+            calendars_db.update_calendar_meta(calendar_id, {'videos': videos})
+
+            return True, ""
+
+        except Exception as e:
+            logger.error(f"Calendar thumbnail update error: {str(e)}")
+            return False, str(e)
+
+    @staticmethod
     def _update_calendar_video(
         calendar_id: str,
         day: int,
@@ -136,7 +183,7 @@ class VideoCompressionTask:
         compression_stats: Dict[str, Any]
     ) -> Tuple[bool, str]:
         """
-        Update calendar with video information.
+        Update calendar with full video information (called after compression).
 
         Returns:
             Tuple of (success, error_message)
@@ -147,13 +194,13 @@ class VideoCompressionTask:
             if not calendar:
                 return False, "Calendar not found"
 
-            # Prepare video data for calendar
+            # Prepare full video data for calendar
             video_info = {
                 'filename': os.path.basename(compressed_path),
                 'thumbnail': os.path.basename(thumbnail_path),
                 'size': compression_stats.get('compressed_size', 0),
                 'duration': video_metadata.get('duration', 0),
-                'uploaded_at': calendar.get('updatedAt'),  # Use calendar's updatedAt timestamp
+                'uploaded_at': calendar.get('updatedAt'),
                 'status': 'completed'
             }
 
