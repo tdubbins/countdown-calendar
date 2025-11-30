@@ -68,6 +68,7 @@
     v-if="isMobile"
     :is-open="isOpen"
     :video-url="videoUrl"
+    :require-auth="requireAuth"
     @close="handleClose"
     @video-ended="handleMobileVideoEnded"
   />

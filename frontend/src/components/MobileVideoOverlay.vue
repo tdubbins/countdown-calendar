@@ -29,9 +29,20 @@
         ✕
       </button>
 
-      <!-- Direct Video Element - No wrappers for native playback -->
+      <!-- Loading State -->
+      <div v-if="isLoading" class="mobile-video-loading">
+        <ion-spinner name="crescent" color="light"></ion-spinner>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="mobile-video-error">
+        <p>{{ error }}</p>
+      </div>
+
+      <!-- Video Element - Uses blob URL for authenticated playback -->
       <video
-        :src="videoUrl"
+        v-else-if="blobUrl"
+        :src="blobUrl"
         controls
         playsinline
         autoplay
@@ -45,6 +56,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, onUnmounted } from 'vue';
+import { IonSpinner } from '@ionic/vue';
+import { useMedia } from '@/composables/useMedia';
+
 /**
  * Component Props
  */
@@ -54,6 +69,9 @@ interface Props {
 
   /** Direct video URL */
   videoUrl: string;
+
+  /** Whether JWT authentication is required (true for owner) */
+  requireAuth?: boolean;
 }
 
 /**
@@ -67,12 +85,41 @@ interface Emits {
   (e: 'video-ended'): void;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  requireAuth: false
+});
 const emit = defineEmits<Emits>();
+
+// Composables
+const { fetchMedia } = useMedia();
+
+// State
+const blobUrl = ref('');
+const isLoading = ref(false);
+const error = ref('');
+
+/**
+ * Load video with authentication if required
+ */
+const loadVideo = async () => {
+  if (!props.isOpen || !props.videoUrl) return;
+
+  try {
+    isLoading.value = true;
+    error.value = '';
+
+    // Fetch video with auth header and create blob URL
+    blobUrl.value = await fetchMedia(props.videoUrl, props.requireAuth);
+  } catch (err: any) {
+    error.value = err.message || 'Failed to load video';
+    console.error('Mobile video loading error:', err);
+  } finally {
+    isLoading.value = false;
+  }
+};
 
 /**
  * Handle overlay close
- * Emits close event to parent
  */
 const handleClose = () => {
   emit('close');
@@ -80,11 +127,30 @@ const handleClose = () => {
 
 /**
  * Handle video playback ended
- * Emits video-ended event to parent
  */
 const handleVideoEnded = () => {
   emit('video-ended');
 };
+
+// Load video when overlay opens
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    loadVideo();
+  } else {
+    // Clean up blob URL when closing
+    if (blobUrl.value) {
+      URL.revokeObjectURL(blobUrl.value);
+      blobUrl.value = '';
+    }
+  }
+}, { immediate: true });
+
+// Clean up on unmount
+onUnmounted(() => {
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value);
+  }
+});
 </script>
 
 <style scoped>
@@ -151,5 +217,25 @@ const handleVideoEnded = () => {
   max-height: 90vh;
   display: block;
   background: #000;
+}
+
+/* Loading State */
+.mobile-video-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Error State */
+.mobile-video-error {
+  color: white;
+  text-align: center;
+  padding: 2rem;
+}
+
+.mobile-video-error p {
+  margin: 0;
+  font-size: 1rem;
 }
 </style>
