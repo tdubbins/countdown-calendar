@@ -998,6 +998,9 @@ def delete_video(calendar_id, day):
         if not files_deleted:
             print(f"Warning: No files deleted for calendar {calendar_id}, day {day}")
 
+        # Delete any associated task (for processing videos)
+        TaskQueue.delete_task_by_video(user_id, calendar_id, day)
+
         # Remove from calendar.videos dict
         del videos_dict[str(day)]
 

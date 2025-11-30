@@ -83,7 +83,7 @@ def get_calendar_thumbnail_dir(calendar_id: str) -> Path:
 
 def delete_video_file(calendar_id: str, day: int) -> bool:
     """
-    Delete a single video file and its thumbnail.
+    Delete a single video file, its thumbnail, and temp file (if processing).
 
     Args:
         calendar_id: Calendar ID
@@ -111,6 +111,17 @@ def delete_video_file(calendar_id: str, day: int) -> bool:
             deleted = True
     except Exception as e:
         logger.error(f"Error deleting thumbnail for day {day}: {e}")
+
+    # Also delete temp file if video was still processing
+    try:
+        calendar_id = _sanitize_path_component(calendar_id)
+        temp_path = CALENDARS_BASE_DIR / calendar_id / "temp" / f"{day}.mp4"
+        if temp_path.exists():
+            temp_path.unlink()
+            logger.info(f"Deleted temp file: {temp_path}")
+            deleted = True
+    except Exception as e:
+        logger.error(f"Error deleting temp file for day {day}: {e}")
 
     return deleted
 

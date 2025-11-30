@@ -160,6 +160,40 @@ class TaskQueue:
             return {}
 
     @staticmethod
+    def delete_task_by_video(
+        user_id: str,
+        calendar_id: str,
+        day: int
+    ) -> Tuple[bool, str]:
+        """
+        Delete task for a specific video (used when video is deleted).
+
+        Args:
+            user_id: User ID
+            calendar_id: Calendar ID
+            day: Day number
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        try:
+            all_tasks = tasks_db.find_all('tasks')
+
+            for task_id, task_data in all_tasks.items():
+                if (task_data.get('user_id') == user_id and
+                    task_data.get('calendar_id') == calendar_id and
+                    task_data.get('day') == day):
+                    tasks_db.delete('tasks', task_id)
+                    return True, ""
+
+            # No task found is not an error (video might have been completed)
+            return True, ""
+
+        except Exception as e:
+            print(f"Delete task by video error: {str(e)}")
+            return False, f"Failed to delete task: {str(e)}"
+
+    @staticmethod
     def get_next_pending_task() -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Get next pending task for processing (FIFO order)
