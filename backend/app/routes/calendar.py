@@ -1,8 +1,13 @@
 # Calendar Routes
 import os
+import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, send_file
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 from werkzeug.utils import secure_filename
 
 from app import limiter
@@ -455,6 +460,10 @@ def upload_video(calendar_id):
         temp_filename = f"{day}.mp4"
         temp_path = os.path.join(temp_dir, temp_filename)
 
+        # Log upload start
+        file_size_mb = round(file_size / (1024 * 1024), 2)
+        logger.info(f"[UPLOAD] Started | calendar={calendar_id[:8]}... day={day} size={file_size_mb}MB")
+
         video_file.save(temp_path)
 
         # Validate video duration
@@ -516,6 +525,9 @@ def upload_video(calendar_id):
             return jsonify({
                 'error': f'Failed to create processing task: {task_error}'
             }), 500
+
+        # Log upload finished
+        logger.info(f"[UPLOAD] Finished | calendar={calendar_id[:8]}... day={day} task={task_id[:8]}...")
 
         # Return success response with task information
         # Status "processing" indicates background work in progress
