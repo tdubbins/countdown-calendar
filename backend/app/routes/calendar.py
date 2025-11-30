@@ -5,9 +5,17 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, send_file
 
-# Configure logger
+# Configure logger with StreamHandler for stdout output
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[CALENDAR] %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 from werkzeug.utils import secure_filename
 
 from app import limiter
