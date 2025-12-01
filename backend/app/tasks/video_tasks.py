@@ -5,7 +5,7 @@ import time
 from typing import Tuple, Dict, Any, Optional
 from pathlib import Path
 
-from app.services.video_service import process_uploaded_video, get_video_metadata
+from app.services.video_service import process_uploaded_video, get_video_metadata, validate_video_integrity
 from app.tasks.task_queue import TaskQueue, TaskStatus, TaskType
 from app.utils.json_db import calendars_db
 
@@ -105,6 +105,20 @@ class VideoCompressionTask:
                 return False, error_msg
 
             logger.info(f"Compression done | time={processing_time:.2f}s | original={stats['original_size_mb']}MB | compressed={stats['compressed_size_mb']}MB | reduction={stats['reduction_percent']}%")
+
+            # Validate compressed video integrity
+            integrity_valid, integrity_error = validate_video_integrity(compressed_path)
+            if not integrity_valid:
+                error_msg = f"Compressed video failed integrity check: {integrity_error}"
+                logger.error(f"Post-compression validation failed for calendar={calendar_id[:8]}... day={day}")
+                # Clean up corrupted compressed file
+                if os.path.exists(compressed_path):
+                    try:
+                        os.remove(compressed_path)
+                    except Exception:
+                        pass
+                TaskQueue.update_task_status(task_id, TaskStatus.FAILED, error=error_msg)
+                return False, error_msg
 
             TaskQueue.update_task_status(task_id, TaskStatus.PROCESSING, progress=80)
 
