@@ -32,7 +32,7 @@ from app.services.calendar_service import (
     get_public_calendar
 )
 from app.services.auth_service import AuthService
-from app.services.video_service import generate_thumbnail
+from app.services.video_service import generate_thumbnail, validate_video_integrity
 from app.utils.validators import (
     validate_calendar_id,
     validate_video_file_type,
@@ -486,6 +486,20 @@ def upload_video(calendar_id):
 
             return jsonify({
                 'error': duration_error
+            }), 400
+
+        # Validate video integrity (check for corruption)
+        integrity_valid, integrity_error = validate_video_integrity(temp_path)
+        if not integrity_valid:
+            # Clean up temp file on corruption detection
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+            logger.warning(f"[UPLOAD] Corrupted video rejected | calendar={calendar_id[:8]}... day={day}")
+            return jsonify({
+                'error': integrity_error
             }), 400
 
         # Generate thumbnail synchronously (fast ~1-2s) so it's immediately available

@@ -18,6 +18,56 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+def validate_video_integrity(video_path: str) -> Tuple[bool, str]:
+    """
+    Validate video file integrity by attempting to decode it with FFmpeg.
+
+    This performs a full decode pass without producing output, which catches
+    corruption issues that simple metadata probing would miss (truncated files,
+    corrupted frames, invalid codec data, etc.).
+
+    Args:
+        video_path: Path to the video file to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not os.path.exists(video_path):
+        return False, "Video file not found"
+
+    try:
+        logger.info(f"Validating video integrity: {os.path.basename(video_path)}")
+        start_time = time.time()
+
+        # Use FFmpeg to decode the entire video without producing output
+        # -v error: Only show errors
+        # -i: Input file
+        # -f null -: Discard output (null muxer)
+        # This forces FFmpeg to decode every frame, catching corruption
+        stream = ffmpeg.input(video_path)
+        stream = ffmpeg.output(stream, '-', format='null')
+
+        # Run with error capture - stderr will contain any decode errors
+        ffmpeg.run(stream, capture_stdout=True, capture_stderr=True, overwrite_output=True)
+
+        validation_time = time.time() - start_time
+        logger.info(f"Video integrity validated | time={validation_time:.2f}s")
+
+        return True, ""
+
+    except ffmpeg.Error as e:
+        error_output = e.stderr.decode() if e.stderr else str(e)
+        # Extract meaningful error message
+        error_lines = [line for line in error_output.split('\n') if 'error' in line.lower() or 'invalid' in line.lower() or 'corrupt' in line.lower()]
+        error_summary = error_lines[0] if error_lines else "Video file appears to be corrupted or invalid"
+        logger.error(f"Video integrity check failed: {error_summary}")
+        return False, f"Video file is corrupted or invalid: {error_summary}"
+
+    except Exception as e:
+        logger.error(f"Unexpected error during video validation: {str(e)}")
+        return False, f"Error validating video: {str(e)}"
+
+
 def get_video_metadata(video_path: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
     Extract video metadata using ffprobe.
