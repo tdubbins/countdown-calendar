@@ -1,23 +1,11 @@
 # Calendar Routes
 import os
-import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, send_file
-
-# Configure logger with StreamHandler for stdout output
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.propagate = False  # Prevent duplicate logs from root logger
-
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('[CALENDAR] %(levelname)s: %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
 from werkzeug.utils import secure_filename
+
+from app.utils.logger import logger
 
 from app import limiter
 from app.utils.decorators import token_required
@@ -67,7 +55,7 @@ def get_calendars():
         }), 200
         
     except Exception as e:
-        print(f"Get calendars error: {str(e)}")
+        logger.error(f"Get calendars error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -112,7 +100,7 @@ def create_calendar():
         }), 201
         
     except Exception as e:
-        print(f"Create calendar error: {str(e)}")
+        logger.error(f"Create calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -171,7 +159,7 @@ def get_calendar(calendar_id):
         }), 200
         
     except Exception as e:
-        print(f"Get calendar error: {str(e)}")
+        logger.error(f"Get calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -249,7 +237,7 @@ def update_calendar(calendar_id):
         }), 200
         
     except Exception as e:
-        print(f"Update calendar error: {str(e)}")
+        logger.error(f"Update calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -285,7 +273,7 @@ def delete_calendar(calendar_id):
         return '', 204
 
     except Exception as e:
-        print(f"Delete calendar error: {str(e)}")
+        logger.error(f"Delete calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -326,7 +314,7 @@ def publish_calendar_route(calendar_id):
         }), 200
 
     except Exception as e:
-        print(f"Publish calendar error: {str(e)}")
+        logger.error(f"Publish calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -367,7 +355,7 @@ def unpublish_calendar_route(calendar_id):
         }), 200
 
     except Exception as e:
-        print(f"Unpublish calendar error: {str(e)}")
+        logger.error(f"Unpublish calendar error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -567,7 +555,7 @@ def upload_video(calendar_id):
         }), 201  # 201 Created
 
     except Exception as e:
-        print(f"Video upload error: {str(e)}")
+        logger.error(f"Video upload error: {str(e)}")
         return jsonify({
             'error': 'Internal server error during video upload'
         }), 500
@@ -657,7 +645,7 @@ def list_videos(calendar_id):
         }), 200
 
     except Exception as e:
-        print(f"List videos error: {str(e)}")
+        logger.error(f"List videos error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -717,7 +705,7 @@ def get_all_video_statuses(calendar_id):
         }), 200
 
     except Exception as e:
-        print(f"Get all video statuses error: {str(e)}")
+        logger.error(f"Get all video statuses error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -772,7 +760,7 @@ def get_video_metadata(calendar_id, day):
         }), 200
 
     except Exception as e:
-        print(f"Get video metadata error: {str(e)}")
+        logger.error(f"Get video metadata error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -855,7 +843,7 @@ def get_video_status(calendar_id, day):
             }), 404
 
     except Exception as e:
-        print(f"Get video status error: {str(e)}")
+        logger.error(f"Get video status error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -924,7 +912,7 @@ def get_video_thumbnail(calendar_id, day):
         # Path validation error
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Get thumbnail error: {str(e)}")
+        logger.error(f"Get thumbnail error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -1042,7 +1030,7 @@ def delete_video(calendar_id, day):
         files_deleted = delete_video_file(calendar_id, day)
 
         if not files_deleted:
-            print(f"Warning: No files deleted for calendar {calendar_id}, day {day}")
+            logger.warning(f"No files deleted for calendar {calendar_id}, day {day}")
 
         # Delete any associated task (for processing videos)
         TaskQueue.delete_task_by_video(user_id, calendar_id, day)
@@ -1075,7 +1063,7 @@ def delete_video(calendar_id, day):
         # Path validation error
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Delete video error: {str(e)}")
+        logger.error(f"Delete video error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -1209,5 +1197,5 @@ def reassign_video(calendar_id):
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Reassign video error: {str(e)}")
+        logger.error(f"Reassign video error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500

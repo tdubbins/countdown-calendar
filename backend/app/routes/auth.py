@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.utils.decorators import token_required
+from app.utils.logger import logger
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -46,7 +47,7 @@ def register():
         )
         
         if not email_sent:
-            print(f"Warning: Failed to send verification email: {email_message}")
+            logger.warning(f"Failed to send verification email: {email_message}")
             return jsonify({
                 'success': True,
                 'message': 'User registered successfully, but verification email could not be sent. Please contact support.',
@@ -63,7 +64,7 @@ def register():
         }), 201
         
     except Exception as e:
-        print(f"Registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -87,7 +88,7 @@ def verify_email(token):
         }), 200
 
     except Exception as e:
-        print(f"Email verification error: {str(e)}")
+        logger.error(f"Email verification error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -123,7 +124,7 @@ def resend_verification():
         }), 200
 
     except Exception as e:
-        print(f"Resend verification error: {str(e)}")
+        logger.error(f"Resend verification error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -160,7 +161,7 @@ def login():
         }), 200
         
     except Exception as e:
-        print(f"Login error: {str(e)}")
+        logger.error(f"Login error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -179,7 +180,7 @@ def logout():
         }), 200
         
     except Exception as e:
-        print(f"Logout error: {str(e)}")
+        logger.error(f"Logout error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
@@ -205,7 +206,7 @@ def get_user_profile():
         }), 200
         
     except Exception as e:
-        print(f"Profile error: {str(e)}")
+        logger.error(f"Profile error: {str(e)}")
         return jsonify({
             'error': 'Internal server error'
         }), 500
