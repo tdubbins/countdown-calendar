@@ -1,10 +1,13 @@
 # Flask Application Factory
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import config
 import os
+import time
+
+from app.utils.logger import logger, log_request
 
 
 def rate_limit_error_handler(e):
@@ -65,6 +68,28 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(calendar_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api')
+
+    # Request/Response logging middleware
+    @app.before_request
+    def log_request_start():
+        """Log incoming request details"""
+        request.start_time = time.time()
+        # Skip health check logging to reduce noise
+        if request.path != '/health':
+            logger.info(f">>> {request.method} {request.path}", extra={
+                'method': request.method,
+                'path': request.path,
+                'remote_addr': request.remote_addr
+            })
+
+    @app.after_request
+    def log_request_end(response):
+        """Log response details with duration"""
+        # Skip health check logging to reduce noise
+        if request.path != '/health':
+            duration_ms = (time.time() - getattr(request, 'start_time', time.time())) * 1000
+            log_request(request.method, request.path, response.status_code, duration_ms)
+        return response
 
     # Serve static frontend in production (single container deployment)
     if os.environ.get('SERVE_STATIC', 'false').lower() == 'true':
