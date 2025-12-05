@@ -469,9 +469,9 @@ def upload_video(calendar_id):
         temp_filename = f"{day}.mp4"
         temp_path = os.path.join(temp_dir, temp_filename)
 
-        # Log upload start
+        # Log upload received (file already transferred by Flask before handler runs)
         file_size_mb = round(file_size / (1024 * 1024), 2)
-        logger.info(f"[UPLOAD] Started | calendar={calendar_id[:8]}... day={day} size={file_size_mb}MB")
+        logger.info(f"[UPLOAD] Received | calendar={calendar_id[:8]}... day={day} size={file_size_mb}MB")
 
         video_file.save(temp_path)
 
@@ -549,8 +549,8 @@ def upload_video(calendar_id):
                 'error': f'Failed to create processing task: {task_error}'
             }), 500
 
-        # Log upload finished
-        logger.info(f"[UPLOAD] Finished | calendar={calendar_id[:8]}... day={day} task={task_id[:8]}...")
+        # Log compression queued (thumbnail done, compression task created)
+        logger.info(f"[UPLOAD] Queued | calendar={calendar_id[:8]}... day={day} task={task_id[:8]}...")
 
         # Return success response with task information
         # Status "processing" indicates background work in progress
