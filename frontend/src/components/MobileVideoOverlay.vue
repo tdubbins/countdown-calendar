@@ -148,11 +148,36 @@ const onVideoLoaded = () => {
 };
 
 /**
- * Handle video error event
+ * Handle video error event with specific error messages
  */
-const onVideoError = () => {
-  error.value = 'Failed to load video';
+const onVideoError = (event: Event) => {
   isLoading.value = false;
+
+  // For direct URLs, try to provide more specific error messages
+  if (usingDirectUrl.value) {
+    const video = event.target as HTMLVideoElement;
+    const mediaError = video?.error;
+
+    if (mediaError) {
+      switch (mediaError.code) {
+        case MediaError.MEDIA_ERR_NETWORK:
+          error.value = 'Network error while loading video';
+          break;
+        case MediaError.MEDIA_ERR_DECODE:
+          error.value = 'Video format not supported';
+          break;
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          error.value = 'Video not available';
+          break;
+        default:
+          error.value = 'Failed to load video';
+      }
+    } else {
+      error.value = 'Failed to load video';
+    }
+  } else {
+    error.value = 'Failed to load video';
+  }
 };
 
 /**

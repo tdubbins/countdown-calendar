@@ -130,6 +130,8 @@ const loadMedia = async () => {
   }
 
   // Authenticated videos or images: use blob URL approach
+  // Images use blob because they're small and benefit from auth header support
+  // Authenticated videos need blob to include JWT in request headers
   try {
     isLoading.value = true
     mediaUrl.value = await fetchMedia(props.src, props.requireAuth)
@@ -162,9 +164,34 @@ const onMediaLoad = () => {
  * Handle media load error
  * Called when image or video fails to display
  */
-const onMediaError = () => {
-  error.value = 'Failed to display media'
+const onMediaError = (event: Event) => {
   isLoading.value = false
+
+  // For videos using direct URLs, try to provide more specific error messages
+  if (props.mediaType === 'video' && usingDirectUrl.value) {
+    const video = event.target as HTMLVideoElement
+    const mediaError = video?.error
+
+    if (mediaError) {
+      switch (mediaError.code) {
+        case MediaError.MEDIA_ERR_NETWORK:
+          error.value = 'Network error while loading video'
+          break
+        case MediaError.MEDIA_ERR_DECODE:
+          error.value = 'Video format not supported'
+          break
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          error.value = 'Video not available'
+          break
+        default:
+          error.value = 'Failed to load video'
+      }
+    } else {
+      error.value = 'Failed to load video'
+    }
+  } else {
+    error.value = 'Failed to display media'
+  }
 }
 
 /**
