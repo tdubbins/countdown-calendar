@@ -15,7 +15,9 @@
       </div>
 
       <!-- Calendar Loaded Successfully -->
-      <div v-else-if="calendar" class="calendar-view calendar-container" :class="themeClass">
+      <!-- Fixed Background Layer - stays in place while content scrolls -->
+      <div v-if="calendar" class="calendar-background" :class="themeClass"></div>
+      <div v-if="calendar" class="calendar-view calendar-container" :class="themeClass">
         <!-- Calendar content wrapper -->
         <div class="calendar-content">
         <!-- Header -->
@@ -308,10 +310,25 @@ onMounted(async () => {
   max-width: 32rem;
 }
 
-/* Calendar View - Full screen background container */
+/* Fixed Background Layer - Stays fixed while content scrolls */
+.calendar-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Calendar View - Scrollable content container */
 .calendar-view {
   min-height: 100vh;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 /* Calendar Content - Centered content wrapper */

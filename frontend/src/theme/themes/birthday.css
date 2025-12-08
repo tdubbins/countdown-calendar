@@ -191,7 +191,8 @@
    BACKGROUND - Party Celebration with Floating Balloons
    ============================================ */
 
-.calendar-view.theme-birthday {
+/* Fixed Background Layer - stays in place while content scrolls */
+.calendar-background.theme-birthday {
   /* Festive gradient background - Warm celebration colors */
   background: linear-gradient(
     135deg,
@@ -201,20 +202,22 @@
     #4facfe 75%,
     #00f2fe 100%
   );
-
-  /* Ensure full screen coverage */
-  min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
 }
 
-/* Balloon Float Animation Layers */
+/* Calendar View Container - Transparent to show fixed background */
+.calendar-view.theme-birthday {
+  background: transparent;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Balloon Float Animation Layers on Fixed Background */
 /* Using multiple pseudo-elements for depth effect - same pattern as Christmas snowflakes */
 
 /* Layer 1: Large, slow balloons (background layer) */
-.calendar-view.theme-birthday::before {
+.calendar-background.theme-birthday::before {
   content: '🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈';
-  position: absolute;
+  position: fixed;
   bottom: -150px;
   left: 0;
   right: 0;
@@ -230,9 +233,9 @@
 }
 
 /* Layer 2: Medium balloons (middle layer) */
-.calendar-view.theme-birthday::after {
+.calendar-background.theme-birthday::after {
   content: '🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈 🎈';
-  position: absolute;
+  position: fixed;
   bottom: -120px;
   left: 0;
   right: 0;
@@ -300,16 +303,10 @@
   }
 }
 
-/* Content wrapper to ensure it appears above balloons */
-.calendar-view.theme-birthday .calendar-content {
-  position: relative;
-  z-index: 10;
-}
-
 /* Accessibility: Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .calendar-view.theme-birthday::before,
-  .calendar-view.theme-birthday::after {
+  .calendar-background.theme-birthday::before,
+  .calendar-background.theme-birthday::after {
     animation: none;
     opacity: 0.2;
   }
@@ -317,14 +314,14 @@
 
 /* Mobile optimization - adjusted balloons for small screens */
 @media (max-width: 768px) {
-  .calendar-view.theme-birthday::before {
+  .calendar-background.theme-birthday::before {
     font-size: 28px;
     line-height: 40px;
     letter-spacing: 12px;
     word-spacing: 20px;
   }
 
-  .calendar-view.theme-birthday::after {
+  .calendar-background.theme-birthday::after {
     font-size: 22px;
     line-height: 30px;
     letter-spacing: 10px;
