@@ -13,14 +13,9 @@
 
 <template>
   <div class="media-container">
-    <!-- Loading State: Show spinner while fetching media -->
-    <div v-if="isLoading" class="media-loading" role="status" aria-live="polite">
-      <ion-spinner name="circular" aria-label="Loading media" />
-    </div>
-
     <!-- Error State: Display user-friendly error message -->
     <div
-      v-else-if="error"
+      v-if="error"
       class="media-error"
       role="alert"
       aria-live="assertive"
@@ -30,30 +25,40 @@
     </div>
 
     <!-- Image Display: Show image when loaded -->
-    <img
-      v-else-if="mediaType === 'image'"
-      :src="mediaUrl"
-      :alt="alt"
-      loading="lazy"
-      @load="onMediaLoad"
-      @error="onMediaError"
-    />
+    <template v-else-if="mediaType === 'image'">
+      <div v-if="isLoading" class="media-loading" role="status" aria-live="polite">
+        <ion-spinner name="circular" aria-label="Loading media" />
+      </div>
+      <img
+        v-if="mediaUrl"
+        :src="mediaUrl"
+        :alt="alt"
+        loading="lazy"
+        @load="onMediaLoad"
+        @error="onMediaError"
+      />
+    </template>
 
-    <!-- Video Display: Show video player when loaded -->
-    <video
-      v-else-if="mediaType === 'video'"
-      ref="videoRef"
-      :src="mediaUrl"
-      controls
-      preload="metadata"
-      playsinline
-      @loadeddata="onMediaLoad"
-      @error="onMediaError"
-      @ended="handleVideoEnded"
-    >
-      <!-- Fallback text for browsers that don't support video -->
-      Your browser does not support video playback.
-    </video>
+    <!-- Video Display: Video element always renders when URL is set (so events fire) -->
+    <!-- Loading overlay shows on top while video buffers -->
+    <template v-else-if="mediaType === 'video'">
+      <div v-if="isLoading" class="media-loading media-loading--overlay" role="status" aria-live="polite">
+        <ion-spinner name="circular" aria-label="Loading video" />
+      </div>
+      <video
+        v-if="mediaUrl"
+        ref="videoRef"
+        :src="mediaUrl"
+        controls
+        preload="metadata"
+        playsinline
+        @loadeddata="onMediaLoad"
+        @error="onMediaError"
+        @ended="handleVideoEnded"
+      >
+        Your browser does not support video playback.
+      </video>
+    </template>
   </div>
 </template>
 
@@ -253,6 +258,18 @@ defineExpose({
   min-height: 200px;
   gap: 1rem;
   padding: 1rem;
+}
+
+/* Overlay variant: shows on top of video while it loads */
+.media-loading--overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: unset;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 10;
 }
 
 .media-loading ion-spinner {
