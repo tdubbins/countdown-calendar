@@ -2,20 +2,19 @@
   Media Component - Authenticated Image/Video Display
 
   A unified component for displaying images and videos with optional authentication.
-
-  For videos without auth (public viewers): Uses direct URL for native browser streaming.
-  This allows the browser to efficiently buffer and stream video without loading
-  the entire file into memory - critical for low-storage devices like iPads.
-
-  For videos with auth (owners) and images: Uses blob URL approach to include
-  authentication headers in the request.
+  Fetches media from API, converts to blob URL, and displays with proper loading/error states.
 -->
 
 <template>
   <div class="media-container">
+    <!-- Loading State: Show spinner while fetching media -->
+    <div v-if="isLoading" class="media-loading" role="status" aria-live="polite">
+      <ion-spinner name="circular" aria-label="Loading media" />
+    </div>
+
     <!-- Error State: Display user-friendly error message -->
     <div
-      v-if="error"
+      v-else-if="error"
       class="media-error"
       role="alert"
       aria-live="assertive"
@@ -25,40 +24,29 @@
     </div>
 
     <!-- Image Display: Show image when loaded -->
-    <template v-else-if="mediaType === 'image'">
-      <div v-if="isLoading" class="media-loading" role="status" aria-live="polite">
-        <ion-spinner name="circular" aria-label="Loading media" />
-      </div>
-      <img
-        v-if="mediaUrl"
-        :src="mediaUrl"
-        :alt="alt"
-        loading="lazy"
-        @load="onMediaLoad"
-        @error="onMediaError"
-      />
-    </template>
+    <img
+      v-else-if="mediaType === 'image'"
+      :src="blobUrl"
+      :alt="alt"
+      loading="lazy"
+      @load="onMediaLoad"
+      @error="onMediaError"
+    />
 
-    <!-- Video Display: Video element always renders when URL is set (so events fire) -->
-    <!-- Loading overlay shows on top while video buffers -->
-    <template v-else-if="mediaType === 'video'">
-      <div v-if="isLoading" class="media-loading media-loading--overlay" role="status" aria-live="polite">
-        <ion-spinner name="circular" aria-label="Loading video" />
-      </div>
-      <video
-        v-if="mediaUrl"
-        ref="videoRef"
-        :src="mediaUrl"
-        controls
-        preload="metadata"
-        playsinline
-        @loadeddata="onMediaLoad"
-        @error="onMediaError"
-        @ended="handleVideoEnded"
-      >
-        Your browser does not support video playback.
-      </video>
-    </template>
+    <!-- Video Display: Show video player when loaded -->
+    <video
+      v-else-if="mediaType === 'video'"
+      ref="videoRef"
+      :src="blobUrl"
+      controls
+      preload="metadata"
+      @loadeddata="onMediaLoad"
+      @error="onMediaError"
+      @ended="handleVideoEnded"
+    >
+      <!-- Fallback text for browsers that don't support video -->
+      Your browser does not support video playback.
+    </video>
   </div>
 </template>
 
@@ -107,40 +95,24 @@ const emit = defineEmits<Emits>()
 const { fetchMedia } = useMedia()
 
 // State
-const mediaUrl = ref('')
+const blobUrl = ref('')
 const isLoading = ref(true)
 const error = ref('')
 const videoRef = ref<HTMLVideoElement>()
-const usingDirectUrl = ref(false)
 
 /**
- * Load media from API or set direct URL
+ * Load media from API and create blob URL
  *
- * For public videos (requireAuth=false): Uses direct URL for native browser streaming.
- * This allows efficient buffering without loading the entire video into memory.
- *
- * For authenticated videos/images: Uses blob URL approach to include auth headers.
+ * Fetches the media with optional authentication and converts
+ * the response to a blob URL that can be displayed in the DOM.
  */
 const loadMedia = async () => {
-  error.value = ''
-
-  // Public videos: use direct URL for native browser streaming
-  // This is critical for low-storage devices (e.g., iPads) that can't hold
-  // entire video files in memory
-  if (props.mediaType === 'video' && !props.requireAuth) {
-    isLoading.value = true  // Will be set false by loadeddata event
-    mediaUrl.value = props.src
-    usingDirectUrl.value = true
-    return
-  }
-
-  // Authenticated videos or images: use blob URL approach
-  // Images use blob because they're small and benefit from auth header support
-  // Authenticated videos need blob to include JWT in request headers
   try {
     isLoading.value = true
-    mediaUrl.value = await fetchMedia(props.src, props.requireAuth)
-    usingDirectUrl.value = false
+    error.value = ''
+
+    // Fetch media and get blob URL
+    blobUrl.value = await fetchMedia(props.src, props.requireAuth)
   } catch (err: any) {
     // Set user-friendly error message
     error.value = err.message || 'Failed to load media'
@@ -169,34 +141,9 @@ const onMediaLoad = () => {
  * Handle media load error
  * Called when image or video fails to display
  */
-const onMediaError = (event: Event) => {
+const onMediaError = () => {
+  error.value = 'Failed to display media'
   isLoading.value = false
-
-  // For videos using direct URLs, try to provide more specific error messages
-  if (props.mediaType === 'video' && usingDirectUrl.value) {
-    const video = event.target as HTMLVideoElement
-    const mediaError = video?.error
-
-    if (mediaError) {
-      switch (mediaError.code) {
-        case MediaError.MEDIA_ERR_NETWORK:
-          error.value = 'Network error while loading video'
-          break
-        case MediaError.MEDIA_ERR_DECODE:
-          error.value = 'Video format not supported'
-          break
-        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-          error.value = 'Video not available'
-          break
-        default:
-          error.value = 'Failed to load video'
-      }
-    } else {
-      error.value = 'Failed to load video'
-    }
-  } else {
-    error.value = 'Failed to display media'
-  }
 }
 
 /**
@@ -214,17 +161,16 @@ onMounted(() => {
 
 // Lifecycle: Clean up blob URL on unmount (prevent memory leaks)
 onUnmounted(() => {
-  // Only revoke if we created a blob URL (not for direct URLs)
-  if (mediaUrl.value && !usingDirectUrl.value) {
-    URL.revokeObjectURL(mediaUrl.value)
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value)
   }
 })
 
 // Reactive: Reload media if src changes
 watch(() => props.src, () => {
-  // Clean up old blob URL before creating new one (only if it's a blob URL)
-  if (mediaUrl.value && !usingDirectUrl.value) {
-    URL.revokeObjectURL(mediaUrl.value)
+  // Clean up old blob URL before creating new one
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value)
   }
   loadMedia()
 })
@@ -258,18 +204,6 @@ defineExpose({
   min-height: 200px;
   gap: 1rem;
   padding: 1rem;
-}
-
-/* Overlay variant: shows on top of video while it loads */
-.media-loading--overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  min-height: unset;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: 10;
 }
 
 .media-loading ion-spinner {
