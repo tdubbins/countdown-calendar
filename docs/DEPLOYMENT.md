@@ -400,13 +400,13 @@ jobs:
 
 ```bash
 # Local check
-curl http://localhost:5001/health
+curl http://localhost:5001/api/health
 
 # Via domain
-curl https://calendar.hackcrew.de/health
+curl https://calendar.hackcrew.de/api/health
 
 # Expected response
-{"status":"healthy","environment":"production","message":"Advent Calendar API","version":"1.0.0","debug":false}
+{"status":"healthy","environment":"production","message":"Countdown Calendar API","version":"1.0.0"}
 ```
 
 ## Troubleshooting
