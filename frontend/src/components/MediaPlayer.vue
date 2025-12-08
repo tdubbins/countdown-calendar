@@ -2,7 +2,13 @@
   Media Component - Authenticated Image/Video Display
 
   A unified component for displaying images and videos with optional authentication.
-  Fetches media from API, converts to blob URL, and displays with proper loading/error states.
+
+  For videos without auth (public viewers): Uses direct URL for native browser streaming.
+  This allows the browser to efficiently buffer and stream video without loading
+  the entire file into memory - critical for low-storage devices like iPads.
+
+  For videos with auth (owners) and images: Uses blob URL approach to include
+  authentication headers in the request.
 -->
 
 <template>
@@ -26,7 +32,7 @@
     <!-- Image Display: Show image when loaded -->
     <img
       v-else-if="mediaType === 'image'"
-      :src="blobUrl"
+      :src="mediaUrl"
       :alt="alt"
       loading="lazy"
       @load="onMediaLoad"
@@ -37,9 +43,10 @@
     <video
       v-else-if="mediaType === 'video'"
       ref="videoRef"
-      :src="blobUrl"
+      :src="mediaUrl"
       controls
       preload="metadata"
+      playsinline
       @loadeddata="onMediaLoad"
       @error="onMediaError"
       @ended="handleVideoEnded"
@@ -95,24 +102,40 @@ const emit = defineEmits<Emits>()
 const { fetchMedia } = useMedia()
 
 // State
-const blobUrl = ref('')
+const mediaUrl = ref('')
 const isLoading = ref(true)
 const error = ref('')
 const videoRef = ref<HTMLVideoElement>()
+const usingDirectUrl = ref(false)
 
 /**
- * Load media from API and create blob URL
+ * Load media from API or set direct URL
  *
- * Fetches the media with optional authentication and converts
- * the response to a blob URL that can be displayed in the DOM.
+ * For public videos (requireAuth=false): Uses direct URL for native browser streaming.
+ * This allows efficient buffering without loading the entire video into memory.
+ *
+ * For authenticated videos/images: Uses blob URL approach to include auth headers.
  */
 const loadMedia = async () => {
+  error.value = ''
+
+  // Public videos: use direct URL for native browser streaming
+  // This is critical for low-storage devices (e.g., iPads) that can't hold
+  // entire video files in memory
+  if (props.mediaType === 'video' && !props.requireAuth) {
+    isLoading.value = true  // Will be set false by loadeddata event
+    mediaUrl.value = props.src
+    usingDirectUrl.value = true
+    return
+  }
+
+  // Authenticated videos or images: use blob URL approach
+  // Images use blob because they're small and benefit from auth header support
+  // Authenticated videos need blob to include JWT in request headers
   try {
     isLoading.value = true
-    error.value = ''
-
-    // Fetch media and get blob URL
-    blobUrl.value = await fetchMedia(props.src, props.requireAuth)
+    mediaUrl.value = await fetchMedia(props.src, props.requireAuth)
+    usingDirectUrl.value = false
   } catch (err: any) {
     // Set user-friendly error message
     error.value = err.message || 'Failed to load media'
@@ -141,9 +164,34 @@ const onMediaLoad = () => {
  * Handle media load error
  * Called when image or video fails to display
  */
-const onMediaError = () => {
-  error.value = 'Failed to display media'
+const onMediaError = (event: Event) => {
   isLoading.value = false
+
+  // For videos using direct URLs, try to provide more specific error messages
+  if (props.mediaType === 'video' && usingDirectUrl.value) {
+    const video = event.target as HTMLVideoElement
+    const mediaError = video?.error
+
+    if (mediaError) {
+      switch (mediaError.code) {
+        case MediaError.MEDIA_ERR_NETWORK:
+          error.value = 'Network error while loading video'
+          break
+        case MediaError.MEDIA_ERR_DECODE:
+          error.value = 'Video format not supported'
+          break
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          error.value = 'Video not available'
+          break
+        default:
+          error.value = 'Failed to load video'
+      }
+    } else {
+      error.value = 'Failed to load video'
+    }
+  } else {
+    error.value = 'Failed to display media'
+  }
 }
 
 /**
@@ -161,16 +209,17 @@ onMounted(() => {
 
 // Lifecycle: Clean up blob URL on unmount (prevent memory leaks)
 onUnmounted(() => {
-  if (blobUrl.value) {
-    URL.revokeObjectURL(blobUrl.value)
+  // Only revoke if we created a blob URL (not for direct URLs)
+  if (mediaUrl.value && !usingDirectUrl.value) {
+    URL.revokeObjectURL(mediaUrl.value)
   }
 })
 
 // Reactive: Reload media if src changes
 watch(() => props.src, () => {
-  // Clean up old blob URL before creating new one
-  if (blobUrl.value) {
-    URL.revokeObjectURL(blobUrl.value)
+  // Clean up old blob URL before creating new one (only if it's a blob URL)
+  if (mediaUrl.value && !usingDirectUrl.value) {
+    URL.revokeObjectURL(mediaUrl.value)
   }
   loadMedia()
 })
