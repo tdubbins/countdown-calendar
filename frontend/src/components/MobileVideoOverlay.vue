@@ -9,6 +9,10 @@
   - Simple backdrop overlay
   - Touch-friendly close button (44px minimum)
   - No aspect-ratio constraints for natural video display
+  - Direct URL streaming for public videos (memory efficient)
+
+  For public videos (requireAuth=false): Uses direct URL for native browser streaming.
+  For authenticated videos (requireAuth=true): Uses blob URL to include auth headers.
 
   Optimized for mobile with accessible controls.
 -->
@@ -39,15 +43,18 @@
         <p>{{ error }}</p>
       </div>
 
-      <!-- Video Element - Uses blob URL for authenticated playback -->
+      <!-- Video Element - Direct URL for public, blob URL for authenticated -->
       <video
-        v-else-if="blobUrl"
-        :src="blobUrl"
+        v-else-if="mediaUrl"
+        :src="mediaUrl"
         controls
         playsinline
         autoplay
+        preload="metadata"
         class="mobile-video"
         @ended="handleVideoEnded"
+        @loadeddata="onVideoLoaded"
+        @error="onVideoError"
       >
         Your browser does not support video playback.
       </video>
@@ -94,28 +101,58 @@ const emit = defineEmits<Emits>();
 const { fetchMedia } = useMedia();
 
 // State
-const blobUrl = ref('');
+const mediaUrl = ref('');
 const isLoading = ref(false);
 const error = ref('');
+const usingDirectUrl = ref(false);
 
 /**
- * Load video with authentication if required
+ * Load video - direct URL for public, blob for authenticated
+ *
+ * For public videos: Uses direct URL for native browser streaming.
+ * This is critical for low-storage devices that can't hold entire videos in memory.
+ *
+ * For authenticated videos: Uses blob URL to include auth headers.
  */
 const loadVideo = async () => {
   if (!props.isOpen || !props.videoUrl) return;
 
+  error.value = '';
+
+  // Public videos: use direct URL for native browser streaming
+  if (!props.requireAuth) {
+    isLoading.value = true;  // Will be set false by loadeddata event
+    mediaUrl.value = props.videoUrl;
+    usingDirectUrl.value = true;
+    return;
+  }
+
+  // Authenticated videos: use blob URL approach
   try {
     isLoading.value = true;
-    error.value = '';
-
-    // Fetch video with auth header and create blob URL
-    blobUrl.value = await fetchMedia(props.videoUrl, props.requireAuth);
+    mediaUrl.value = await fetchMedia(props.videoUrl, props.requireAuth);
+    usingDirectUrl.value = false;
   } catch (err: any) {
     error.value = err.message || 'Failed to load video';
     console.error('Mobile video loading error:', err);
   } finally {
     isLoading.value = false;
   }
+};
+
+/**
+ * Handle video loaded event (for direct URL loading state)
+ */
+const onVideoLoaded = () => {
+  isLoading.value = false;
+};
+
+/**
+ * Handle video error event
+ */
+const onVideoError = () => {
+  error.value = 'Failed to load video';
+  isLoading.value = false;
 };
 
 /**
@@ -137,18 +174,19 @@ watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     loadVideo();
   } else {
-    // Clean up blob URL when closing
-    if (blobUrl.value) {
-      URL.revokeObjectURL(blobUrl.value);
-      blobUrl.value = '';
+    // Clean up blob URL when closing (only if it's a blob URL)
+    if (mediaUrl.value && !usingDirectUrl.value) {
+      URL.revokeObjectURL(mediaUrl.value);
     }
+    mediaUrl.value = '';
   }
 }, { immediate: true });
 
 // Clean up on unmount
 onUnmounted(() => {
-  if (blobUrl.value) {
-    URL.revokeObjectURL(blobUrl.value);
+  // Only revoke if we created a blob URL (not for direct URLs)
+  if (mediaUrl.value && !usingDirectUrl.value) {
+    URL.revokeObjectURL(mediaUrl.value);
   }
 });
 </script>
