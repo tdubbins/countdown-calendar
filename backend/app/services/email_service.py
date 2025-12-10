@@ -114,6 +114,11 @@ class EmailService:
 
             verification_url = f"{frontend_url}/verify-email/{token}"
 
+            # In debug mode, log verification link instead of sending email
+            if current_app.debug:
+                logger.info(f"[DEBUG] Verification link for {email}: {verification_url}")
+                return True, "Verification link logged to console (debug mode)"
+
             # Generate email content using template
             email_template = EmailTemplates.verification_email(verification_url)
 
