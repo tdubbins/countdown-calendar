@@ -8,8 +8,8 @@
 ## Docker (Recommended)
 
 ```bash
-git clone https://github.com/tdubbins/countdown-calendar-app.git
-cd countdown-calendar-app
+git clone https://github.com/tdubbins/countdown-calendar.git
+cd countdown-calendar
 cp .env.example .env
 ```
 
@@ -69,7 +69,7 @@ Runs at http://localhost:8080
 ## Project Structure
 
 ```
-countdown-calendar-app/
+countdown-calendar/
 ├── backend/           # Flask API
 │   ├── app/
 │   │   ├── routes/    # API endpoints

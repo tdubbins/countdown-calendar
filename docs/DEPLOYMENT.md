@@ -17,7 +17,7 @@ This guide covers deploying the Countdown Calendar App to a Linux server with Do
 │  - Auto-restart on failure                                   │
 │  - Starts on boot                                            │
 ├─────────────────────────────────────────────────────────────┤
-│  Docker Container (ghcr.io/tdubbins/countdown-calendar-app)  │
+│  Docker Container (ghcr.io/tdubbins/countdown-calendar)  │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │  Flask + Gunicorn (Port 5001)                           │ │
 │  │  ├── /api/*  → REST API                                 │ │
@@ -126,7 +126,7 @@ ExecStart=/usr/bin/docker run --rm \
     -e MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER} \
     -e MAIL_USE_SSL=${MAIL_USE_SSL} \
     -e MAIL_USE_TLS=${MAIL_USE_TLS} \
-    ghcr.io/tdubbins/countdown-calendar-app:latest
+    ghcr.io/tdubbins/countdown-calendar:latest
 
 ExecStop=/usr/bin/docker stop countdown-app
 
@@ -174,7 +174,7 @@ systemctl restart caddy
 ### 7. Pull and Start
 
 ```bash
-docker pull ghcr.io/tdubbins/countdown-calendar-app:latest
+docker pull ghcr.io/tdubbins/countdown-calendar:latest
 systemctl start countdown-app
 ```
 
@@ -316,7 +316,7 @@ cat > /opt/deploy/deploy.sh << 'EOF'
 set -euo pipefail
 
 LOG_FILE="/var/log/countdown-deploy.log"
-DOCKER_IMAGE="ghcr.io/tdubbins/countdown-calendar-app:latest"
+DOCKER_IMAGE="ghcr.io/tdubbins/countdown-calendar:latest"
 
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
