@@ -61,11 +61,6 @@ npm run serve
 
 Runs at http://localhost:8080
 
-## Test Account
-
-- **Email:** test@gmail.com
-- **Password:** TestPass123
-
 ## Project Structure
 
 ```
