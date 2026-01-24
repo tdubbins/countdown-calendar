@@ -16,6 +16,8 @@ cp .env.example .env
 Edit `.env`:
 ```env
 SECRET_KEY=your-secret-key-here
+
+# Optional: SMTP for email verification (not required for dev)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=465
 EMAIL_USER=your@gmail.com
@@ -79,6 +81,30 @@ countdown-calendar/
 ```
 
 ## Common Tasks
+
+### Email Verification (Dev)
+
+Without SMTP configured, verification tokens are logged to the console.
+
+View logs:
+```bash
+# Docker
+docker-compose logs -f backend
+
+# Local development
+# Tokens appear in the terminal running the backend
+```
+
+Look for:
+```
+============================================================
+[DEV] VERIFICATION EMAIL FOR: user@example.com
+[DEV] TOKEN: abc123-...
+[DEV] URL: http://localhost/verify-email/abc123-...
+============================================================
+```
+
+Visit the URL to verify the account.
 
 ### Reset Database
 
