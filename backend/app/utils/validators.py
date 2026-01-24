@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
 from typing import Tuple, Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import bleach
@@ -209,8 +209,10 @@ def validate_calendar_start_date(start_date: str) -> Tuple[bool, str, str]:
         return False, "", "Start date must be in YYYY-MM-DD format"
 
     try:
-        # Validate date is parseable
-        datetime.strptime(start_date.strip(), '%Y-%m-%d')
+        # Validate date is parseable and not in the past
+        parsed_date = datetime.strptime(start_date.strip(), '%Y-%m-%d').date()
+        if parsed_date < date.today():
+            return False, "", "Start date cannot be in the past"
         return True, start_date.strip(), ""
     except ValueError:
         return False, "", "Invalid date provided"
