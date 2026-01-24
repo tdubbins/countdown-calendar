@@ -246,8 +246,7 @@ const validateStartDate = () => {
 
   if (!startDate) {
     errors.value.startDate = 'Start date is required';
-  } else if (mode.value === 'create' && isDateInPast(startDate)) {
-    // Only check for past dates when creating a new calendar
+  } else if (isDateInPast(startDate)) {
     errors.value.startDate = 'Start date cannot be in the past';
   } else {
     errors.value.startDate = '';
