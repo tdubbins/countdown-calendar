@@ -24,13 +24,13 @@ class TestCalendarService(unittest.TestCase):
         self.existing_calendar = {
             'id': self.test_calendar_id,
             'title': 'Original Title',
-            'startDate': '2025-12-01',
+            'startDate': '2026-12-01',
             'duration': 25,
-            'endDate': '2025-12-25',
-            'dateRange': '2025-12-01 to 2025-12-25',
+            'endDate': '2026-12-25',
+            'dateRange': '2026-12-01 to 2026-12-25',
             'userId': self.test_user_id,
-            'createdAt': '2025-10-29T10:00:00Z',
-            'updatedAt': '2025-10-29T10:00:00Z'
+            'createdAt': '2026-10-29T10:00:00Z',
+            'updatedAt': '2026-10-29T10:00:00Z'
         }
 
     @patch('app.services.calendar_service.get_calendar_by_id')
@@ -68,10 +68,10 @@ class TestCalendarService(unittest.TestCase):
         # Mock database update success
         updated_calendar = self.existing_calendar.copy()
         updated_calendar.update({
-            'startDate': '2025-12-10',
+            'startDate': '2026-12-10',
             'duration': 15,
-            'endDate': '2025-12-24',
-            'dateRange': '2025-12-10 to 2025-12-24'
+            'endDate': '2026-12-24',
+            'dateRange': '2026-12-10 to 2026-12-24'
         })
         mock_db.update_calendar_meta.return_value = updated_calendar
         
@@ -79,16 +79,16 @@ class TestCalendarService(unittest.TestCase):
         success, result, error = update_calendar(
             self.test_calendar_id,
             self.test_user_id,
-            start_date='2025-12-10',
+            start_date='2026-12-10',
             duration=15
         )
         
         # Assertions
         self.assertTrue(success)
-        self.assertEqual(result['startDate'], '2025-12-10')
+        self.assertEqual(result['startDate'], '2026-12-10')
         self.assertEqual(result['duration'], 15)
-        self.assertEqual(result['endDate'], '2025-12-24')
-        self.assertEqual(result['dateRange'], '2025-12-10 to 2025-12-24')
+        self.assertEqual(result['endDate'], '2026-12-24')
+        self.assertEqual(result['dateRange'], '2026-12-10 to 2026-12-24')
 
     @patch('app.services.calendar_service.get_calendar_by_id')
     def test_update_calendar_not_found(self, mock_get_calendar):
@@ -171,7 +171,7 @@ class TestCalendarService(unittest.TestCase):
 
         # Mock database update success (will only have updatedAt field)
         updated_calendar = self.existing_calendar.copy()
-        updated_calendar['updatedAt'] = '2025-11-13T12:00:00Z'
+        updated_calendar['updatedAt'] = '2026-11-13T12:00:00Z'
         mock_db.update_calendar_meta.return_value = updated_calendar
 
         # Test update with no fields (should still succeed with updatedAt)

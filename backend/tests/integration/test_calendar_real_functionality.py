@@ -84,16 +84,16 @@ class TestCalendarRealFunctionality(unittest.TestCase):
         success, calendar_data, error = create_calendar(
             user_id=self.test_user_id,
             title="My Advent Calendar",
-            start_date="2025-12-01",
+            start_date="2026-12-01",
             duration=25
         )
 
         self.assertTrue(success, f"Calendar creation failed: {error}")
         self.assertIsNotNone(calendar_data.get('id'))
         self.assertEqual(calendar_data['title'], "My Advent Calendar")
-        self.assertEqual(calendar_data['startDate'], "2025-12-01")
+        self.assertEqual(calendar_data['startDate'], "2026-12-01")
         self.assertEqual(calendar_data['duration'], 25)
-        self.assertEqual(calendar_data['endDate'], "2025-12-25")
+        self.assertEqual(calendar_data['endDate'], "2026-12-25")
 
         calendar_id = calendar_data['id']
 
@@ -148,10 +148,10 @@ class TestCalendarRealFunctionality(unittest.TestCase):
         """Test calendar end date calculations"""
 
         test_cases = [
-            (1, "2025-12-01", "2025-12-01"),   # 1 day calendar
-            (7, "2025-12-01", "2025-12-07"),   # 7 day calendar
-            (25, "2025-12-01", "2025-12-25"),  # 25 day calendar
-            (31, "2025-12-01", "2025-12-31"),  # 31 day calendar
+            (1, "2026-12-01", "2026-12-01"),   # 1 day calendar
+            (7, "2026-12-01", "2026-12-07"),   # 7 day calendar
+            (25, "2026-12-01", "2026-12-25"),  # 25 day calendar
+            (31, "2026-12-01", "2026-12-31"),  # 31 day calendar
         ]
 
         for duration, start_date, expected_end_date in test_cases:
@@ -177,7 +177,7 @@ class TestCalendarRealFunctionality(unittest.TestCase):
         success, calendar_data, error = create_calendar(
             user_id=self.test_user_id,
             title="User 1 Calendar",
-            start_date="2025-12-01",
+            start_date="2026-12-01",
             duration=25
         )
         self.assertTrue(success)
@@ -201,7 +201,7 @@ class TestCalendarRealFunctionality(unittest.TestCase):
         success, calendar_data, error = create_calendar(
             user_id=self.test_user_id,
             title="",  # Empty title
-            start_date="2025-12-01",
+            start_date="2026-12-01",
             duration=25
         )
         self.assertFalse(success)
@@ -211,7 +211,7 @@ class TestCalendarRealFunctionality(unittest.TestCase):
         success, calendar_data, error = create_calendar(
             user_id=self.test_user_id,
             title="Valid Title",
-            start_date="2025-12-01",
+            start_date="2026-12-01",
             duration=0  # Invalid duration
         )
         self.assertFalse(success)
@@ -253,7 +253,7 @@ class TestCalendarRealFunctionality(unittest.TestCase):
             success, calendar_data, error = create_calendar(
                 user_id=self.test_user_id,
                 title=f"Calendar {i+1}",
-                start_date="2025-12-01",
+                start_date="2026-12-01",
                 duration=25
             )
             self.assertTrue(success)

@@ -202,9 +202,9 @@ class TestValidators(unittest.TestCase):
     def test_validate_calendar_start_date_valid(self):
         """Test valid start dates"""
         valid_dates = [
-            "2025-12-01",
-            "2025-01-01",
-            "2025-12-31"
+            "2026-12-01",
+            "2027-01-01",
+            "2026-12-31"
         ]
         
         for date in valid_dates:
