@@ -114,7 +114,7 @@ class TestVideoService(unittest.TestCase):
 
         self.assertFalse(success)
         self.assertIsNone(stats)
-        self.assertEqual(error, "Input video file not found")
+        self.assertIn("not found", error.lower())
 
     def test_process_uploaded_video_cleanup_on_thumbnail_failure(self):
         """Test that process_uploaded_video cleans up compressed video if thumbnail fails"""

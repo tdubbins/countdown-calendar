@@ -27,8 +27,10 @@ jest.mock('vue-router', () => ({
 
 jest.mock('@/composables/useCalendar', () => ({
   useCalendar: () => ({
-    clearCalendarData: jest.fn(),
+    calendars: { value: [] },
+    fetchCalendars: jest.fn(),
   }),
+  clearCalendarData: jest.fn(),
 }));
 
 // Mock API configuration
@@ -261,14 +263,19 @@ describe('useAuth Composable', () => {
         expect(result.success).toBe(true);
         expect(result.message).toContain('Registration successful');
 
-        // Verify API call
+        // Verify API call (includes frontendUrl for verification link)
         expect(globalThis.fetch).toHaveBeenCalledWith(
           API_ENDPOINTS.REGISTER(),
           expect.objectContaining({
             method: 'POST',
-            body: JSON.stringify(registrationData),
           })
         );
+        // Verify the body contains registration data
+        const fetchCall = (globalThis.fetch as jest.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+        expect(requestBody.email).toBe(registrationData.email);
+        expect(requestBody.password).toBe(registrationData.password);
+        expect(requestBody.confirmPassword).toBe(registrationData.confirmPassword);
       });
 
       it('should set loading state during registration', async () => {
