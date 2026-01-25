@@ -48,6 +48,11 @@ def register():
         
         if not email_sent:
             logger.warning(f"Failed to send verification email: {email_message}")
+            logger.info("=" * 60)
+            logger.info(f"[DEV] VERIFICATION EMAIL FOR: {user_data['email']}")
+            logger.info(f"[DEV] TOKEN: {verification_token}")
+            logger.info(f"[DEV] URL: {frontend_url}/verify-email/{verification_token}")
+            logger.info("=" * 60)
             return jsonify({
                 'success': True,
                 'message': 'User registered successfully, but verification email could not be sent. Please contact support.',

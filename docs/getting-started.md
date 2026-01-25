@@ -5,17 +5,19 @@
 - Docker Desktop, or:
 - Python 3.9+, Node.js 18+, FFmpeg
 
-## Docker (Recommended)
+## Setup
 
 ```bash
-git clone https://github.com/tdubbins/countdown-calendar-app.git
-cd countdown-calendar-app
+git clone https://github.com/tdubbins/countdown-calendar.git
+cd countdown-calendar
 cp .env.example .env
 ```
 
 Edit `.env`:
 ```env
 SECRET_KEY=your-secret-key-here
+
+# Optional: SMTP for email verification (not required for dev)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=465
 EMAIL_USER=your@gmail.com
@@ -26,6 +28,8 @@ Generate a secret key:
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
+
+## Run with Docker (Recommended)
 
 Start:
 ```bash
@@ -43,8 +47,6 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-# Edit .env
 python run.py
 ```
 
@@ -55,21 +57,15 @@ Runs at http://localhost:5001
 ```bash
 cd frontend
 npm install
-cp .env.example .env.development
 npm run serve
 ```
 
 Runs at http://localhost:8080
 
-## Test Account
-
-- **Email:** test@gmail.com
-- **Password:** TestPass123
-
 ## Project Structure
 
 ```
-countdown-calendar-app/
+countdown-calendar/
 ├── backend/           # Flask API
 │   ├── app/
 │   │   ├── routes/    # API endpoints
@@ -85,6 +81,30 @@ countdown-calendar-app/
 ```
 
 ## Common Tasks
+
+### Email Verification (Dev)
+
+Without SMTP configured, verification tokens are logged to the console.
+
+View logs:
+```bash
+# Docker
+docker-compose logs -f backend
+
+# Local development
+# Tokens appear in the terminal running the backend
+```
+
+Look for:
+```
+============================================================
+[DEV] VERIFICATION EMAIL FOR: user@example.com
+[DEV] TOKEN: abc123-...
+[DEV] URL: http://localhost/verify-email/abc123-...
+============================================================
+```
+
+Visit the URL to verify the account.
 
 ### Reset Database
 

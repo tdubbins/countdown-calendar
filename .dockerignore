@@ -43,6 +43,7 @@ tests/
 .pytest_cache
 .coverage
 htmlcov/
+.playwright-mcp/
 
 # Data (will be mounted as volume)
 backend/data/

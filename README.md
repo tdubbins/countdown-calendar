@@ -8,8 +8,8 @@ Create custom countdown calendars with video content. Upload videos for each day
 
 ```bash
 # Clone and start with Docker
-git clone https://github.com/tdubbins/countdown-calendar-app.git
-cd countdown-calendar-app
+git clone https://github.com/tdubbins/countdown-calendar.git
+cd countdown-calendar
 cp .env.example .env
 # Edit .env with your SMTP settings
 docker-compose up -d
