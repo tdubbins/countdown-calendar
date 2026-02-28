@@ -29,7 +29,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VUE_APP_API_BASE_URL=${VUE_APP_API_BASE_URL:-http://localhost:5001/api}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:5001/api}
     container_name: countdown-frontend
     ports:
       - "80:80"

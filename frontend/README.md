@@ -12,7 +12,7 @@ cp .env.example .env.development
 ## Run
 
 ```bash
-npm run serve
+npm run dev
 # http://localhost:8080
 ```
 

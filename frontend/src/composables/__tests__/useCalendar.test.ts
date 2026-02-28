@@ -15,21 +15,22 @@
  * Run with: npm run test:unit src/composables/__tests__/useCalendar.test.ts
  */
 
+import { vi } from 'vitest';
 import { useCalendar } from '../useCalendar';
 import { API_ENDPOINTS } from '@/config/api';
 import type { Calendar, CalendarCreateData } from '@/types/calendar';
 
 // Mock dependencies
-jest.mock('@/composables/useAuth', () => ({
+vi.mock('@/composables/useAuth', () => ({
   useAuth: () => ({
-    getAuthHeaders: jest.fn(() => ({
+    getAuthHeaders: vi.fn(() => ({
       'Content-Type': 'application/json',
       Authorization: 'Bearer mock-token',
     })),
   }),
 }));
 
-jest.mock('@/config/api', () => ({
+vi.mock('@/config/api', () => ({
   API_ENDPOINTS: {
     CALENDARS_LIST: () => 'http://localhost:5001/api/calendars',
     CALENDAR_BY_ID: (id: string) => `http://localhost:5001/api/calendars/${id}`,
@@ -69,8 +70,8 @@ describe('useCalendar Composable', () => {
 
   // Setup and teardown
   beforeEach(() => {
-    jest.clearAllMocks();
-    globalThis.fetch = jest.fn();
+    vi.clearAllMocks();
+    globalThis.fetch = vi.fn();
 
     // Reset calendar state between tests using the exported clear function
     const calendar = useCalendar();
@@ -86,7 +87,7 @@ describe('useCalendar Composable', () => {
     describe('Successful creation', () => {
       it('should create calendar successfully', async () => {
         // Mock successful API response
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 201,
           headers: new Headers({
@@ -127,7 +128,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should add new calendar to the beginning of the list', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -145,7 +146,7 @@ describe('useCalendar Composable', () => {
 
         // Mock second calendar creation
         const secondCalendar = { ...mockCalendar, id: 'cal-456', title: 'Second Calendar' };
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 201,
           headers: new Headers({
@@ -166,7 +167,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should set loading state during creation', async () => {
-        (globalThis.fetch as jest.Mock).mockImplementationOnce(
+        (globalThis.fetch as vi.Mock).mockImplementationOnce(
           () =>
             new Promise((resolve) =>
               setTimeout(
@@ -198,7 +199,7 @@ describe('useCalendar Composable', () => {
 
     describe('Failed creation', () => {
       it('should handle validation errors', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 400,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -220,7 +221,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should handle duplicate calendar name', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 409,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -237,7 +238,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should handle network errors', async () => {
-        (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const calendar = useCalendar();
         const result = await calendar.createCalendar(mockCalendarCreateData);
@@ -247,7 +248,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should set loading to false after error', async () => {
-        (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Error'));
+        (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Error'));
 
         const calendar = useCalendar();
         await calendar.createCalendar(mockCalendarCreateData);
@@ -267,7 +268,7 @@ describe('useCalendar Composable', () => {
       it('should load calendars successfully', async () => {
         const mockCalendars = [mockCalendar, { ...mockCalendar, id: 'cal-456' }];
 
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -290,7 +291,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should handle empty calendar list', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -313,7 +314,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should convert Calendar to CalendarSummary', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -342,7 +343,7 @@ describe('useCalendar Composable', () => {
 
     describe('Failed load', () => {
       it('should handle unauthorized error', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 401,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -359,7 +360,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should handle network errors', async () => {
-        (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const calendar = useCalendar();
         const result = await calendar.loadCalendars();
@@ -380,7 +381,7 @@ describe('useCalendar Composable', () => {
 
     describe('Successful fetch', () => {
       it('should fetch calendar by ID successfully', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -416,7 +417,7 @@ describe('useCalendar Composable', () => {
 
     describe('Failed fetch', () => {
       it('should handle calendar not found', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 404,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -433,7 +434,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should handle unauthorized access', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 403,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -467,7 +468,7 @@ describe('useCalendar Composable', () => {
         const updatedCalendar = { ...mockCalendar, title: updateData.title };
 
         // First load calendar list
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -484,7 +485,7 @@ describe('useCalendar Composable', () => {
         await calendar.loadCalendars();
 
         // Then update
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -519,7 +520,7 @@ describe('useCalendar Composable', () => {
         const updatedCalendar = { ...mockCalendar, title: updateData.title };
 
         // Set current calendar
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -536,7 +537,7 @@ describe('useCalendar Composable', () => {
         await calendar.getCalendar(calendarId);
 
         // Update
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -557,7 +558,7 @@ describe('useCalendar Composable', () => {
 
     describe('Failed update', () => {
       it('should handle validation errors', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 400,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -586,7 +587,7 @@ describe('useCalendar Composable', () => {
     describe('Successful deletion', () => {
       it('should delete calendar successfully', async () => {
         // Load calendars first
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -604,7 +605,7 @@ describe('useCalendar Composable', () => {
         expect(calendar.calendarCount.value).toBe(2);
 
         // Delete calendar
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 204,
           headers: new Headers({}),
@@ -629,7 +630,7 @@ describe('useCalendar Composable', () => {
 
       it('should clear currentCalendar if deleted calendar matches', async () => {
         // Set current calendar
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({
@@ -647,7 +648,7 @@ describe('useCalendar Composable', () => {
         expect(calendar.currentCalendar.value).not.toBeNull();
 
         // Delete
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           status: 204,
           headers: new Headers({}),
@@ -660,7 +661,7 @@ describe('useCalendar Composable', () => {
 
     describe('Failed deletion', () => {
       it('should handle calendar not found', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 404,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -677,7 +678,7 @@ describe('useCalendar Composable', () => {
       });
 
       it('should handle unauthorized deletion', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 403,
           headers: new Headers({ 'content-type': 'application/json' }),
@@ -703,7 +704,7 @@ describe('useCalendar Composable', () => {
   describe('clearCalendarData', () => {
     it('should clear all calendar state', async () => {
       // Load calendars
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         headers: new Headers({
@@ -740,7 +741,7 @@ describe('useCalendar Composable', () => {
       const calendar = useCalendar();
 
       // 1. Create calendar
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         status: 201,
         headers: new Headers({
@@ -758,7 +759,7 @@ describe('useCalendar Composable', () => {
 
       // 2. Update calendar
       const updatedCalendar = { ...mockCalendar, title: 'Updated Title' };
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
         headers: new Headers({
@@ -775,7 +776,7 @@ describe('useCalendar Composable', () => {
       expect(calendar.calendars.value[0].title).toBe('Updated Title');
 
       // 3. Delete calendar
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         status: 204,
         headers: new Headers({}),

@@ -18,7 +18,7 @@ RUN npm ci
 COPY frontend/ .
 
 # Build for production (API calls go to same origin /api)
-ENV VUE_APP_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=/api
 RUN npm run build
 
 # =============================================================================

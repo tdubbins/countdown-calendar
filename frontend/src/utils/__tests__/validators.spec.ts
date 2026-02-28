@@ -4,7 +4,6 @@
  * Run with: npm run test:unit
  */
 
-// Jest provides describe, it, expect as globals
 import {
   validateEmail,
   validatePassword,

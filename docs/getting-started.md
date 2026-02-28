@@ -57,7 +57,7 @@ Runs at http://localhost:5001
 ```bash
 cd frontend
 npm install
-npm run serve
+npm run dev
 ```
 
 Runs at http://localhost:8080

@@ -329,7 +329,7 @@ const loadCalendarData = async () => {
 /**
  * Handle upload complete - update state locally without page reload
  */
-const handleUploadComplete = (day: number) => {
+const handleUploadComplete = (_day: number) => {
   // Update video count locally (no need to reload entire calendar)
   // The CalendarDayGrid already updates its own state via polling
   if (calendar.value) {
@@ -349,7 +349,7 @@ const handleUploadError = async (day: number, error: string) => {
 /**
  * Handle video deleted - update state locally without page reload
  */
-const handleVideoDeleted = (day: number) => {
+const handleVideoDeleted = (_day: number) => {
   // Update video count locally (no need to reload entire calendar)
   // The CalendarDayGrid already shows success toast and updates its own state
   if (calendar.value && calendar.value.videoCount > 0) {

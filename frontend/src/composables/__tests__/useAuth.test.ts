@@ -15,26 +15,27 @@
  * Run with: npm run test:unit src/composables/__tests__/useAuth.test.ts
  */
 
+import { vi } from 'vitest';
 import { useAuth } from '../useAuth';
 import { API_ENDPOINTS } from '@/config/api';
 
 // Mock dependencies
-jest.mock('vue-router', () => ({
+vi.mock('vue-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: vi.fn(),
   }),
 }));
 
-jest.mock('@/composables/useCalendar', () => ({
+vi.mock('@/composables/useCalendar', () => ({
   useCalendar: () => ({
     calendars: { value: [] },
-    fetchCalendars: jest.fn(),
+    fetchCalendars: vi.fn(),
   }),
-  clearCalendarData: jest.fn(),
+  clearCalendarData: vi.fn(),
 }));
 
 // Mock API configuration
-jest.mock('@/config/api', () => ({
+vi.mock('@/config/api', () => ({
   API_ENDPOINTS: {
     LOGIN: () => 'http://localhost:5001/api/auth/login',
     REGISTER: () => 'http://localhost:5001/api/auth/register',
@@ -62,10 +63,10 @@ describe('useAuth Composable', () => {
     localStorage.clear();
 
     // Clear all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Reset fetch mock
-    globalThis.fetch = jest.fn();
+    globalThis.fetch = vi.fn();
 
     // Reset auth state using the exported clearAuthData function
     const auth = useAuth();
@@ -88,7 +89,7 @@ describe('useAuth Composable', () => {
     describe('Successful login', () => {
       it('should login successfully with valid credentials', async () => {
         // Mock successful API response
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             token: mockToken,
@@ -129,7 +130,7 @@ describe('useAuth Composable', () => {
 
       it('should set loading state during login', async () => {
         // Mock delayed API response
-        (globalThis.fetch as jest.Mock).mockImplementationOnce(
+        (globalThis.fetch as vi.Mock).mockImplementationOnce(
           () =>
             new Promise((resolve) =>
               setTimeout(
@@ -165,7 +166,7 @@ describe('useAuth Composable', () => {
     describe('Failed login', () => {
       it('should handle invalid credentials', async () => {
         // Mock failed API response
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 401,
           json: async () => ({
@@ -190,7 +191,7 @@ describe('useAuth Composable', () => {
 
       it('should handle network errors', async () => {
         // Mock network error
-        (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const auth = useAuth();
         const result = await auth.login(validCredentials.email, validCredentials.password);
@@ -203,7 +204,7 @@ describe('useAuth Composable', () => {
 
       it('should handle server errors (500)', async () => {
         // Mock server error
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 500,
           json: async () => ({
@@ -219,7 +220,7 @@ describe('useAuth Composable', () => {
       });
 
       it('should set loading to false after error', async () => {
-        (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const auth = useAuth();
         await auth.login(validCredentials.email, validCredentials.password);
@@ -245,7 +246,7 @@ describe('useAuth Composable', () => {
     describe('Successful registration', () => {
       it('should register successfully with valid data', async () => {
         // Mock successful registration
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             message: 'Registration successful. Please check your email to verify your account.',
@@ -271,7 +272,7 @@ describe('useAuth Composable', () => {
           })
         );
         // Verify the body contains registration data
-        const fetchCall = (globalThis.fetch as jest.Mock).mock.calls[0];
+        const fetchCall = (globalThis.fetch as vi.Mock).mock.calls[0];
         const requestBody = JSON.parse(fetchCall[1].body);
         expect(requestBody.email).toBe(registrationData.email);
         expect(requestBody.password).toBe(registrationData.password);
@@ -280,7 +281,7 @@ describe('useAuth Composable', () => {
 
       it('should set loading state during registration', async () => {
         // Mock delayed response
-        (globalThis.fetch as jest.Mock).mockImplementationOnce(
+        (globalThis.fetch as vi.Mock).mockImplementationOnce(
           () =>
             new Promise((resolve) =>
               setTimeout(
@@ -312,7 +313,7 @@ describe('useAuth Composable', () => {
     describe('Failed registration', () => {
       it('should handle duplicate email error', async () => {
         // Mock duplicate email error
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 400,
           json: async () => ({
@@ -332,7 +333,7 @@ describe('useAuth Composable', () => {
       });
 
       it('should handle password mismatch', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 400,
           json: async () => ({
@@ -352,7 +353,7 @@ describe('useAuth Composable', () => {
       });
 
       it('should handle weak password error', async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+        (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
           ok: false,
           status: 400,
           json: async () => ({
@@ -372,7 +373,7 @@ describe('useAuth Composable', () => {
       });
 
       it('should handle network errors', async () => {
-        (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const auth = useAuth();
         const result = await auth.register(
@@ -411,7 +412,7 @@ describe('useAuth Composable', () => {
       expect(auth.isAuthenticated.value).toBe(true);
 
       // Mock successful logout API call
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -440,7 +441,7 @@ describe('useAuth Composable', () => {
 
     it('should clear data even if logout API fails', async () => {
       // Mock failed logout API
-      (globalThis.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (globalThis.fetch as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const auth = useAuth();
       await auth.logout();
@@ -485,7 +486,7 @@ describe('useAuth Composable', () => {
       expect(auth.isAuthenticated.value).toBe(false);
 
       // Mock successful login
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           token: mockToken,
@@ -504,7 +505,7 @@ describe('useAuth Composable', () => {
       expect(auth.isAuthenticated.value).toBe(true);
 
       // Mock logout
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -521,7 +522,7 @@ describe('useAuth Composable', () => {
    */
   describe('Token persistence', () => {
     it('should store token in localStorage after login', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           token: mockToken,
@@ -536,7 +537,7 @@ describe('useAuth Composable', () => {
     });
 
     it('should store user data in localStorage after login', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           token: mockToken,
@@ -627,7 +628,7 @@ describe('useAuth Composable', () => {
   describe('Integration scenarios', () => {
     it('should handle complete login → logout flow', async () => {
       // Mock login
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           token: mockToken,
@@ -642,7 +643,7 @@ describe('useAuth Composable', () => {
       expect(auth.isAuthenticated.value).toBe(true);
 
       // Mock logout
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -655,7 +656,7 @@ describe('useAuth Composable', () => {
 
     it('should handle session persistence across page reloads', async () => {
       // First session: login
-      (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
+      (globalThis.fetch as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           token: mockToken,

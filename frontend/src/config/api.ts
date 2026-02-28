@@ -1,5 +1,5 @@
 const getBaseUrl = (): string => {
-  const envUrl = process.env.VUE_APP_API_BASE_URL;
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
   if (envUrl) {
     return envUrl;
   }

@@ -64,8 +64,8 @@ interface LoggerConfig {
  * - DEBUG level and above in development
  */
 const defaultConfig: LoggerConfig = {
-  enabled: process.env.NODE_ENV !== 'production',
-  minLevel: process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.DEBUG,
+  enabled: !import.meta.env.PROD,
+  minLevel: import.meta.env.PROD ? LogLevel.INFO : LogLevel.DEBUG,
   includeTimestamp: true,
   includeStackTrace: true
 };

@@ -2,8 +2,8 @@
 FROM node:18-alpine AS build
 
 # Build argument for API URL (passed from docker-compose)
-ARG VUE_APP_API_BASE_URL=http://localhost:5001/api
-ENV VUE_APP_API_BASE_URL=$VUE_APP_API_BASE_URL
+ARG VITE_API_BASE_URL=http://localhost:5001/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 WORKDIR /app
 
