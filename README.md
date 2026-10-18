@@ -2,7 +2,7 @@
 
 Create custom countdown calendars with video content. Upload videos for each day, share via unique links, and let recipients unlock doors daily.
 
-**Live:** https://calendar.hackcrew.de
+**Note:** The hosted instance at calendar.hackcrew.de has been taken offline. Run it locally with Docker as shown below.
 
 ## Quick Start
 
@@ -21,7 +21,6 @@ Open http://localhost
 
 - **[Getting Started](docs/getting-started.md)** - Installation and local development
 - **[API Reference](docs/api.md)** - REST API endpoints
-- **[Deployment](docs/deployment.md)** - Production setup with Docker & Caddy
 
 ## Tech Stack
 
